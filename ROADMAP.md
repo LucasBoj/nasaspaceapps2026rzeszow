@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 13:40 CET
+**Ostatnia aktualizacja:** 2026-11-14 14:30 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -35,6 +35,11 @@
 - [x] Prawdziwe miejsca lądowania: 130 kandydatów z Wueller et al. (2026, JGR Planets, doi:10.1029/2025JE009434; dane Zenodo 10.5281/zenodo.17084058, CC-BY-4.0) → `pipeline/data/wueller2026_sites.csv`; wszystkie 9 regionów pokryte (78 kandydatów, fallback siatki niepotrzebny) — 2026-11-14 13:35 — `7578ae8` — AI: Claude Code
 - [x] Wybór najlepszego miejsca w każdym regionie (`select_sites.py`): filtr nachylenia z DEM, ocena 2027–28, ranking; `sites.json` z `source`, `candidateId`, `regionCenter`, `alternatives`; `illumination/candidates/*.json` do nakładki; przeliczone `illumination/*.json` — 2026-11-14 13:35 — `7578ae8` — AI: Claude Code. Wyniki np. Malapert 41,5% → 81,9% czasu w świetle, Nobile Rim 2: 0% → 53,8%.
 - [x] Walidacja z twierdzeniem NASA o 6,5 dnia ciągłego światła: 9/9 regionów spełnia (test + tabela w `pipeline/README.md`). Uwaga: twierdzenie NASA z 2022 dotyczy dosłownie 5 z 9 regionów; dla 4 dodanych w 2024 to nasze kryterium. Dodatkowo kontrola spójności z wyliczeniami autorów (`SunDays`): 15/18 zgodnych — 2026-11-14 13:35 — `7578ae8` — AI: Claude Code
+- [x] Model energii i łączności w C#: `MissionSimulator` (bilans baterii godzina po godzinie, łączność, najdłuższa ciemność, wykrycie wyczerpania baterii, werdykt FEASIBLE / MARGINAL / NOT FEASIBLE z powodem w jednym zdaniu i najsłabszym rodzajem danych, w tym WHAT-IF), `IlluminationRepository` (leniwe wczytywanie i cache) — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
+- [x] Optymalizator okien (`WindowOptimizer`): 9 miejsc × każdy dzień okna, ocena 0–100 (50 × zapas baterii + 30 × łączność + 20 × światło; 0 = niewykonalne), obliczenia w porcjach z paskiem postępu w HUD; przy remisie wygrywa najwcześniejsza data. Czas w WASM: ~2,5 s za pierwszym razem (z wczytaniem danych), ~0,8 s kolejne — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
+- [x] Panel wyników: przycisk RUN ANALYSIS, linia werdyktu, oś czasu SVG (światło / Ziemia / bateria + próg, odczyt pod kursorem), mapa ciepła na canvas (etykiety miesięcy, legenda, BEST WINDOW, klik → miejsce + data + przelot kamery), przyciski „najlepsza data” dla klawiatury, plakietka RESULTS OUTDATED; naprawiona składnia `[class.expanded]`; okno dat przycinane do zakresu danych z komunikatem — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
+- [x] Testy xUnit `SeleneFrontend.Tests` (14): ręcznie policzony przypadek SoC, wyczerpanie baterii w ciemności i w dzień, reguły MARGINAL, wzór oceny, rozstrzyganie remisów — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
+- [x] Usunięte zagnieżdżone `SeleneFrontend/.git` (historia była już scalona w `747f5bf`) — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -46,13 +51,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P0
 
-- [ ] **Model energii i łączności w C#**: bilans baterii godzina po godzinie z `illumination/{siteId}.json` i parametrów lądownika — B
-  - Gotowe, gdy: serwis liczy dla wybranego okna serię stanu baterii (SoC) i łączności, zwraca werdykt (wykonalne/niewykonalne + powód) oraz ma testy jednostkowe z ręcznie policzonym przypadkiem.
-  - Uwaga: frontend nie czyta jeszcze plików `illumination/*.json`. Parametry lądownika brać przez `MissionConfigState.Effective(...)` (uwzględnia what-if), a `dayLoadW` i `missionDurationDays` z presetu. Werdykt powinien pokazywać najsłabszy rodzaj danych wejściowych (np. „based on ASSUMPTION”).
-- [ ] **Panel wyników**: oś czasu (światło / łączność / bateria) i werdykt w jednym zdaniu; podpięcie przycisku „RUN ANALYSIS” — C
-  - Gotowe, gdy: po kliknięciu „RUN ANALYSIS” pasek wyników pokazuje 3 ścieżki dla wybranego okna i jedno zdanie werdyktu. Przy okazji naprawić składnię `[class.expanded]` w `ResultsStrip.razor` (to Angular, nie Blazor).
-- [ ] **Mapa ciepła „miejsce × data lądowania”** z oceną wykonalności (optymalizator) — B + C
-  - Gotowe, gdy: dla 9 miejsc i każdego dnia okna widać kolor oceny, a kliknięcie komórki ustawia miejsce i datę.
 - [ ] **Demo działa offline** — C
   - Gotowe, gdy: aplikacja z laptopa bez internetu ładuje się z lokalnym Cesium (nie z CDN), lokalnymi czcionkami i podręcznym zestawem kafli Moon Trek dla bieguna (albo ma fallback bez zdjęć), co jest sprawdzone przy wyłączonym Wi-Fi.
 - [ ] **Atrybucja danych w stopce** (NASA/JPL Moon Trek, LRO LOLA, Cesium ion, NAIF) — C
@@ -66,6 +64,9 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P1
 
+- [ ] **Ocena optymalizatora się nasyca** — dla lądowników o małym poborze (np. Nova-C) wiele okien ma 100/100, więc mapa ciepła słabo różnicuje opcje. Dodać składnik rozróżniający (np. zapas energii w Wh, liczba godzin poniżej progu, najdłuższa ciemność) — B
+  - Gotowe, gdy: dla Nova-C i Blue Ghost najlepsze okna różnią się oceną, a wzór jest opisany w komentarzu i w teście.
+- [ ] **Pole „Time Step [h]” w sekcji 03 nic nie robi** — dane mają krok 1 h. Usunąć je albo zablokować z opisem „data step: 1 h” — C
 - [ ] **Nakładka kandydatów na mapie**: pinezki/kropki z `illumination/candidates/{regionId}.json` (kolor wg lit %, odrzucone wyszarzone) i alternatywy z `sites.json` w panelu sekcji 01 — C
   - Gotowe, gdy: po wybraniu regionu widać wszystkich ocenionych kandydatów z wartościami w tooltipie, a kliknięcie alternatywy przełącza miejsce.
 - [ ] **Pokazanie źródła miejsca w UI** (`source`, `candidateId`, „best of N”) w sekcji 01, z linkiem do DOI — C
@@ -103,10 +104,15 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — `CLAUDE.md` i `ROADMAP.md` na podstawie przeglądu kodu
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — wybór lądownika tylko do odczytu (SPECS z pochodzeniem danych, LANDER IMPACT, what-if), weryfikacja dostępności linków źródłowych, testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
 
 ## ⚠️ Known issues / ryzyka
 
 - ~~Przybliżone współrzędne miejsc~~ — rozwiązane w `7578ae8` (miejsca z Wueller et al. 2026).
+- **Optymistyczny model produkcji energii** — produkcja = moc nominalna paneli × ułamek widocznej tarczy Słońca. Nie uwzględnia orientacji paneli względem nisko stojącego Słońca, temperatury, sprawności ładowania i rozładowania ani degradacji. Wyniki traktować jako górną granicę; na pitchu mówić o tym wprost.
+- **Lądowanie zawsze o 00:00 UTC** — optymalizator sprawdza jedną godzinę lądowania na dzień i nie modeluje ograniczeń trajektorii ani startu.
+- **Okno w sekcji 03 to daty lądowania** — misja musi zmieścić się w danych, więc ostatni możliwy dzień lądowania to koniec danych minus długość misji.
+- **Mapa ciepła to canvas** — czytnik ekranu dostaje tylko opis; obsługa z klawiatury przez przyciski „najlepsza data” pod mapą.
 - **Dwie definicje „światła”** — `index.json → pctSunlit` liczy każde światło (`sunFraction > 0`), a wybór miejsc i walidacja używają `sunFraction ≥ 50` (`sunPct` w `candidates/*.json`). W UI i na pitchu zawsze podawać, którą liczbę pokazujemy.
 - **Optymizm DEM 120 m** — rozdzielczość 120 m wygładza drobną rzeźbę, co zawyża oświetlenie i zaniża nachylenia (wszyscy kandydaci ≤ 4°). Opcja P2: przeliczyć wybrane miejsca na DEM 20–60 m.
 - **Twierdzenie NASA o 6,5 dnia** pochodzi z komunikatu z 2022 (13 regionów) i dosłownie obejmuje tylko 5 z naszych 9 regionów. Na pitchu nie mówić „NASA potwierdza dla wszystkich 9”.
@@ -116,7 +122,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Brak tokena lub terenu 3D** — bez tokena działa tylko tryb 2D. Token jest tylko lokalnie (gitignored). Asset Moon Terrain `2684829` nie jest jeszcze dodany do konta Cesium ion, więc aplikacja pokazuje „3D TERRAIN UNAVAILABLE”.
 - **Przybliżenie liniowe tarczy Słońca** — maksymalny błąd to 5,8 pkt proc. przy częściowym zakryciu. Statystyka „jakiekolwiek światło” nie jest dotknięta.
 - **Uproszczenia modelu** — Księżyc jako sfera R = 1737,4 km, horyzont do 150 km, DEM 120 m/px, okres 2027–28 (nie pełny cykl 18,6 roku). „Ziemia widoczna” to nie to samo co kontakt ze stacją DSN.
-- **Zagnieżdżone `SeleneFrontend/.git`** — git uruchomiony w tym katalogu trafia do starego repo bez remote. Do usunięcia albo przeniesienia (wymaga decyzji).
+- ~~Zagnieżdżone `SeleneFrontend/.git`~~ — usunięte w `1e7a604`.
 - **Atrybucja ukryta** — kredyty Cesium są schowane, a stopki ze źródłami nie ma. → P0.
-- **Drobne błędy UI** — `[class.expanded]` w `ResultsStrip.razor` nie działa; lista miejsc nie synchronizuje się z wyborem; brak `favicon.ico` (404 w konsoli); statusy w górnym pasku są wpisane na sztywno.
+- **Drobne błędy UI** — lista miejsc nie synchronizuje się z wyborem; brak `favicon.ico` (404 w konsoli); statusy w górnym pasku są wpisane na sztywno. (`[class.expanded]` naprawione w `1e7a604`.)
 - **GitHub Pages** — `<base href="/">` nie zadziała pod podścieżką repo.
