@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <!--
+    The simulation logic is UI-free, so its sources are linked directly instead of referencing
+    the Blazor WebAssembly project (keeps tests fast and independent of the WASM build / a running dotnet watch).
+  -->
+  <ItemGroup>
+    <Compile Include="..\SeleneFrontend\Models\IlluminationSeries.cs" Link="Linked\IlluminationSeries.cs" />
+    <Compile Include="..\SeleneFrontend\Models\LanderPreset.cs" Link="Linked\LanderPreset.cs" />
+    <Compile Include="..\SeleneFrontend\Services\MissionSimulator.cs" Link="Linked\MissionSimulator.cs" />
+    <Compile Include="..\SeleneFrontend\Services\WindowOptimizer.cs" Link="Linked\WindowOptimizer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

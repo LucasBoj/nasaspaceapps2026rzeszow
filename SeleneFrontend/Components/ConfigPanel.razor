@@ -2,6 +2,8 @@
 @using SeleneFrontend.Models
 @using SeleneFrontend.Services
 @inject MissionConfigState MissionState
+@inject AnalysisService Analysis
+@implements IDisposable
 
 <div class="config-panel-content">
     <section class="config-section">
@@ -45,12 +47,22 @@
         <h2><span class="section-number">03</span>MISSION WINDOW</h2>
         <div class="section-body">
             <div class="field">
-                <label>Window Start</label>
-                <input type="date" @onchange="@((ChangeEventArgs e) => OnStartDateChanged(e.Value?.ToString() ?? ""))" />
+                <label for="win-start">Landing Window Start (UTC)</label>
+                <input id="win-start" @key="@($"ws-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowStart)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
+                       @onchange="@((ChangeEventArgs e) => OnStartDateChanged(e.Value?.ToString() ?? ""))" />
             </div>
             <div class="field">
-                <label>Window End</label>
-                <input type="date" @onchange="@((ChangeEventArgs e) => OnEndDateChanged(e.Value?.ToString() ?? ""))" />
+                <label for="win-end">Landing Window End (UTC)</label>
+                <input id="win-end" @key="@($"we-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowEnd)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
+                       @onchange="@((ChangeEventArgs e) => OnEndDateChanged(e.Value?.ToString() ?? ""))" />
+                @if (MissionState.WindowNotice is { } notice)
+                {
+                    <small class="window-notice" role="status">Window clipped — @notice</small>
+                }
+                else if (!string.IsNullOrEmpty(MissionState.DataRangeText))
+                {
+                    <small class="window-hint">@MissionState.DataRangeText</small>
+                }
             </div>
             <div class="field">
                 <label>Mission Duration [Earth days]</label>
@@ -78,7 +90,10 @@
     </section>
 
     <div class="config-actions">
-        <button class="btn-primary" disabled title="computation engine not connected">RUN ANALYSIS</button>
+        <button class="btn-primary" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? "Simulate every landing day for all 9 regions")"
+                @onclick="Analysis.RunAsync">
+            @(Analysis.IsRunning ? $"ANALYZING… {Analysis.Progress * 100:0}%" : "RUN ANALYSIS")
+        </button>
         <button class="btn-secondary" @onclick="@(() => MissionState.Reset())">Reset</button>
     </div>
 </div>
@@ -87,9 +102,20 @@
     // type=number inputs need invariant formatting; the browser culture (pl) would render "6,5".
     private static string Inv(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
 
+    private static string? Day(DateTime? d) => d?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
     protected override void OnInitialized()
     {
-        MissionState.OnStateChanged += StateHasChanged;
+        MissionState.OnStateChanged += Refresh;
+        Analysis.OnChanged += Refresh;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        MissionState.OnStateChanged -= Refresh;
+        Analysis.OnChanged -= Refresh;
     }
 
     private async Task OnSiteSelected(string siteId)

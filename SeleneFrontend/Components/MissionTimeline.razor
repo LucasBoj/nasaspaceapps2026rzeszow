@@ -1,0 +1,136 @@
+@using System.Globalization
+@using SeleneFrontend.Services
+
+@* Three tracks over mission time: sunlight bars, Earth visibility, battery state of charge. *@
+<div class="timeline">
+    <div class="timeline-readout" aria-live="polite">@Readout</div>
+    <div class="timeline-body">
+        <div class="timeline-labels" aria-hidden="true">
+            <span style="top: 8%">LIGHT</span>
+            <span style="top: 34%">EARTH</span>
+            <span style="top: 52%">BATTERY</span>
+        </div>
+        <div class="timeline-plot" @onmouseleave="() => hover = -1">
+            <svg viewBox="0 0 @N 100" preserveAspectRatio="none" class="timeline-svg" role="img"
+                 aria-label="@AriaSummary">
+                <rect class="tl-bg" x="0" y="0" width="@N" height="30" />
+                <rect class="tl-bg" x="0" y="35" width="@N" height="10" />
+                <rect class="tl-bg" x="0" y="50" width="@N" height="48" />
+
+                @for (var i = 0; i < N; i++)
+                {
+                    var sf = Result.Sun[i];
+                    if (sf > 0)
+                    {
+                        var h = sf * 0.28;
+                        <rect class="tl-sun @(sf >= 50 ? "" : "partial")" x="@F(i)" y="@F(30 - h)" width="1.02" height="@F(h)" />
+                    }
+                }
+
+                @foreach (var (from, len) in EarthRuns())
+                {
+                    <rect class="tl-earth" x="@F(from)" y="36.5" width="@F(len)" height="7" />
+                }
+
+                <line class="tl-threshold" x1="0" x2="@N" y1="@F(SocY(ThresholdPct))" y2="@F(SocY(ThresholdPct))"
+                      vector-effect="non-scaling-stroke" />
+                <polyline class="tl-soc" points="@SocPoints()" vector-effect="non-scaling-stroke" />
+
+                @if (Result.DepletedAtStep is { } d)
+                {
+                    <line class="tl-depleted" x1="@F(d + 0.5)" x2="@F(d + 0.5)" y1="0" y2="100" vector-effect="non-scaling-stroke" />
+                }
+
+                @if (hover >= 0)
+                {
+                    <rect class="tl-cursor" x="@F(hover)" y="0" width="1" height="100" />
+                }
+
+                @for (var i = 0; i < N; i++)
+                {
+                    var step = i;
+                    <rect class="tl-hit" x="@F(i)" y="0" width="1" height="100" @onmouseover="() => hover = step">
+                        <title>@Describe(step)</title>
+                    </rect>
+                }
+            </svg>
+            <div class="timeline-days" aria-hidden="true">
+                @foreach (var (day, left) in DayTicks())
+                {
+                    <span style="left: @F(left)%">@day</span>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="timeline-legend" aria-hidden="true">
+        <span><i class="lg-sun"></i>sunlight (≥ 50 % disk)</span>
+        <span><i class="lg-sun partial"></i>partial</span>
+        <span><i class="lg-earth"></i>Earth visible</span>
+        <span><i class="lg-soc"></i>battery</span>
+        <span><i class="lg-threshold"></i>min battery @F(ThresholdPct)%</span>
+        <span>x axis: mission day</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public SimulationResult Result { get; set; } = null!;
+    [Parameter] public double ThresholdPct { get; set; }
+
+    private int hover = -1;
+    private int N => Result.Steps;
+
+    // The SVG has ~2 elements per hour; only re-render when the mission or the hover changes
+    // (parents re-render often, e.g. on every analysis progress update).
+    private SimulationResult? renderedResult;
+    private int renderedHover = -2;
+    private double renderedThreshold = double.NaN;
+
+    protected override bool ShouldRender() =>
+        !ReferenceEquals(renderedResult, Result) || renderedHover != hover || renderedThreshold != ThresholdPct;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        renderedResult = Result;
+        renderedHover = hover;
+        renderedThreshold = ThresholdPct;
+    }
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+    private static double SocY(double pct) => 98 - Math.Clamp(pct, 0, 100) * 0.48;
+
+    private string SocPoints() =>
+        string.Join(' ', Enumerable.Range(0, N).Select(i => $"{F(i + 0.5)},{F(SocY(Result.SocPct[i]))}"));
+
+    private IEnumerable<(int From, int Len)> EarthRuns()
+    {
+        int start = -1;
+        for (var i = 0; i <= N; i++)
+        {
+            var on = i < N && Result.Earth[i] == 1;
+            if (on && start < 0) start = i;
+            if (!on && start >= 0) { yield return (start, i - start); start = -1; }
+        }
+    }
+
+    private IEnumerable<(string Day, double LeftPct)> DayTicks()
+    {
+        var days = (int)Math.Ceiling(Result.DurationDays);
+        var every = days > 40 ? 10 : days > 20 ? 5 : days > 10 ? 2 : 1;
+        for (var d = 0; d < days; d += every)
+        {
+            yield return ((d + 1).ToString(CultureInfo.InvariantCulture), d * 24 / Result.StepHours / N * 100);
+        }
+    }
+
+    private string Describe(int i) =>
+        $"{Result.TimeAt(i):yyyy-MM-dd HH:mm} UTC · day {Result.MissionDay(i)} · Sun {Result.Sun[i]}% · " +
+        $"Earth {(Result.Earth[i] == 1 ? "visible" : "hidden")} · battery {Result.SocPct[i]:0}%";
+
+    private string Readout => hover >= 0 && hover < N
+        ? Describe(hover)
+        : $"Hover the timeline · landing {Result.LandingUtc:yyyy-MM-dd HH:mm} UTC · {Result.DurationDays:0.#} days · longest darkness {Result.LongestDarkH:0} h";
+
+    private string AriaSummary =>
+        $"Mission timeline: {Result.DurationDays:0.#} days, sunlight {Result.SunPct:0}% of the time, " +
+        $"Earth visible {Result.CommsPct:0}%, minimum battery {Result.MinSocPct:0}%.";
+}

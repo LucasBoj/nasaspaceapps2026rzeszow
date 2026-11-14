@@ -5,6 +5,7 @@
 @inject IJSRuntime JS
 @inject IConfiguration Config
 @inject MissionConfigState MissionState
+@inject AnalysisService Analysis
 
 <div class="moon-viewer-container">
     @* Cesium owns this element exclusively — Blazor must never render children into it. *@
@@ -26,6 +27,14 @@
             @if (badgeText is not null)
             {
                 <div class="viewer-badge">@badgeText</div>
+            }
+            @if (Analysis.IsRunning)
+            {
+                <div class="hud-progress" role="progressbar" aria-label="Analysis progress"
+                     aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)(Analysis.Progress * 100))">
+                    <div class="hud-progress-bar" style="width: @((int)(Analysis.Progress * 100))%"></div>
+                    <span>ANALYZING · @((int)(Analysis.Progress * 100))%</span>
+                </div>
             }
         </div>
     }
@@ -56,7 +65,10 @@
     {
         MissionState.OnStateChanged += HandleStateChanged;
         MissionState.OnFlyToRequested += HandleFlyToRequested;
+        Analysis.OnChanged += HandleAnalysisChanged;
     }
+
+    private void HandleAnalysisChanged() => _ = InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -188,6 +200,7 @@
     {
         MissionState.OnStateChanged -= HandleStateChanged;
         MissionState.OnFlyToRequested -= HandleFlyToRequested;
+        Analysis.OnChanged -= HandleAnalysisChanged;
 
         if (moonModule is not null)
         {

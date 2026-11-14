@@ -1,0 +1,89 @@
+@using SeleneFrontend.Services
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="heatmap">
+    <div class="heatmap-canvas-wrap">
+        <canvas @ref="canvas" class="heatmap-canvas" role="img"
+                aria-label="Heatmap of landing feasibility score per region and landing day; use the best-date buttons below to select with the keyboard."></canvas>
+        <div @ref="tooltip" class="heatmap-tooltip" hidden></div>
+    </div>
+    <div class="heatmap-legend" aria-hidden="true">
+        <span class="legend-swatch nogo"></span><span>not feasible</span>
+        <span class="legend-scale"></span><span>score 1 → 100</span>
+        <span class="legend-best"></span><span>best window</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public HeatmapResult Result { get; set; } = null!;
+    [Parameter] public (int Site, int Day) Selected { get; set; } = (-1, -1);
+    [Parameter] public EventCallback<(int Site, int Day)> OnCellClick { get; set; }
+
+    private ElementReference canvas;
+    private ElementReference tooltip;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<LandingHeatmap>? selfRef;
+    private HeatmapResult? drawnResult;
+    private (int, int) drawnSelected = (-2, -2);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (ReferenceEquals(drawnResult, Result) && drawnSelected == Selected) return;
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/heatmap.js");
+            selfRef ??= DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("render", canvas, tooltip, Payload(), selfRef);
+            drawnResult = Result;
+            drawnSelected = Selected;
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private object Payload()
+    {
+        var sites = Result.Sites.Count;
+        var scores = new double[sites * Result.Days];
+        var verdicts = new int[sites * Result.Days];
+        for (var s = 0; s < sites; s++)
+        {
+            for (var d = 0; d < Result.Days; d++)
+            {
+                scores[s * Result.Days + d] = Math.Round(Result.Scores[s, d], 1);
+                verdicts[s * Result.Days + d] = (int)Result.Verdicts[s, d];
+            }
+        }
+        return new
+        {
+            sites = Result.Sites.Select(x => x.Name).ToArray(),
+            days = Result.Days,
+            firstDay = Result.FirstDayUtc.ToString("yyyy-MM-dd"),
+            scores,
+            verdicts,
+            best = new[] { Result.BestSite, Result.BestDay },
+            selected = new[] { Selected.Site, Selected.Day },
+        };
+    }
+
+    [JSInvokable]
+    public Task OnCellClicked(int site, int day) => OnCellClick.InvokeAsync((site, day));
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            try
+            {
+                await module.InvokeVoidAsync("dispose", canvas);
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+        selfRef?.Dispose();
+    }
+}

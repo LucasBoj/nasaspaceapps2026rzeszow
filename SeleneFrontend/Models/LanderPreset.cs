@@ -6,6 +6,24 @@ public static class ParamKind
     public const string Sourced = "sourced";       // published by the manufacturer / NASA / press
     public const string Derived = "derived";       // computed from sourced figures
     public const string Assumption = "assumption"; // class estimate, no public figure
+    public const string WhatIf = "whatif";         // user's what-if override (pitch comparisons)
+
+    /// <summary>Weakest provenance among inputs: assumption &lt; derived &lt; sourced.</summary>
+    public static string Weakest(params LanderParam?[] inputs)
+    {
+        var kinds = inputs.OfType<LanderParam>().Select(p => p.Kind).ToList();
+        if (kinds.Contains(Assumption)) return Assumption;
+        if (kinds.Contains(Derived)) return Derived;
+        return Sourced;
+    }
+
+    public static string Label(string kind) => kind switch
+    {
+        Sourced => "SOURCED",
+        Derived => "DERIVED",
+        WhatIf => "WHAT-IF",
+        _ => "ASSUMPTION",
+    };
 }
 
 /// <summary>Common metadata of a lander parameter.</summary>

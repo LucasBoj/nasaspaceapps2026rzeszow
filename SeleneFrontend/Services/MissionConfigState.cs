@@ -9,6 +9,7 @@ public class MissionConfigState
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _httpClient;
+    private readonly IlluminationRepository _illumination;
 
     public event Action? OnStateChanged;
     public event Action<string>? OnFlyToRequested;
@@ -58,17 +59,36 @@ public class MissionConfigState
         OnStateChanged?.Invoke();
     }
     
-    public DateTime WindowStart { get; private set; } = DateTime.UtcNow;
-    public DateTime WindowEnd { get; private set; } = DateTime.UtcNow.AddYears(2);
+    // Landing-date window (UTC dates). Set to the precomputed data range once it is known.
+    public DateTime WindowStart { get; private set; } = DateTime.UtcNow.Date;
+    public DateTime WindowEnd { get; private set; } = DateTime.UtcNow.Date.AddYears(2);
+
+    /// <summary>First / last day with precomputed illumination data (UTC).</summary>
+    public DateTime? DataStart { get; private set; }
+    public DateTime? DataEnd { get; private set; }
+
+    /// <summary>Shown under the window fields when the user picked dates outside the data.</summary>
+    public string? WindowNotice { get; private set; }
+
+    /// <summary>
+    /// Bumped on every window edit. Used as @key on the date inputs: when a typed date is
+    /// clipped back to the same value, Blazor sees no attribute change and would leave the
+    /// out-of-range text in the field.
+    /// </summary>
+    public int WindowRevision { get; private set; }
+
+    public string DataRangeText => DataStart is { } a && DataEnd is { } b
+        ? $"data available {a:yyyy-MM-dd} … {b:yyyy-MM-dd}" : "";
     public double MissionDurationDays { get; private set; } = 7;
     public double TimeStepHours { get; private set; } = 1;
     
     public double MinCommsPercent { get; private set; } = 50;
     public double MinBatteryPercent { get; private set; } = 20;
 
-    public MissionConfigState(HttpClient httpClient)
+    public MissionConfigState(HttpClient httpClient, IlluminationRepository illumination)
     {
         _httpClient = httpClient;
+        _illumination = illumination;
     }
 
     public async Task LoadData()
@@ -81,6 +101,19 @@ public class MissionConfigState
             var landersJson = await _httpClient.GetStringAsync("data/landers.json");
             AllLanders = JsonSerializer.Deserialize<List<LanderPreset>>(landersJson, JsonOpts) ?? [];
             
+            try
+            {
+                var (dataStart, dataEnd) = await _illumination.GetRangeAsync();
+                DataStart = dataStart.Date;
+                DataEnd = dataEnd.Date;
+                WindowStart = DataStart.Value;
+                WindowEnd = DataEnd.Value;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[MissionConfigState] Illumination index unavailable: {ex.Message}");
+            }
+
             if (AvailableSites.Count > 0)
             {
                 SelectedSite = AvailableSites[0];
@@ -141,16 +174,29 @@ public class MissionConfigState
 
     public async Task UpdateWindowStart(DateTime date)
     {
-        WindowStart = date;
+        WindowStart = Clip(TimeUtil.AsUtc(date).Date);
+        if (WindowEnd < WindowStart) WindowEnd = WindowStart;
+        WindowRevision++;
         OnStateChanged?.Invoke();
         await Task.CompletedTask;
     }
 
     public async Task UpdateWindowEnd(DateTime date)
     {
-        WindowEnd = date;
+        WindowEnd = Clip(TimeUtil.AsUtc(date).Date);
+        if (WindowStart > WindowEnd) WindowStart = WindowEnd;
+        WindowRevision++;
         OnStateChanged?.Invoke();
         await Task.CompletedTask;
+    }
+
+    /// <summary>Clamp a date to the data range and remember a notice when clipping happened.</summary>
+    private DateTime Clip(DateTime date)
+    {
+        WindowNotice = null;
+        if (DataStart is { } a && date < a) { WindowNotice = DataRangeText; return a; }
+        if (DataEnd is { } b && date > b) { WindowNotice = DataRangeText; return b; }
+        return DateTime.SpecifyKind(date, DateTimeKind.Utc);
     }
 
     public async Task UpdateMissionDuration(double days)
@@ -183,8 +229,9 @@ public class MissionConfigState
 
     public void Reset()
     {
-        WindowStart = DateTime.UtcNow;
-        WindowEnd = DateTime.UtcNow.AddYears(2);
+        WindowStart = DataStart ?? DateTime.UtcNow.Date;
+        WindowEnd = DataEnd ?? DateTime.UtcNow.Date.AddYears(2);
+        WindowNotice = null;
         MissionDurationDays = 7;
         TimeStepHours = 1;
         MinCommsPercent = 50;

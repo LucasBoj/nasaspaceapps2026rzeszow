@@ -52,6 +52,7 @@ Time for sample `i` is `start + i × stepHours`.
 # Frontend (from SeleneFrontend/)
 dotnet watch                      # http://localhost:5281
 dotnet build                      # must build with 0 warnings
+dotnet test ../SeleneFrontend.Tests  # simulator + optimizer unit tests (links the logic sources)
 
 # Pipeline (from pipeline/, see pipeline/README.md)
 python download_kernels.py
@@ -69,7 +70,6 @@ python -m pytest -q
 
 ## Gotchas (learned the hard way)
 
-- **`SeleneFrontend/` still contains an old, nested `.git`.** Git commands run *inside* that folder hit the old repo, which has no remote. Always run git from the repo root.
 - `index.html` must load `_framework/blazor.webassembly#[.{fingerprint}].js`. `blazor.web.js` gives a black screen.
 - `Cesium.Ellipsoid.default` exists only from **Cesium 1.119**. On older versions the globe stays Earth-sized.
 - The Cesium script has to come from `…/releases/X/Build/Cesium/Cesium.js`. The path without `Build/Cesium` returns 404.
@@ -77,5 +77,8 @@ python -m pytest -q
 - `type=number` inputs: format and parse with `CultureInfo.InvariantCulture`. The browser runs with `pl` culture.
 - LOLA `float_img`: open the **`.lbl`**, not the `.img`. Heights are in **km**. The label `OFFSET` is the sphere radius, not a height offset.
 - A running `dotnet watch` locks `obj/`. For a second, test instance use `dotnet run --no-build --urls …`.
+- Analysis logic (`MissionSimulator`, `WindowOptimizer`, `IlluminationSeries`, `LanderPreset`) must stay UI-free: `SeleneFrontend.Tests` compiles these files directly.
+- Dates in WASM: the runtime uses the browser's time zone. Treat unspecified `DateTime`s as UTC (`TimeUtil.AsUtc`), never call `ToUniversalTime()` on them.
+- Anything rendered per hour or per day (timeline, heatmap) must not re-render on every progress tick. Use `ShouldRender` or the canvas heatmap.
 - `sites.json` is **generated** by `pipeline/select_sites.py` from Wueller et al. (2026) candidates (Zenodo, CC-BY-4.0). Do not edit coordinates by hand; re-run the pipeline. Their shapefile projection has true scale at −70°, unlike the DEM (−90°), so always reproject with the shipped `.prj`.
 - "Lit" has two definitions: `index.json → pctSunlit` uses `sunFraction > 0`, while site selection and the 6.5-day test use `≥ 50`.

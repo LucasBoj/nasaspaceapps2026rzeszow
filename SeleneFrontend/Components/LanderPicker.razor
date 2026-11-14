@@ -171,14 +171,7 @@
         : p.IsAssumption ? "Class estimate — no published figure."
         : "See source.";
 
-    /// <summary>Weakest provenance among inputs: assumption &lt; derived &lt; sourced.</summary>
-    private static string Weakest(params LanderParam?[] inputs)
-    {
-        var kinds = inputs.OfType<LanderParam>().Select(p => p.Kind).ToList();
-        if (kinds.Contains(ParamKind.Assumption)) return ParamKind.Assumption;
-        if (kinds.Contains(ParamKind.Derived)) return ParamKind.Derived;
-        return ParamKind.Sourced;
-    }
+    private static string Weakest(params LanderParam?[] inputs) => ParamKind.Weakest(inputs);
 
     private IEnumerable<ImpactRow> ImpactRows(LanderPreset l)
     {
