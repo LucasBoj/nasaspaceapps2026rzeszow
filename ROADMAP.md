@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 17:57 CET
+**Ostatnia aktualizacja:** 2026-11-14 18:18 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -59,6 +59,7 @@
 - [x] Oświetlenie sceny z efemeryd (P2 „Animacja cieni”) — było zrobione w `345d6f8` (`setSunLight`); usunięta martwa zaślepka `setSunDirection`, README frontendu poprawione; `CLAUDE.md`: sekcja o modelu energii i nowe pułapki — 2026-11-14 17:50 CET — commit z tym wpisem — AI: Claude Code
 - [x] CI: diagnoza nieużywalnego `MIKRUS_SSH_KEY` (klucz `.pub`, PuTTY, brak BEGIN/END, hasło; klucz nigdy nie trafia do logu, przy sukcesie widać odcisk), naprawa białych znaków po wklejeniu klucza (CRLF, wcięcia, złamane linie), adresy `PREVIEW_URL`/`STABLE_URL` bez `https://` uzupełniane z ostrzeżeniem (np. `selene.byst.re` dawało względny `og:image`), przycinanie sekretów host/port/user; README: pełne adresy, osobny adres na cel. Sprawdzone lokalnie na 8 wariantach klucza testowego i 4 wariantach adresu — 2026-11-14 17:40 — `db381a6` — AI: Claude Code
 - [x] Ocena bez remisów (P1 „ocena się nasyca”): nowy składnik zapasu nad horyzontem terenu, `15 × (½ m(min. zapas Słońca) + ½ m(min. zapas Ziemi))`, m(c) = 1 − e^(−c/2°). Mierzy odporność światła i łączności na błędy modelu terenu 120 m. Wagi: 35 SoC + 20 łączność + 10 światło + 20 nadwyżka + 15 zapas. Wcześniej przy IDEAL każdy region miał najlepszą ocenę dokładnie 86,667 (56–153 dni remisu), a Griffin mieścił się w 0,1 pkt. Teraz (7 d) każdy region ma jeden najlepszy dzień: Nova-C 71,2–83,2, Blue Ghost 50,5–81,4, IDEAL 78,9–86,5. Oceny z jednym miejscem po przecinku (COMPARE, najlepsze daty, tooltip), zapas nad terenem w kaflach. Testy 33/33, sprawdzone w przeglądarce — 2026-11-14 17:56 CET — `f64a3fa` — AI: Claude Code
+- [x] Wykres i tabela „nasze vs NASA” (P1): `pipeline/compare_nasa_illumination.py` porównuje 9 miejsc z mapami oświetlenia LOLA NASA (Mazarico et al. 2011, PGDA / PDS, release 2016; 120 m i 60 m, Słońce i Ziemia). Definicja dopasowana: udział godzin z jakimkolwiek fragmentem tarczy. Nasz model liczony z zapisanych horyzontów na 18,6 roku i na 2027–28. Wynik vs NASA 120 m (ta sama rozdzielczość terenu): 6/9 miejsc w 2 pp, 8/9 w 5 pp, mediana +1,8 pp; odstaje Malapert, +11,4 pp; nasz model nigdy nie jest ciemniejszy. Vs NASA 60 m: +7…+22 pp, czyli nasze liczby to górna granica. Orientacja mapy sprawdzona na dnach kraterów w stałym cieniu (Shackleton, Faustini → 0%). Mapy czytane zapytaniami HTTP Range (~30 KB na punkt zamiast ~334 MB), snapshot w `pipeline/data/nasa_illumination/`, test offline (10 testów, pipeline 56 passed), wykres `pipeline/docs/nasa_vs_ours.png`, sekcja w `pipeline/README.md`. W aplikacji linijka w sekcji 01 („NASA LOLA map X% · our model Y%”) i atrybucja w stopce. Przy okazji: zabezpieczenie `heatmap.js` przed renderem bez canvasa (rzadki wyścig, widziany raz w konsoli) — 2026-11-14 18:18 CET — commit z tym wpisem — AI: Claude Code (LROC: brak publicznej mapy oświetlenia z WAC do pobrania, nie porównywane)
 
 ## 🔄 In progress
 
@@ -93,8 +94,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - Gotowe, gdy: wartości w `landers.json → panels` / `dayLoadW` mają `sourceUrl` albo jawne uzasadnienie.
 - [ ] **Kurs w animacji lądowania** — lądownik w `landingAnimation.js` ląduje z kursem 0°; mógłby lądować z kursem z analizy (AUTO), żeby panele w 3D patrzyły tam, gdzie liczy symulacja. Wymaga ustalenia, gdzie jest „przód” modelu GLB — C
 
-- [ ] **Wykres „nasze vs NASA”**: porównanie naszego oświetlenia z opublikowanymi mapami oświetlenia LOLA (PGDA / LROC) — A
-  - Gotowe, gdy: dla kilku punktów jest wykres lub tabela z różnicą i opisem źródeł. Walidacja liczbowa grzbietu jest już zrobiona.
 - [ ] **Pitch na lokalne jury**: slajdy, scenariusz demo offline, odpowiedzi na trudne pytania — wszyscy
   - Gotowe, gdy: jest próba generalna na czas z demo uruchomionym bez internetu.
 - [ ] **Hostować Cesium u siebie (z Brotli)** — dziś ~1,45 MB z CDN; potrzebne też do trybu offline i może zejść poniżej 3 s na łączu 20 Mbit/s — C
@@ -132,6 +131,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — ocena z nadwyżką energii, kafle POWER & COMMS, tryby mapy ciepła, panele w SPECS / what-if / róży, testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5, osobna sesja) — walidacja efemeryd z JPL Horizons (skrypt, snapshoty, test offline, ustalenie układu Mean-Earth)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — analiza remisów oceny na prawdziwych danych (Nova-C, Blue Ghost, Griffin; FIXED i IDEAL), składnik zapasu nad terenem, testy
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — porównanie z mapami oświetlenia LOLA NASA: research produktów PGDA/PDS/LROC, próbkowanie przez HTTP Range, nasz model na 18,6 roku, test orientacji na kraterach w stałym cieniu, wykres, README, linijka w UI
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — automatyczne wdrażanie: workflow GitHub Actions, przeróbka `deploy.sh` pod CI, smoke test, skrypt użytkownika `deploy`, instrukcja po polsku, lokalne testy skryptów (w tym wykrycie błędów: kodowanie Pythona na Windows, CRLF w skryptach, nazwa skryptu Blazor z importmapy)
 - 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
 - 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)
@@ -153,7 +153,9 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Kurs AUTO maksymalizuje energię, nie przetrwanie** — dla misji niewykonalnych inny kurs mógłby przedłużyć działanie. MAX STAY liczony jest przy tym samym kursie co pokazana misja.
 - **Elewacja Słońca może być ujemna przy pełnej tarczy** — na wysokich grzbietach horyzont terenu leży poniżej płaszczyzny poziomej (np. −4,1°); to poprawne, ale warto umieć to wyjaśnić.
 - **Dwie definicje „światła”** — `index.json → pctSunlit` liczy każde światło (`sunFraction > 0`), a wybór miejsc i walidacja używają `sunFraction ≥ 50` (`sunPct` w `candidates/*.json`). W UI i na pitchu zawsze podawać, którą liczbę pokazujemy.
-- **Optymizm DEM 120 m** — rozdzielczość 120 m wygładza drobną rzeźbę, co zawyża oświetlenie i zaniża nachylenia (wszyscy kandydaci ≤ 4°). Opcja P2: przeliczyć wybrane miejsca na DEM 20–60 m.
+- **Optymizm DEM 120 m** — rozdzielczość 120 m wygładza drobną rzeźbę, co zawyża oświetlenie i zaniża nachylenia (wszyscy kandydaci ≤ 4°). Opcja P2: przeliczyć wybrane miejsca na DEM 20–60 m. **Potwierdzone na mapach NASA:** mapa 60 m daje 7–22 pp mniej światła niż nasz model; najbardziej na szczytach (Mons Mouton +22, Malapert +17). Jedno przesunięcie o piksel (120 m) potrafi zmienić czas oświetlenia o 20–30 pp.
+- **„Walidacja grzbietu” nie była porównaniem jabłek z jabłkami** — nasze 89,7% (2027–28) w najjaśniejszym punkcie grzbietu Shackleton–de Gerlache to porównanie z liczbami z literatury dla innych punktów. Mapa NASA w tym samym punkcie daje 71,0% (120 m) i 65,2% (60 m). Na pitchu powoływać się na porównanie 9 miejsc z mapą NASA 120 m (mediana +1,8 pp), nie na grzbiet.
+- **Ziemia na szczytach** — przy Cabeus B, Malapert i Mons Mouton nasz model daje 10–15 pp więcej widoczności Ziemi (dowolna część tarczy) niż mapa NASA; przy 5 pozostałych miejscach zgodność ≤ 1 pp.
 - **Twierdzenie NASA o 6,5 dnia** pochodzi z komunikatu z 2022 (13 regionów) i dosłownie obejmuje tylko 5 z naszych 9 regionów. Na pitchu nie mówić „NASA potwierdza dla wszystkich 9”.
 - **Dane lądowników HLS to głównie założenia** — moc paneli, bateria i obciążenia Starship HLS i Blue Moon nie są publikowane (ASSUMPTION). Wyniki dla HLS trzeba na pitchu przedstawiać jako szacunek klasy, nie dane producenta.
 - **Dwa linki źródłowe nie odpowiadają automatom** (sprawdzone 2026-11-14 ~12:50): `nasaspaceflight.com` (Griffin, czas misji) zwraca 403 dla zapytań automatycznych, a cały `collectspace.com` (Blue Moon: czas misji, załoga, panele) zwracał 522 (awaria serwera). Sprawdzić ręcznie w przeglądarce przed zgłoszeniem; `nasaspaceflight.com/tag/viper/` to strona tagu, czyli słabe źródło, więc warto podmienić na konkretny artykuł.

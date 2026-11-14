@@ -1,0 +1,47 @@
+# NASA LOLA average visibility maps (release 2016), sampled 2026-11-14T17:13Z
+# Source: https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/  (product page https://pgda.gsfc.nasa.gov/products/69)
+# Citation: Mazarico, E., et al. (2011), Illumination conditions of the lunar polar regions using LOLA topography, Icarus 211, 1066-1081, doi:10.1016/j.icarus.2010.10.030
+# Values 0..1 = share of hourly timesteps with any part of the Sun's (or Earth's) disc visible.
+pointId,name,lat,lon,product,file,row,col,center,min3x3,max3x3
+cabeus_b,Peak near Cabeus B,-83.36914,-67.6646,sun120,avgvisib_75s_120m_201608.img,3174,2260,0.5254,0.38992,0.5496
+cabeus_b,Peak near Cabeus B,-83.36914,-67.6646,earth120,avgvisib_75s_120m_201608_earth.img,3174,2260,0.72568,0.49332,0.94832
+haworth,Haworth,-86.98951,-24.25453,sun60,avgvisib_85s_060m_201608.img,1141,1903,0.62052,0.4258,0.62052
+haworth,Haworth,-86.98951,-24.25453,sun120,avgvisib_75s_120m_201608.img,3118,3499,0.66564,0.4772,0.67704
+haworth,Haworth,-86.98951,-24.25453,earth60,avgvisib_85s_060m_201608_earth.img,1141,1903,0.5982,0.57504,0.60984
+haworth,Haworth,-86.98951,-24.25453,earth120,avgvisib_75s_120m_201608_earth.img,3118,3499,0.60236,0.56576,0.61012
+malapert_massif,Malapert Massif,-85.99192,2.0564,sun60,avgvisib_85s_060m_201608.img,503,2601,0.63952,0.48508,0.7038
+malapert_massif,Malapert Massif,-85.99192,2.0564,sun120,avgvisib_75s_120m_201608.img,2799,3848,0.69772,0.42712,0.74308
+malapert_massif,Malapert Massif,-85.99192,2.0564,earth60,avgvisib_85s_060m_201608_earth.img,503,2601,0.70912,0.539,0.75988
+malapert_massif,Malapert Massif,-85.99192,2.0564,earth120,avgvisib_75s_120m_201608_earth.img,2799,3848,0.65244,0.50348,0.8384
+mons_mouton_plateau,Mons Mouton Plateau,-84.13828,25.64223,sun120,avgvisib_75s_120m_201608.img,2475,4453,0.42696,0.4144,0.42776
+mons_mouton_plateau,Mons Mouton Plateau,-84.13828,25.64223,earth120,avgvisib_75s_120m_201608_earth.img,2475,4453,0.8482,0.81332,0.8874
+mons_mouton,Mons Mouton,-85.48099,29.54935,sun60,avgvisib_85s_060m_201608.img,541,3655,0.56776,0.36376,0.66996
+mons_mouton,Mons Mouton,-85.48099,29.54935,sun120,avgvisib_75s_120m_201608.img,2818,4375,0.74296,0.37292,0.78376
+mons_mouton,Mons Mouton,-85.48099,29.54935,earth60,avgvisib_85s_060m_201608_earth.img,541,3655,0.63816,0.53008,0.74464
+mons_mouton,Mons Mouton,-85.48099,29.54935,earth120,avgvisib_75s_120m_201608_earth.img,2818,4375,0.64392,0.43148,0.86392
+nobile_rim_1,Nobile Rim 1,-85.54562,37.55718,sun60,avgvisib_85s_060m_201608.img,743,3901,0.76796,0.38328,0.76796
+nobile_rim_1,Nobile Rim 1,-85.54562,37.55718,sun120,avgvisib_75s_120m_201608.img,2919,4498,0.83528,0.52528,0.83528
+nobile_rim_1,Nobile Rim 1,-85.54562,37.55718,earth60,avgvisib_85s_060m_201608_earth.img,743,3901,0.67352,0.58552,0.70728
+nobile_rim_1,Nobile Rim 1,-85.54562,37.55718,earth120,avgvisib_75s_120m_201608_earth.img,2919,4498,0.64184,0.502,0.70812
+nobile_rim_2,Nobile Rim 2,-83.61854,59.05676,sun120,avgvisib_75s_120m_201608.img,2981,5196,0.52436,0.2926,0.52436
+nobile_rim_2,Nobile Rim 2,-83.61854,59.05676,earth120,avgvisib_75s_120m_201608_earth.img,2981,5196,0.66276,0.54804,0.67004
+degerlache_rim_2,de Gerlache Rim 2,-88.44999,-67.85908,sun60,avgvisib_85s_060m_201608.img,2233,1803,0.72468,0.2664,0.72468
+degerlache_rim_2,de Gerlache Rim 2,-88.44999,-67.85908,sun120,avgvisib_75s_120m_201608.img,3664,3449,0.78472,0.48876,0.78472
+degerlache_rim_2,de Gerlache Rim 2,-88.44999,-67.85908,earth60,avgvisib_85s_060m_201608_earth.img,2233,1803,0.61024,0.4414,0.61848
+degerlache_rim_2,de Gerlache Rim 2,-88.44999,-67.85908,earth120,avgvisib_75s_120m_201608_earth.img,3664,3449,0.61296,0.42068,0.61848
+slater_plain,Slater Plain,-87.18375,133.34446,sun60,avgvisib_85s_060m_201608.img,3506,3564,0.52944,0.49192,0.57712
+slater_plain,Slater Plain,-87.18375,133.34446,sun120,avgvisib_75s_120m_201608.img,4300,4329,0.58276,0.50072,0.5914
+slater_plain,Slater Plain,-87.18375,133.34446,earth60,avgvisib_85s_060m_201608_earth.img,3506,3564,0.36484,0.28864,0.39772
+slater_plain,Slater Plain,-87.18375,133.34446,earth120,avgvisib_75s_120m_201608_earth.img,4300,4329,0.40184,0.28316,0.49164
+ref_shackleton_floor,Shackleton crater floor (PSR),-89.67,129.8,sun60,avgvisib_85s_060m_201608.img,2635,2657,0.0,0.0,0.0
+ref_shackleton_floor,Shackleton crater floor (PSR),-89.67,129.8,sun120,avgvisib_75s_120m_201608.img,3865,3876,0.0,0.0,0.0
+ref_shackleton_floor,Shackleton crater floor (PSR),-89.67,129.8,earth60,avgvisib_85s_060m_201608_earth.img,2635,2657,0.0,0.0,0.0
+ref_shackleton_floor,Shackleton crater floor (PSR),-89.67,129.8,earth120,avgvisib_75s_120m_201608_earth.img,3865,3876,0.0,0.0,0.0
+ref_faustini_floor,Faustini crater floor (PSR),-87.3,77.0,sun60,avgvisib_85s_060m_201608.img,2221,3858,0.0,0.0,0.0
+ref_faustini_floor,Faustini crater floor (PSR),-87.3,77.0,sun120,avgvisib_75s_120m_201608.img,3658,4476,0.0,0.0,0.0
+ref_faustini_floor,Faustini crater floor (PSR),-87.3,77.0,earth60,avgvisib_85s_060m_201608_earth.img,2221,3858,0.0,0.0,0.0
+ref_faustini_floor,Faustini crater floor (PSR),-87.3,77.0,earth120,avgvisib_75s_120m_201608_earth.img,3658,4476,0.0,0.0,0.0
+ref_ridge,Shackleton-de Gerlache ridge (our 2027-28 maximum),-89.438,-137.28,sun60,avgvisib_85s_060m_201608.img,2737,2336,0.652,0.4282,0.75472
+ref_ridge,Shackleton-de Gerlache ridge (our 2027-28 maximum),-89.438,-137.28,sun120,avgvisib_75s_120m_201608.img,3916,3715,0.71004,0.29004,0.78324
+ref_ridge,Shackleton-de Gerlache ridge (our 2027-28 maximum),-89.438,-137.28,earth60,avgvisib_85s_060m_201608_earth.img,2737,2336,0.50284,0.411,0.58024
+ref_ridge,Shackleton-de Gerlache ridge (our 2027-28 maximum),-89.438,-137.28,earth120,avgvisib_75s_120m_201608_earth.img,3916,3715,0.49564,0.289,0.582

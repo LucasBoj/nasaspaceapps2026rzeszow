@@ -179,6 +179,9 @@ function cellAt(canvas, evt) {
 }
 
 export function render(canvas, tooltip, data, dotNetRef) {
+  // The canvas can be gone by the time the call arrives (e.g. a new analysis cleared the heatmap
+  // while this render was in flight); Blazor then passes null, which WeakMap rejects.
+  if (!canvas || !tooltip) return;
   let st = states.get(canvas);
   if (!st) {
     st = { data: null, dotNetRef };
@@ -209,6 +212,7 @@ export function render(canvas, tooltip, data, dotNetRef) {
 
 /** Switch the colouring mode without resending the data. */
 export function setMode(canvas, mode) {
+  if (!canvas) return;
   const st = states.get(canvas);
   if (!st || !st.data) return;
   st.data.mode = mode;
@@ -235,6 +239,7 @@ function startPulse(canvas, st, data) {
 }
 
 export function dispose(canvas) {
+  if (!canvas) return;
   const st = states.get(canvas);
   if (st?.resize) st.resize.disconnect();
   states.delete(canvas);

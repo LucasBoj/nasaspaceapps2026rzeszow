@@ -152,7 +152,11 @@ Other assumptions:
   connecting ridge finds a maximum of **89.7 % sunlit time over 2027–28 at
   (−89.438°, −137.28°)**. The literature reports ~89–92 % for the best ridge points
   (Mazarico et al. 2011, Icarus 211; Gläser et al. 2014), computed over different time
-  spans and DEM resolutions.
+  spans and DEM resolutions. **This is not a like-for-like check.** NASA's own LOLA
+  map at that exact point reads only 71.0 % (120 m) and 65.2 % (60 m) over 18.6 years
+  (see [Validation vs NASA LOLA illumination maps](#validation-vs-nasa-lola-illumination-maps)).
+  A narrow ridge is where our 120 m DEM and 2 m observer are most optimistic. The point
+  comparison at the 9 landing sites below is the stronger validation.
 
 ## Validation vs JPL Horizons
 
@@ -202,6 +206,100 @@ It is still 20× tighter than the ME↔PA offset, so a frame or convention error
 test. The tolerance for the shipped JSON is **0.006°**: half a rounding step plus the
 pipeline tolerance. The reasoning is written out in the test's docstring. For scale, the
 horizon mask uses 1° azimuth steps and the solar radius is 0.267°.
+
+## Validation vs NASA LOLA illumination maps
+
+`compare_nasa_illumination.py` compares our sunlight and Earth visibility at the 9
+landing sites with NASA's published LOLA polar illumination maps:
+
+* **Source:** Mazarico, E., et al. (2011), *Illumination conditions of the lunar polar
+  regions using LOLA topography*, Icarus 211, 1066–1081, doi:10.1016/j.icarus.2010.10.030.
+  Maps are release 2016 on the PDS Geosciences Node
+  ([files](https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/),
+  [PGDA product page](https://pgda.gsfc.nasa.gov/products/69)):
+  * `AVGVISIB_75S_120M_201608`: 120 m/px, the same resolution as our DEM
+  * `AVGVISIB_85S_060M_201608`: 60 m/px, south of −85° only
+  * the `_EARTH` variants of both
+* **What a pixel means:** per the PDS label, the share of hourly timesteps when the pixel was
+  sunlit "by any fraction of the solar disc". The Earth maps use any part of Earth's disc.
+  PGDA says the Sun maps cover a full lunar nutation cycle (~18.6 years). Neither page gives
+  the exact dates or the observer height, which is most likely the surface.
+* **Our side:**
+  * The definition is matched: `sunFraction > 0`, the same as `index.json → pctSunlit`.
+  * We use each site's stored horizon (120 m DEM, observer 2 m) with fresh JPL DE421
+    positions over 18.6 years from 2009-07-13, the label's START_TIME.
+  * We also report 2027–28, the period the app uses. That recomputation reproduces
+    `index.json` to within 0.2 pp, which is tested.
+  * For Earth, "any part of the disc" uses the angular radius from the actual Earth
+    distance. The app's own comms criterion (centre > horizon + 0.5°) is shown alongside.
+* **How the maps are read:** the labels name `*.IMG` in upper case, but the server stores
+  lower case, so GDAL cannot open the remote pair. `--refresh` instead:
+  1. downloads only the `.lbl`;
+  2. lets GDAL read the map geometry from it;
+  3. fetches the 3 × 3 pixels around each point with HTTP Range requests (~30 KB each).
+
+  The samples are kept in `data/nasa_illumination/samples.csv`, so the script and
+  `tests/test_nasa_comparison.py` run offline.
+* **Orientation check:** the floors of Shackleton (−89.67°, 129.8°E) and Faustini
+  (−87.3°, 77°E) read exactly 0 % in all four maps, as permanently shadowed regions should.
+  Their mirror images across longitude 0 do not.
+
+```bash
+python compare_nasa_illumination.py            # offline: table, data/nasa_illumination/comparison.json, docs/nasa_vs_ours.png
+python compare_nasa_illumination.py --refresh  # re-sample the NASA maps (public URLs only)
+```
+
+![Sunlit time: NASA LOLA map vs SELENE model](docs/nasa_vs_ours.png)
+
+**Sunlight** (% of hours with any part of the solar disc visible):
+
+| Site | NASA 120 m | NASA 3×3 px range | Ours 18.6 y | Δ vs NASA 120 m | Ours 2027–28 | NASA 60 m | Δ vs NASA 60 m |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Peak near Cabeus B | 52.5 % | 39.0–55.0 % | 54.3 % | **+1.8 pp** | 53.8 % | — | — |
+| Haworth | 66.6 % | 47.7–67.7 % | 70.6 % | **+4.0 pp** | 70.4 % | 62.1 % | +8.5 pp |
+| Malapert Massif | 69.8 % | 42.7–74.3 % | 81.2 % | **+11.4 pp** | 81.9 % | 64.0 % | +17.2 pp |
+| Mons Mouton Plateau | 42.7 % | 41.4–42.8 % | 43.0 % | **+0.3 pp** | 42.7 % | — | — |
+| Mons Mouton | 74.3 % | 37.3–78.4 % | 79.1 % | **+4.8 pp** | 79.5 % | 56.8 % | +22.3 pp |
+| Nobile Rim 1 | 83.5 % | 52.5–83.5 % | 83.8 % | **+0.3 pp** | 84.3 % | 76.8 % | +7.0 pp |
+| Nobile Rim 2 | 52.4 % | 29.3–52.4 % | 53.4 % | **+1.0 pp** | 53.8 % | — | — |
+| de Gerlache Rim 2 | 78.5 % | 48.9–78.5 % | 79.4 % | **+0.9 pp** | 79.6 % | 72.5 % | +6.9 pp |
+| Slater Plain | 58.3 % | 50.1–59.1 % | 60.1 % | **+1.8 pp** | 60.8 % | 52.9 % | +7.2 pp |
+
+**Earth visibility** (% of hours):
+
+| Site | NASA 120 m (any part of disc) | Ours 18.6 y (any part of disc) | Δ | Ours, app criterion (centre > horizon + 0.5°) |
+|---|---:|---:|---:|---:|
+| Peak near Cabeus B | 72.6 % | 83.5 % | +10.9 pp | 71.9 % |
+| Haworth | 60.2 % | 61.1 % | +0.9 pp | 54.0 % |
+| Malapert Massif | 65.2 % | 75.4 % | +10.2 pp | 66.7 % |
+| Mons Mouton Plateau | 84.8 % | 84.9 % | +0.1 pp | 73.5 % |
+| Mons Mouton | 64.4 % | 79.6 % | +15.2 pp | 69.9 % |
+| Nobile Rim 1 | 64.2 % | 70.2 % | +6.0 pp | 62.3 % |
+| Nobile Rim 2 | 66.3 % | 66.5 % | +0.2 pp | 58.9 % |
+| de Gerlache Rim 2 | 61.3 % | 61.8 % | +0.5 pp | 54.6 % |
+| Slater Plain | 40.2 % | 41.0 % | +0.8 pp | 33.5 % |
+
+**What it shows:**
+
+* **Like-for-like (NASA 120 m vs ours, both 120 m terrain):** 6 of 9 sites agree within 2 pp
+  and 8 of 9 within 5 pp (median +1.8 pp). Malapert Massif is the outlier at +11.4 pp.
+  Ours is never darker.
+* **Sources of the remaining excess:**
+  * Our observer stands 2 m above the terrain; NASA's height is not stated.
+  * Our horizon rays stop at 150 km.
+  * Our sites were picked as the sunniest candidate in each region on the same 120 m
+    DEM, which favours pixels where that DEM is optimistic.
+* **Finer terrain lowers the numbers.** Against the 60 m map ours is 7–22 pp higher.
+  Peaks and massifs such as Mons Mouton and Malapert are affected most. The 3 × 3 px
+  ranges show how steep the gradients are around those points: one pixel (120 m)
+  can change sunlit time by 20–30 pp. Our numbers are therefore an upper bound, the same
+  conclusion as the "120 m DEM optimism" caveat below.
+* **Earth agrees within 1 pp at 5 sites.** Three of the four outliers (+10–15 pp) are
+  summits or massifs (Cabeus B, Malapert, Mons Mouton), where a 2 m observer and smoothed
+  terrain matter most for a target only a few degrees above the horizon. Nobile Rim 1 is
+  +6.0 pp.
+* **Period effect is small:** at all 9 sites 2027–28 is within 1 pp of the 18.6-year
+  average.
 
 ## Validation vs NASA statement
 

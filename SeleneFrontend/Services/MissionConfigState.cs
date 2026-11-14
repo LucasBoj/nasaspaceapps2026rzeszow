@@ -19,6 +19,12 @@ public class MissionConfigState
     public bool CanFlyTo => SelectedSite is not null && !SelectedSite.Id.StartsWith("CUSTOM", StringComparison.Ordinal);
     
     public List<LanderPreset> AllLanders { get; private set; } = [];
+
+    /// <summary>Our sunlit time vs NASA's LOLA illumination maps (optional; null if the file is missing).</summary>
+    public NasaIlluminationCheck? NasaCheck { get; private set; }
+
+    public NasaSiteCheck? NasaCheckFor(string? siteId) =>
+        siteId is null ? null : NasaCheck?.Sites.FirstOrDefault(s => s.SiteId == siteId);
     public List<LanderPreset> FilteredLanders => AllLanders.Where(l => l.Class == SelectedLanderClass).ToList();
     public LanderPreset? SelectedLander { get; private set; }
     public string SelectedLanderClass { get; private set; } = "clps";
@@ -133,6 +139,17 @@ public class MissionConfigState
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"[MissionConfigState] Illumination index unavailable: {ex.Message}");
+            }
+
+            try
+            {
+                var checkJson = await _httpClient.GetStringAsync("data/validation/nasa_illumination.json");
+                NasaCheck = JsonSerializer.Deserialize<NasaIlluminationCheck>(checkJson, JsonOpts);
+            }
+            catch (Exception ex)
+            {
+                // Optional validation data; the app works without it.
+                Console.Error.WriteLine($"[MissionConfigState] NASA illumination check unavailable: {ex.Message}");
             }
 
             if (AvailableSites.Count > 0)
