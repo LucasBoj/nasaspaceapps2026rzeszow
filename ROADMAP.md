@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 17:40 CET
+**Ostatnia aktualizacja:** 2026-11-14 18:30 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -50,6 +50,7 @@
 - [x] Wydajność i deploy: brakujący `importmap` w `index.html` (bez niego aplikacja nie startowała na statycznym hostingu), Cesium `defer` + `preconnect`, `InvariantGlobalization`, token wykluczony z publikacji. Release + Brotli: wynik po 2,3 s (szybkie łącze) / 3,7 s (20 Mbit/s) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
 - [x] Animacja lądowania (P2 „Animacja lądowania”): osobny moduł `landingAnimation.js`, własny schematyczny model z prymitywów Cesium (CLPS / HLS), opadanie z 15 km z krzywą hamowania, kamera pościgowa i orbita, pierścień pyłu i błysk; HUD „SIMULATED DESCENT” z ALT, V/S, RANGE i fazami z tej samej krzywej; przycisk CONFIRM LANDING SITE i QUICK DEMO z analizą liczoną równolegle; pomijanie (klik, SKIP, Esc); flaga `features.landingAnimation` + przełącznik w HUD; tryb ograniczonego ruchu; wysokość z terenu 3D z fallbackiem na elipsoidę. Testy: Chromium 3D/2D, Firefox, WebKit — 22/22 — 2026-11-14 16:25 — `c726269` — AI: Claude Code
 - [x] Model 3D Nova-C (GLB, tylko dla `nova_c`): skalowanie do 4 m z bounding boxa, orientacja glTF Y-up → pion miejsca (nogi w dół, sprawdzone), ładowanie w tle i pula modeli, fallback na model z prymitywów; lądownik i znacznik podążają za faktycznie wyrenderowanym terenem; światło sceny = Słońce z efemeryd (az/el dla miejsca i chwili), miękkie cienie, światło wypełniające i otoczenia; atrybucja w stopce. Testy GLB 11/11 w Chromium (3D i 2D), Firefox, WebKit — 2026-11-14 17:35 — `345d6f8` — model: zespół (Meshy AI + Microsoft TRELLIS.2), integracja: AI: Claude Code
+- [x] Przygotowanie wdrożenia na Mikrus: `deploy/nginx-selene.conf` (stable :80 + preview :8080, MIME, gzip_static, cache, nagłówki bezpieczeństwa), `deploy/server-setup.sh` (idempotentny), `deploy/deploy.sh` (publish, kontrole, opcjonalny token z ENV, absolutny `og:image`, kompresja GLB, rsync, curl; tryb `--build-only`), `deploy/README.md`; kompresja i trimming włączone jawnie i sprawdzone. Lokalnie: build Release 39 MB, testy na serwerze zachowującym się jak nginx 23/23 + 11/11 — 2026-11-14 18:25 — `83a84bc` — AI: Claude Code (rsync/ssh nie były uruchamiane)
 
 ## 🔄 In progress
 
@@ -63,9 +64,11 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 - [ ] **Demo działa offline** — C
   - Gotowe, gdy: aplikacja z laptopa bez internetu ładuje się z lokalnym Cesium (nie z CDN), lokalnymi czcionkami i podręcznym zestawem kafli Moon Trek dla bieguna (albo ma fallback bez zdjęć), co jest sprawdzone przy wyłączonym Wi-Fi.
-- [ ] **Deploy na Mikrus + lustro GitHub Pages**, sprawdzone po IPv4 z telefonu — C
-  - Gotowe, gdy: oba adresy działają z telefonu na danych komórkowych. Na GitHub Pages trzeba zmienić `<base href>` na podścieżkę repo. W `og:image` wpisać pełny adres URL `og.png` (teraz jest względny). nginx: `brotli_static on` i typ `application/wasm`.
-  - Token: wersja produkcyjna celowo go nie ma (tryb 2D). Jeśli ma być 3D na demo, utworzyć w Cesium ion osobny token z ograniczeniem do domeny i wstrzyknąć go przy deployu, nigdy do repo.
+- [ ] **Uruchomić wdrożenie na Mikrusie** (skrypty gotowe: `deploy/README.md`) — C
+  - Gotowe, gdy: `server-setup.sh` uruchomiony; port/subdomena z panelu wpisane w `nginx-selene.conf` i `STABLE_URL`; `deploy.sh preview` → test → `deploy.sh stable`; strona działa z telefonu po LTE; czasy ładowania zapisane.
+  - Decyzja: token 3D w produkcji (token z ograniczeniem URL wstrzykiwany przez `CESIUM_ION_TOKEN`) czy tryb 2D.
+- [ ] **Lustro na GitHub Pages** — C
+  - Gotowe, gdy: `<base href>` ustawione na podścieżkę repo i adres działa.
 - [ ] **Strona projektu na spaceappschallenge.org**: opis odhaczający cele wyzwania, lista danych z linkami, deklaracja użycia AI (z sekcji poniżej), link do repo i demo — wszyscy (prowadzi C)
   - Gotowe, gdy: projekt jest wysłany przed terminem, a wszystkie pola są po angielsku.
 - [ ] **30-sekundowe wideo demo** (albo maksymalnie 7 slajdów) — C
@@ -115,6 +118,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — wybór lądownika tylko do odczytu (SPECS z pochodzeniem danych, LANDER IMPACT, what-if), weryfikacja dostępności linków źródłowych, testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — przygotowanie wdrożenia (nginx, skrypty setup/deploy, README), weryfikacja buildu Release z trimmingiem na serwerze zachowującym się jak nginx
 - 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
 - 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — integracja modelu GLB (skala, orientacja, ładowanie w tle, fallback, podążanie za terenem), oświetlenie sceny z efemeryd, testy w 3 przeglądarkach
@@ -147,5 +151,8 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Firefox headless wolniejszy przy lądowaniu** — w testach całość 8 s (cel 5–6 s), tryb ograniczonego ruchu 3,2 s; Chromium/WebKit mieszczą się w czasie. Prawdopodobnie programowe WebGL w trybie headless; sprawdzić w prawdziwym Firefoksie (zadanie fps w P1).
 - **Teren Cesium Moon dociąga szczegóły z opóźnieniem** — powierzchnia w miejscu lądowania potrafi przeskoczyć o ~68 m ok. 2 s po przyziemieniu; znacznik podąża za nią przez 8 s (pętla „settle”).
 - **Oświetlenie bieguna jest ciemne z natury** — Słońce na kilku stopniach (często poniżej lokalnego poziomu) daje bardzo ukośne światło; dodane jednolite światło otoczenia (harmoniki sferyczne) jest uproszczeniem wizualnym, nie modelem fizycznym.
+- **Mikrus: port 80 po IPv4 może nie trafiać na serwer** — publiczny IPv4 jest współdzielony; adres strony (subdomena/port z panelu) trzeba ustalić przy pierwszym wdrożeniu i wpisać w `nginx-selene.conf` oraz `STABLE_URL` (instrukcja w `deploy/README.md`).
+- **Pierwsze lądowanie na wolnym łączu może użyć modelu schematycznego** — `nova_c.glb` waży 8,6 MB po gzip; jeśli nie zdąży się pobrać w tle, lądowanie wraca do modelu z prymitywów (zaplanowane: optymalizacja GLB, P1).
+- **Brotli na serwerze nieaktywne** — standardowy nginx z Debiana serwuje tylko `.gz` (`gzip_static`); moduł brotli (`libnginx-mod-http-brotli-static`) dałby ~20% mniej transferu — opcjonalnie.
 - **`InvariantTimezone` wymaga workloadu `wasm-tools`** — nie włączone; opcjonalna dalsza oszczędność rozmiaru.
 - **GitHub Pages** — `<base href="/">` nie zadziała pod podścieżką repo.

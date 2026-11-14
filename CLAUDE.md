@@ -13,7 +13,7 @@
 | Frontend | Blazor WebAssembly standalone, **.NET 10**. CesiumJS **1.120** via JS interop | `SeleneFrontend/` (`wwwroot/js/moonViewer.js`, `cardGrid.js`) |
 | Data | Python 3.11+ (Skyfield, rasterio, pyproj, numpy). A **one-off** precompute into JSON | `pipeline/` → `SeleneFrontend/wwwroot/data/illumination/` |
 | Runtime | **No backend.** Static files only | — |
-| Hosting (planned) | Static files on Mikrus (nginx), mirrored on GitHub Pages | not set up yet |
+| Hosting | Static files on Mikrus (nginx): stable :80 (jury link) + preview :8080; GitHub Pages mirror planned | `deploy/` (README in Polish) |
 
 ## Data sources
 
@@ -57,6 +57,11 @@ dotnet watch                      # http://localhost:5281
 dotnet build                      # must build with 0 warnings
 dotnet test ../SeleneFrontend.Tests  # simulator + optimizer unit tests (links the logic sources)
 
+# Deploy (from repo root, see deploy/README.md)
+./deploy/deploy.sh preview --build-only   # build + checks, no upload
+./deploy/deploy.sh preview                # then: ./deploy/deploy.sh stable
+CESIUM_ION_TOKEN='<URL-restricted token>' ./deploy/deploy.sh stable   # optional 3D, never commit the token
+
 # Pipeline (from pipeline/, see pipeline/README.md)
 python download_kernels.py
 python build.py --dem /path/ldem_75s_120m_float.lbl [--site ID]
@@ -84,7 +89,7 @@ python -m pytest -q
 - Dates in WASM: the runtime uses the browser's time zone. Treat unspecified `DateTime`s as UTC (`TimeUtil.AsUtc`), never call `ToUniversalTime()` on them.
 - Anything rendered per hour or per day (timeline, heatmap) must not re-render on every progress tick. Use `ShouldRender` or the canvas heatmap.
 - `index.html` must keep `<script type="importmap"></script>`: .NET 10 fills it with fingerprinted file names. Without it the app works on the dev server but **not** on nginx or GitHub Pages.
-- `wwwroot/appsettings.Development.json` (token) is excluded from publish in the csproj. Keep it that way: published files are public.
+- `wwwroot/appsettings.Development.json` (token) is excluded from publish in the csproj, and `deploy.sh` aborts if it ever appears. Keep it that way: published files are public. If you edit a published file (as deploy.sh does), regenerate its `.gz`, because nginx `gzip_static` serves the compressed copy.
 - CesiumJS is loaded with `defer`. Code touching `Cesium` must wait for `UiService.WhenCesiumReadyAsync()` (MoonPanel does).
 - Editing anything in `wwwroot` makes a running `dotnet watch` rebuild. A second `dotnet run --no-build` instance then serves a stale manifest (MIME errors), so restart it.
 - Cesium camera: call `camera.cancelFlight()` before `camera.lookAt()`. A running `flyTo` (intro, fly-to-site) plus `lookAt` drives the camera to NaN, and Cesium stops rendering with "Invalid array length". Release a `lookAt` lock with `lookAtTransform(Matrix4.IDENTITY)` before other camera moves (`releaseCamera()` in moonViewer.js).
