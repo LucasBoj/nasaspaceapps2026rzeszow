@@ -1,0 +1,9 @@
+.venv/
+kernels/
+__pycache__/
+.pytest_cache/
+# DEMs are large (hundreds of MB) — keep them out of git
+*.img
+*.lbl
+*.tif
+*.tiff

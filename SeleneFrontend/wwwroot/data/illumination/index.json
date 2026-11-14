@@ -1,0 +1,110 @@
+{
+  "start": "2027-01-01T00:00:00Z",
+  "end": "2028-12-31T23:00:00Z",
+  "stepHours": 1,
+  "observerHeightM": 2.0,
+  "dem": "ldem_75s_120m_float.lbl",
+  "method": "linear-disk-approx",
+  "generatedAt": "2026-11-14T11:32:17Z",
+  "sites": [
+    {
+      "siteId": "cabeus_b",
+      "name": "Peak near Cabeus B",
+      "lat": -86.5,
+      "lon": -35.2,
+      "file": "cabeus_b.json",
+      "pctSunlit": 32.4,
+      "pctComms": 35.9,
+      "longestDarkHours": 501,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "degerlache_rim_2",
+      "name": "de Gerlache Rim 2",
+      "lat": -89.0,
+      "lon": -60.0,
+      "file": "degerlache_rim_2.json",
+      "pctSunlit": 16.6,
+      "pctComms": 49.0,
+      "longestDarkHours": 2821,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "haworth",
+      "name": "Haworth",
+      "lat": -85.2,
+      "lon": 98.5,
+      "file": "haworth.json",
+      "pctSunlit": 27.9,
+      "pctComms": 35.0,
+      "longestDarkHours": 584,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "malapert_massif",
+      "name": "Malapert Massif",
+      "lat": -85.8,
+      "lon": -3.5,
+      "file": "malapert_massif.json",
+      "pctSunlit": 41.5,
+      "pctComms": 84.5,
+      "longestDarkHours": 436,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "mons_mouton",
+      "name": "Mons Mouton",
+      "lat": -83.9,
+      "lon": 18.1,
+      "file": "mons_mouton.json",
+      "pctSunlit": 15.7,
+      "pctComms": 31.9,
+      "longestDarkHours": 626,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "mons_mouton_plateau",
+      "name": "Mons Mouton Plateau",
+      "lat": -84.5,
+      "lon": 16.2,
+      "file": "mons_mouton_plateau.json",
+      "pctSunlit": 21.9,
+      "pctComms": 33.5,
+      "longestDarkHours": 596,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "nobile_rim_1",
+      "name": "Nobile Rim 1",
+      "lat": -88.2,
+      "lon": 25.0,
+      "file": "nobile_rim_1.json",
+      "pctSunlit": 3.6,
+      "pctComms": 0.0,
+      "longestDarkHours": 5646,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "nobile_rim_2",
+      "name": "Nobile Rim 2",
+      "lat": -87.8,
+      "lon": 30.0,
+      "file": "nobile_rim_2.json",
+      "pctSunlit": 0.0,
+      "pctComms": 0.0,
+      "longestDarkHours": 17544,
+      "horizonCoveragePct": 100.0
+    },
+    {
+      "siteId": "slater_plain",
+      "name": "Slater Plain",
+      "lat": -84.1,
+      "lon": 55.3,
+      "file": "slater_plain.json",
+      "pctSunlit": 12.8,
+      "pctComms": 0.0,
+      "longestDarkHours": 650,
+      "horizonCoveragePct": 100.0
+    }
+  ]
+}
