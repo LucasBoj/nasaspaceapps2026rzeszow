@@ -114,6 +114,9 @@ public class LanderPreset
     /// <summary>Extra rotation about the local vertical (degrees, clockwise seen from above); 0 if the export is already aligned.</summary>
     public double? ModelRotationDeg { get; set; }
 
+    /// <summary>Engine nozzle relative to the lander's feet, [east, north, up] in metres at heading 0 (visual only).</summary>
+    public double[]? ModelNozzleOffsetM { get; set; }
+
     /// <summary>Attribution of the 3D model (shown as a tooltip).</summary>
     public string? ModelCredit { get; set; }
 
@@ -124,8 +127,8 @@ public class LanderPreset
     public LanderModelSpec? Model =>
         ModelUri is null ? null
         : ModelScaleBy == "width"
-            ? (ModelWidthM is > 0 ? new LanderModelSpec(ModelUri, ModelWidthM.Value, "width", ModelRotationDeg ?? 0, ModelCredit) : null)
-            : (ModelHeightM is > 0 ? new LanderModelSpec(ModelUri, ModelHeightM.Value, "height", ModelRotationDeg ?? 0, ModelCredit) : null);
+            ? (ModelWidthM is > 0 ? new LanderModelSpec(ModelUri, ModelWidthM.Value, "width", ModelRotationDeg ?? 0, ModelCredit, ModelNozzleOffsetM) : null)
+            : (ModelHeightM is > 0 ? new LanderModelSpec(ModelUri, ModelHeightM.Value, "height", ModelRotationDeg ?? 0, ModelCredit, ModelNozzleOffsetM) : null);
 
     /// <summary>All present parameters, in display order.</summary>
     public IEnumerable<LanderParam> AllParams =>
@@ -136,4 +139,5 @@ public class LanderPreset
 }
 
 /// <summary>3D model for the viewer: GLB path, real size (m) of the extent named by ScaleBy, extra yaw and credit.</summary>
-public sealed record LanderModelSpec(string Uri, double SizeM, string ScaleBy, double RotationDeg, string? Credit);
+public sealed record LanderModelSpec(string Uri, double SizeM, string ScaleBy, double RotationDeg, string? Credit,
+    double[]? NozzleOffset = null);

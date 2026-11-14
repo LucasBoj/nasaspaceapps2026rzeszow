@@ -750,6 +750,7 @@ let sunLightKey = null;
  * If the Sun is hidden (sunFraction 0) a weak, cool fill light from above keeps models visible.
  */
 let lastSun = null;
+let baseLightIntensity = null;   // intensity set by setSunLight (the replay fades relative to it)
 
 export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
   if (!viewer || viewer.isDestroyed()) return;
@@ -771,6 +772,7 @@ export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
       direction: Cesium.Cartesian3.negate(toSun, new Cesium.Cartesian3()),   // light travels from the Sun
       intensity: enhance ? 3.0 : 2.2,
     });
+    baseLightIntensity = viewer.scene.light.intensity;
   } else {
     // Sun hidden: weak fill light, mostly from overhead with a hint of the Sun's bearing.
     const fill = Cesium.Cartesian3.normalize(Cesium.Cartesian3.add(
@@ -781,6 +783,7 @@ export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
       intensity: enhance ? 0.9 : 0.6,
       color: Cesium.Color.fromCssColorString("#a9c6e0"),
     });
+    baseLightIntensity = viewer.scene.light.intensity;
   }
   if (terrainTileset && !terrainTileset.isDestroyed()) {
     // ENHANCE: more ambient (regolith bounce light) so the grazing-lit terrain reads on a screen.
@@ -791,11 +794,44 @@ export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
   viewer.shadowMap.darkness = sunPct > 0 ? 0.35 : 0.6;
 }
 
+// ---- Mission replay (isolated module, loaded on first use) ----
+
+let replayModule = null;
+let replayData = null;
+
+/** Play the mission back on the landed lander (see missionReplay.js). */
+export async function playReplay(data, hudHost) {
+  if (!viewer) return;
+  const landingMod = await landing();
+  replayModule ??= await import("./missionReplay.js");
+  replayData = data;
+  replayModule.play(viewer, data, hudHost, {
+    setSun: (az, el, pct) => setSunLight(data.lat, data.lon, az, el, pct),
+    scaleLight: (k) => {
+      if (viewer?.scene?.light && baseLightIntensity != null) viewer.scene.light.intensity = baseLightIntensity * k;
+    },
+    onStep: (step) => dotNetRef?.invokeMethodAsync("OnReplayStep", step).catch(() => {}),
+    onEnd: (outcome) => dotNetRef?.invokeMethodAsync("OnReplayEnded", outcome).catch(() => {}),
+    landing: landingMod,
+  });
+}
+
+/** Stop the replay and go back to the landing moment (lander on the ground, light of the first hour). */
+export function stopReplay() {
+  replayModule?.stop(true);
+  if (replayData && viewer && !viewer.isDestroyed()) {
+    sunLightKey = null;
+    setSunLight(replayData.lat, replayData.lon, replayData.sunAz[0], replayData.sunEl[0], replayData.sunPct[0]);
+  }
+  replayData = null;
+}
+
 export function cancelLanding() {
   landingModule?.cancel();
 }
 
 export function clearLandingMarker() {
+  replayModule?.stop(true);
   if (!landingModule) return;
   landingModule.cancel();
   landingModule.clearMarker(viewer);

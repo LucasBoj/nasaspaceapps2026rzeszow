@@ -52,8 +52,9 @@ public class LanderModelTests
     [Fact]
     public void Griffin_is_scaled_by_width_others_by_height()
     {
-        Assert.Equal(new LanderModelSpec("models/griffin.glb", 4.5, "width", 0, Landers.Single(l => l.Id == "griffin").ModelCredit),
-            Landers.Single(l => l.Id == "griffin").Model);
+        var g = Landers.Single(l => l.Id == "griffin").Model!;
+        Assert.Equal(("models/griffin.glb", 4.5, "width", 0.0), (g.Uri, g.SizeM, g.ScaleBy, g.RotationDeg));
+        Assert.All(Landers, l => Assert.Equal(3, l.Model!.NozzleOffset?.Length));   // engine plume origin for every model
         Assert.All(Landers.Where(l => l.Id != "griffin"), l => Assert.Equal("height", l.Model!.ScaleBy));
         Assert.Equal(50, Landers.Single(l => l.Id == "starship_hls").Model!.SizeM);
     }

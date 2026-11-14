@@ -63,3 +63,66 @@ export function countUp(el, to, decimals, durationMs) {
   };
   requestAnimationFrame(step);
 }
+
+// ---- Analyst mode: Moon / analysis panel heights (CSS variable --moon-h on .app-container) ----
+
+const MIN_MOON_PX = 320;
+const app = () => document.querySelector(".app-container");
+const px = (sel) => document.querySelector(sel)?.offsetHeight ?? 0;
+
+/**
+ * Give the analysis panel the height it needs: the Moon area shrinks (not below MIN_MOON_PX) so the
+ * timeline and heatmap are visible without scrolling inside the panel. If both still do not fit (small
+ * screens), the page scrolls smoothly to the panel instead. `force` overrides a size the user dragged.
+ */
+export function fitResults(force) {
+  const a = app(), strip = document.getElementById("results-strip");
+  if (!a || !strip || !a.classList.contains("mode-analyst")) return;
+  if (a.dataset.userSized && !force) return;
+  if (force) delete a.dataset.userSized;
+  const need = strip.scrollHeight;
+  const room = window.innerHeight - px(".top-bar") - px(".app-footer") - need;
+  a.style.setProperty("--moon-h", `${Math.max(MIN_MOON_PX, room)}px`);
+  if (room < MIN_MOON_PX) {
+    requestAnimationFrame(() => strip.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }));
+  }
+}
+
+export function resetMoonHeight() {
+  const a = app();
+  if (!a) return;
+  delete a.dataset.userSized;
+  a.style.removeProperty("--moon-h");
+}
+
+/** Drag handle (pointer) and arrow keys on the separator above the analysis panel. */
+export function attachResultsResize(handle) {
+  if (!handle || handle.__attached) return;
+  handle.__attached = true;
+  const moonH = () => document.querySelector(".main-content")?.getBoundingClientRect().height ?? 400;
+  const set = (h) => {
+    const a = app(); if (!a) return;
+    const max = window.innerHeight - px(".top-bar") - 48;
+    a.dataset.userSized = "1";
+    const v = Math.round(Math.min(max, Math.max(MIN_MOON_PX - 80, h)));
+    a.style.setProperty("--moon-h", `${v}px`);
+    handle.setAttribute("aria-valuenow", String(Math.round((100 * v) / window.innerHeight)));
+  };
+  handle.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    const y0 = e.clientY, h0 = moonH();
+    const move = (ev) => set(h0 + (ev.clientY - y0));
+    const up = () => { handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up); };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+  });
+  handle.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowUp") { e.preventDefault(); set(moonH() - 40); }
+    if (e.key === "ArrowDown") { e.preventDefault(); set(moonH() + 40); }
+  });
+}
+
+export function focusSelector(selector) {
+  try { document.querySelector(selector)?.focus({ preventScroll: true }); } catch { /* ignore */ }
+}

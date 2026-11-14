@@ -138,10 +138,12 @@ public class MissionConfigState
             try
             {
                 var (dataStart, dataEnd) = await _illumination.GetRangeAsync();
-                DataStart = dataStart.Date;
+                // Landing dates from today (not the past) to the end of the data (2035-12-31).
+                var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+                DataStart = dataStart.Date > today ? dataStart.Date : today;
                 DataEnd = dataEnd.Date;
-                WindowStart = DataStart.Value;
-                WindowEnd = DataEnd.Value;
+                (WindowStart, WindowEnd) = DefaultWindow();
+                _illumination.SetWindow(WindowStart, WindowEnd);
             }
             catch (Exception ex)
             {
@@ -222,12 +224,29 @@ public class MissionConfigState
         await Task.CompletedTask;
     }
 
+    /// <summary>Longest landing window the analysis accepts (performance and heatmap readability).</summary>
+    public const int MaxWindowMonths = 24;
+
+    /// <summary>Default window: 2027–2028 (unchanged), clipped to the data.</summary>
+    public (DateTime Start, DateTime End) DefaultWindow()
+    {
+        var a = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var b = new DateTime(2028, 12, 31, 0, 0, 0, DateTimeKind.Utc);
+        if (DataStart is { } ds && a < ds) a = ds;
+        if (DataEnd is { } de && b > de) b = de;
+        return (a, b < a ? a : b);
+    }
+
     public async Task UpdateWindowStart(DateTime date)
     {
         WindowStart = Clip(TimeUtil.AsUtc(date).Date);
         if (WindowEnd < WindowStart) WindowEnd = WindowStart;
-        WindowRevision++;
-        OnStateChanged?.Invoke();
+        if (WindowEnd > WindowStart.AddMonths(MaxWindowMonths).AddDays(-1))
+        {
+            WindowEnd = WindowStart.AddMonths(MaxWindowMonths).AddDays(-1);
+            WindowNotice = $"the landing window is limited to {MaxWindowMonths} months — the latest date moved to {WindowEnd:yyyy-MM-dd}";
+        }
+        WindowChanged();
         await Task.CompletedTask;
     }
 
@@ -235,9 +254,37 @@ public class MissionConfigState
     {
         WindowEnd = Clip(TimeUtil.AsUtc(date).Date);
         if (WindowStart > WindowEnd) WindowStart = WindowEnd;
-        WindowRevision++;
-        OnStateChanged?.Invoke();
+        if (WindowStart < WindowEnd.AddMonths(-MaxWindowMonths).AddDays(1))
+        {
+            WindowStart = WindowEnd.AddMonths(-MaxWindowMonths).AddDays(1);
+            WindowNotice = $"the landing window is limited to {MaxWindowMonths} months — the earliest date moved to {WindowStart:yyyy-MM-dd}";
+        }
+        WindowChanged();
         await Task.CompletedTask;
+    }
+
+    /// <summary>Set both ends at once (calendar shortcuts); same limits as typing the dates.</summary>
+    public async Task SetWindow(DateTime start, DateTime end)
+    {
+        WindowStart = Clip(TimeUtil.AsUtc(start).Date);
+        var notice = WindowNotice;
+        WindowEnd = Clip(TimeUtil.AsUtc(end).Date);
+        WindowNotice ??= notice;
+        if (WindowEnd < WindowStart) WindowEnd = WindowStart;
+        if (WindowEnd > WindowStart.AddMonths(MaxWindowMonths).AddDays(-1))
+        {
+            WindowEnd = WindowStart.AddMonths(MaxWindowMonths).AddDays(-1);
+            WindowNotice = $"the landing window is limited to {MaxWindowMonths} months";
+        }
+        WindowChanged();
+        await Task.CompletedTask;
+    }
+
+    private void WindowChanged()
+    {
+        WindowRevision++;
+        _illumination.SetWindow(WindowStart, WindowEnd);
+        OnStateChanged?.Invoke();
     }
 
     /// <summary>Clamp a date to the data range and remember a notice when clipping happened.</summary>
@@ -279,8 +326,8 @@ public class MissionConfigState
 
     public void Reset()
     {
-        WindowStart = DataStart ?? DateTime.UtcNow.Date;
-        WindowEnd = DataEnd ?? DateTime.UtcNow.Date.AddYears(2);
+        (WindowStart, WindowEnd) = DefaultWindow();
+        _illumination.SetWindow(WindowStart, WindowEnd);
         WindowNotice = null;
         MissionDurationDays = 7;
         TimeStepHours = 1;

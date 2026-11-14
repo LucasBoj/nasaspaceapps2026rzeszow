@@ -1,110 +1,689 @@
 {
-  "start": "2027-01-01T00:00:00Z",
-  "end": "2028-12-31T23:00:00Z",
+  "start": "2026-11-01T00:00:00Z",
+  "end": "2035-12-31T23:00:00Z",
   "stepHours": 1,
+  "years": [
+    2026,
+    2027,
+    2028,
+    2029,
+    2030,
+    2031,
+    2032,
+    2033,
+    2034,
+    2035
+  ],
   "observerHeightM": 2.0,
   "dem": "ldem_75s_120m_float.lbl",
   "method": "linear-disk-approx",
-  "generatedAt": "2026-11-14T12:26:50Z",
+  "generatedAt": "2026-11-14T22:10:34Z",
   "sites": [
     {
       "siteId": "cabeus_b",
       "name": "Peak near Cabeus B",
       "lat": -83.36914,
       "lon": -67.6646,
-      "file": "cabeus_b.json",
-      "pctSunlit": 53.8,
-      "pctComms": 70.2,
-      "longestDarkHours": 359,
-      "horizonCoveragePct": 100.0
+      "files": {
+        "2026": "cabeus_b/2026.json",
+        "2027": "cabeus_b/2027.json",
+        "2028": "cabeus_b/2028.json",
+        "2029": "cabeus_b/2029.json",
+        "2030": "cabeus_b/2030.json",
+        "2031": "cabeus_b/2031.json",
+        "2032": "cabeus_b/2032.json",
+        "2033": "cabeus_b/2033.json",
+        "2034": "cabeus_b/2034.json",
+        "2035": "cabeus_b/2035.json"
+      },
+      "pctSunlit": 54.2,
+      "pctComms": 71.9,
+      "longestDarkHours": 360,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 59.9,
+          "pctComms": 67.0,
+          "longestDarkHours": 295
+        },
+        "2027": {
+          "pctSunlit": 54.2,
+          "pctComms": 67.8,
+          "longestDarkHours": 359
+        },
+        "2028": {
+          "pctSunlit": 53.4,
+          "pctComms": 72.6,
+          "longestDarkHours": 358
+        },
+        "2029": {
+          "pctSunlit": 55.5,
+          "pctComms": 74.3,
+          "longestDarkHours": 359
+        },
+        "2030": {
+          "pctSunlit": 53.0,
+          "pctComms": 77.2,
+          "longestDarkHours": 359
+        },
+        "2031": {
+          "pctSunlit": 54.0,
+          "pctComms": 71.9,
+          "longestDarkHours": 360
+        },
+        "2032": {
+          "pctSunlit": 55.1,
+          "pctComms": 68.2,
+          "longestDarkHours": 359
+        },
+        "2033": {
+          "pctSunlit": 52.6,
+          "pctComms": 69.3,
+          "longestDarkHours": 358
+        },
+        "2034": {
+          "pctSunlit": 54.9,
+          "pctComms": 70.5,
+          "longestDarkHours": 360
+        },
+        "2035": {
+          "pctSunlit": 54.3,
+          "pctComms": 76.1,
+          "longestDarkHours": 358
+        }
+      }
     },
     {
       "siteId": "degerlache_rim_2",
       "name": "de Gerlache Rim 2",
       "lat": -88.44999,
       "lon": -67.85908,
-      "file": "degerlache_rim_2.json",
-      "pctSunlit": 79.6,
-      "pctComms": 54.9,
-      "longestDarkHours": 246,
-      "horizonCoveragePct": 100.0
+      "files": {
+        "2026": "degerlache_rim_2/2026.json",
+        "2027": "degerlache_rim_2/2027.json",
+        "2028": "degerlache_rim_2/2028.json",
+        "2029": "degerlache_rim_2/2029.json",
+        "2030": "degerlache_rim_2/2030.json",
+        "2031": "degerlache_rim_2/2031.json",
+        "2032": "degerlache_rim_2/2032.json",
+        "2033": "degerlache_rim_2/2033.json",
+        "2034": "degerlache_rim_2/2034.json",
+        "2035": "degerlache_rim_2/2035.json"
+      },
+      "pctSunlit": 79.2,
+      "pctComms": 55.1,
+      "longestDarkHours": 247,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 94.0,
+          "pctComms": 50.8,
+          "longestDarkHours": 45
+        },
+        "2027": {
+          "pctSunlit": 79.9,
+          "pctComms": 51.1,
+          "longestDarkHours": 246
+        },
+        "2028": {
+          "pctSunlit": 79.3,
+          "pctComms": 58.7,
+          "longestDarkHours": 245
+        },
+        "2029": {
+          "pctSunlit": 79.8,
+          "pctComms": 57.6,
+          "longestDarkHours": 246
+        },
+        "2030": {
+          "pctSunlit": 78.3,
+          "pctComms": 55.5,
+          "longestDarkHours": 246
+        },
+        "2031": {
+          "pctSunlit": 78.2,
+          "pctComms": 52.4,
+          "longestDarkHours": 247
+        },
+        "2032": {
+          "pctSunlit": 79.6,
+          "pctComms": 52.3,
+          "longestDarkHours": 246
+        },
+        "2033": {
+          "pctSunlit": 77.0,
+          "pctComms": 53.0,
+          "longestDarkHours": 246
+        },
+        "2034": {
+          "pctSunlit": 79.0,
+          "pctComms": 55.9,
+          "longestDarkHours": 247
+        },
+        "2035": {
+          "pctSunlit": 79.4,
+          "pctComms": 60.3,
+          "longestDarkHours": 247
+        }
+      }
     },
     {
       "siteId": "haworth",
       "name": "Haworth",
       "lat": -86.98951,
       "lon": -24.25453,
-      "file": "haworth.json",
-      "pctSunlit": 70.3,
-      "pctComms": 55.3,
-      "longestDarkHours": 397,
-      "horizonCoveragePct": 100.0
+      "files": {
+        "2026": "haworth/2026.json",
+        "2027": "haworth/2027.json",
+        "2028": "haworth/2028.json",
+        "2029": "haworth/2029.json",
+        "2030": "haworth/2030.json",
+        "2031": "haworth/2031.json",
+        "2032": "haworth/2032.json",
+        "2033": "haworth/2033.json",
+        "2034": "haworth/2034.json",
+        "2035": "haworth/2035.json"
+      },
+      "pctSunlit": 70.1,
+      "pctComms": 54.5,
+      "longestDarkHours": 399,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 99.9,
+          "pctComms": 50.7,
+          "longestDarkHours": 1
+        },
+        "2027": {
+          "pctSunlit": 70.4,
+          "pctComms": 52.1,
+          "longestDarkHours": 397
+        },
+        "2028": {
+          "pctSunlit": 70.3,
+          "pctComms": 58.5,
+          "longestDarkHours": 395
+        },
+        "2029": {
+          "pctSunlit": 70.8,
+          "pctComms": 55.6,
+          "longestDarkHours": 394
+        },
+        "2030": {
+          "pctSunlit": 68.8,
+          "pctComms": 54.9,
+          "longestDarkHours": 396
+        },
+        "2031": {
+          "pctSunlit": 68.7,
+          "pctComms": 51.1,
+          "longestDarkHours": 397
+        },
+        "2032": {
+          "pctSunlit": 70.3,
+          "pctComms": 50.7,
+          "longestDarkHours": 394
+        },
+        "2033": {
+          "pctSunlit": 68.1,
+          "pctComms": 53.9,
+          "longestDarkHours": 386
+        },
+        "2034": {
+          "pctSunlit": 69.8,
+          "pctComms": 55.9,
+          "longestDarkHours": 399
+        },
+        "2035": {
+          "pctSunlit": 69.1,
+          "pctComms": 58.5,
+          "longestDarkHours": 395
+        }
+      }
     },
     {
       "siteId": "malapert_massif",
       "name": "Malapert Massif",
       "lat": -85.99192,
       "lon": 2.0564,
-      "file": "malapert_massif.json",
-      "pctSunlit": 81.9,
-      "pctComms": 67.4,
-      "longestDarkHours": 325,
-      "horizonCoveragePct": 100.0
+      "files": {
+        "2026": "malapert_massif/2026.json",
+        "2027": "malapert_massif/2027.json",
+        "2028": "malapert_massif/2028.json",
+        "2029": "malapert_massif/2029.json",
+        "2030": "malapert_massif/2030.json",
+        "2031": "malapert_massif/2031.json",
+        "2032": "malapert_massif/2032.json",
+        "2033": "malapert_massif/2033.json",
+        "2034": "malapert_massif/2034.json",
+        "2035": "malapert_massif/2035.json"
+      },
+      "pctSunlit": 80.7,
+      "pctComms": 67.1,
+      "longestDarkHours": 326,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 100.0,
+          "pctComms": 63.9,
+          "longestDarkHours": 0
+        },
+        "2027": {
+          "pctSunlit": 82.1,
+          "pctComms": 65.0,
+          "longestDarkHours": 325
+        },
+        "2028": {
+          "pctSunlit": 81.7,
+          "pctComms": 69.7,
+          "longestDarkHours": 325
+        },
+        "2029": {
+          "pctSunlit": 81.1,
+          "pctComms": 68.1,
+          "longestDarkHours": 324
+        },
+        "2030": {
+          "pctSunlit": 78.7,
+          "pctComms": 68.7,
+          "longestDarkHours": 323
+        },
+        "2031": {
+          "pctSunlit": 81.5,
+          "pctComms": 64.5,
+          "longestDarkHours": 324
+        },
+        "2032": {
+          "pctSunlit": 79.5,
+          "pctComms": 63.6,
+          "longestDarkHours": 324
+        },
+        "2033": {
+          "pctSunlit": 79.0,
+          "pctComms": 66.7,
+          "longestDarkHours": 325
+        },
+        "2034": {
+          "pctSunlit": 81.0,
+          "pctComms": 67.6,
+          "longestDarkHours": 326
+        },
+        "2035": {
+          "pctSunlit": 78.9,
+          "pctComms": 70.5,
+          "longestDarkHours": 325
+        }
+      }
     },
     {
       "siteId": "mons_mouton",
       "name": "Mons Mouton",
       "lat": -85.48099,
       "lon": 29.54935,
-      "file": "mons_mouton.json",
-      "pctSunlit": 79.5,
-      "pctComms": 70.8,
-      "longestDarkHours": 226,
-      "horizonCoveragePct": 100.0
+      "files": {
+        "2026": "mons_mouton/2026.json",
+        "2027": "mons_mouton/2027.json",
+        "2028": "mons_mouton/2028.json",
+        "2029": "mons_mouton/2029.json",
+        "2030": "mons_mouton/2030.json",
+        "2031": "mons_mouton/2031.json",
+        "2032": "mons_mouton/2032.json",
+        "2033": "mons_mouton/2033.json",
+        "2034": "mons_mouton/2034.json",
+        "2035": "mons_mouton/2035.json"
+      },
+      "pctSunlit": 78.6,
+      "pctComms": 70.4,
+      "longestDarkHours": 228,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 100.0,
+          "pctComms": 68.2,
+          "longestDarkHours": 0
+        },
+        "2027": {
+          "pctSunlit": 80.0,
+          "pctComms": 68.6,
+          "longestDarkHours": 225
+        },
+        "2028": {
+          "pctSunlit": 79.0,
+          "pctComms": 73.0,
+          "longestDarkHours": 226
+        },
+        "2029": {
+          "pctSunlit": 78.0,
+          "pctComms": 71.2,
+          "longestDarkHours": 225
+        },
+        "2030": {
+          "pctSunlit": 77.4,
+          "pctComms": 71.4,
+          "longestDarkHours": 227
+        },
+        "2031": {
+          "pctSunlit": 79.6,
+          "pctComms": 67.6,
+          "longestDarkHours": 226
+        },
+        "2032": {
+          "pctSunlit": 76.9,
+          "pctComms": 67.1,
+          "longestDarkHours": 223
+        },
+        "2033": {
+          "pctSunlit": 76.6,
+          "pctComms": 70.2,
+          "longestDarkHours": 226
+        },
+        "2034": {
+          "pctSunlit": 79.1,
+          "pctComms": 71.0,
+          "longestDarkHours": 228
+        },
+        "2035": {
+          "pctSunlit": 76.9,
+          "pctComms": 73.4,
+          "longestDarkHours": 227
+        }
+      }
     },
     {
       "siteId": "mons_mouton_plateau",
       "name": "Mons Mouton Plateau",
       "lat": -84.13828,
       "lon": 25.64223,
-      "file": "mons_mouton_plateau.json",
+      "files": {
+        "2026": "mons_mouton_plateau/2026.json",
+        "2027": "mons_mouton_plateau/2027.json",
+        "2028": "mons_mouton_plateau/2028.json",
+        "2029": "mons_mouton_plateau/2029.json",
+        "2030": "mons_mouton_plateau/2030.json",
+        "2031": "mons_mouton_plateau/2031.json",
+        "2032": "mons_mouton_plateau/2032.json",
+        "2033": "mons_mouton_plateau/2033.json",
+        "2034": "mons_mouton_plateau/2034.json",
+        "2035": "mons_mouton_plateau/2035.json"
+      },
       "pctSunlit": 42.7,
       "pctComms": 73.9,
-      "longestDarkHours": 464,
-      "horizonCoveragePct": 100.0
+      "longestDarkHours": 465,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 49.7,
+          "pctComms": 71.9,
+          "longestDarkHours": 347
+        },
+        "2027": {
+          "pctSunlit": 41.5,
+          "pctComms": 71.9,
+          "longestDarkHours": 464
+        },
+        "2028": {
+          "pctSunlit": 44.0,
+          "pctComms": 75.9,
+          "longestDarkHours": 464
+        },
+        "2029": {
+          "pctSunlit": 42.8,
+          "pctComms": 75.0,
+          "longestDarkHours": 463
+        },
+        "2030": {
+          "pctSunlit": 41.5,
+          "pctComms": 75.3,
+          "longestDarkHours": 465
+        },
+        "2031": {
+          "pctSunlit": 44.5,
+          "pctComms": 71.7,
+          "longestDarkHours": 465
+        },
+        "2032": {
+          "pctSunlit": 41.5,
+          "pctComms": 70.8,
+          "longestDarkHours": 465
+        },
+        "2033": {
+          "pctSunlit": 42.4,
+          "pctComms": 73.5,
+          "longestDarkHours": 465
+        },
+        "2034": {
+          "pctSunlit": 43.5,
+          "pctComms": 74.1,
+          "longestDarkHours": 465
+        },
+        "2035": {
+          "pctSunlit": 41.6,
+          "pctComms": 76.8,
+          "longestDarkHours": 465
+        }
+      }
     },
     {
       "siteId": "nobile_rim_1",
       "name": "Nobile Rim 1",
       "lat": -85.54562,
       "lon": 37.55718,
-      "file": "nobile_rim_1.json",
-      "pctSunlit": 84.2,
-      "pctComms": 62.4,
-      "longestDarkHours": 283,
-      "horizonCoveragePct": 100.0
+      "files": {
+        "2026": "nobile_rim_1/2026.json",
+        "2027": "nobile_rim_1/2027.json",
+        "2028": "nobile_rim_1/2028.json",
+        "2029": "nobile_rim_1/2029.json",
+        "2030": "nobile_rim_1/2030.json",
+        "2031": "nobile_rim_1/2031.json",
+        "2032": "nobile_rim_1/2032.json",
+        "2033": "nobile_rim_1/2033.json",
+        "2034": "nobile_rim_1/2034.json",
+        "2035": "nobile_rim_1/2035.json"
+      },
+      "pctSunlit": 83.1,
+      "pctComms": 62.6,
+      "longestDarkHours": 289,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 100.0,
+          "pctComms": 57.7,
+          "longestDarkHours": 0
+        },
+        "2027": {
+          "pctSunlit": 84.0,
+          "pctComms": 59.9,
+          "longestDarkHours": 283
+        },
+        "2028": {
+          "pctSunlit": 84.4,
+          "pctComms": 64.9,
+          "longestDarkHours": 283
+        },
+        "2029": {
+          "pctSunlit": 83.2,
+          "pctComms": 63.8,
+          "longestDarkHours": 279
+        },
+        "2030": {
+          "pctSunlit": 83.1,
+          "pctComms": 66.4,
+          "longestDarkHours": 216
+        },
+        "2031": {
+          "pctSunlit": 83.8,
+          "pctComms": 60.1,
+          "longestDarkHours": 212
+        },
+        "2032": {
+          "pctSunlit": 81.0,
+          "pctComms": 58.7,
+          "longestDarkHours": 278
+        },
+        "2033": {
+          "pctSunlit": 82.2,
+          "pctComms": 61.4,
+          "longestDarkHours": 271
+        },
+        "2034": {
+          "pctSunlit": 82.2,
+          "pctComms": 62.4,
+          "longestDarkHours": 289
+        },
+        "2035": {
+          "pctSunlit": 81.6,
+          "pctComms": 66.3,
+          "longestDarkHours": 287
+        }
+      }
     },
     {
       "siteId": "nobile_rim_2",
       "name": "Nobile Rim 2",
       "lat": -83.61854,
       "lon": 59.05676,
-      "file": "nobile_rim_2.json",
-      "pctSunlit": 53.8,
-      "pctComms": 60.6,
-      "longestDarkHours": 356,
-      "horizonCoveragePct": 100.0
+      "files": {
+        "2026": "nobile_rim_2/2026.json",
+        "2027": "nobile_rim_2/2027.json",
+        "2028": "nobile_rim_2/2028.json",
+        "2029": "nobile_rim_2/2029.json",
+        "2030": "nobile_rim_2/2030.json",
+        "2031": "nobile_rim_2/2031.json",
+        "2032": "nobile_rim_2/2032.json",
+        "2033": "nobile_rim_2/2033.json",
+        "2034": "nobile_rim_2/2034.json",
+        "2035": "nobile_rim_2/2035.json"
+      },
+      "pctSunlit": 53.1,
+      "pctComms": 59.5,
+      "longestDarkHours": 400,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 58.8,
+          "pctComms": 56.1,
+          "longestDarkHours": 280
+        },
+        "2027": {
+          "pctSunlit": 52.8,
+          "pctComms": 58.0,
+          "longestDarkHours": 355
+        },
+        "2028": {
+          "pctSunlit": 54.7,
+          "pctComms": 63.2,
+          "longestDarkHours": 356
+        },
+        "2029": {
+          "pctSunlit": 52.2,
+          "pctComms": 60.2,
+          "longestDarkHours": 355
+        },
+        "2030": {
+          "pctSunlit": 52.8,
+          "pctComms": 59.7,
+          "longestDarkHours": 399
+        },
+        "2031": {
+          "pctSunlit": 54.6,
+          "pctComms": 55.9,
+          "longestDarkHours": 357
+        },
+        "2032": {
+          "pctSunlit": 51.7,
+          "pctComms": 55.6,
+          "longestDarkHours": 355
+        },
+        "2033": {
+          "pctSunlit": 53.5,
+          "pctComms": 59.7,
+          "longestDarkHours": 356
+        },
+        "2034": {
+          "pctSunlit": 53.4,
+          "pctComms": 60.9,
+          "longestDarkHours": 400
+        },
+        "2035": {
+          "pctSunlit": 51.6,
+          "pctComms": 62.9,
+          "longestDarkHours": 358
+        }
+      }
     },
     {
       "siteId": "slater_plain",
       "name": "Slater Plain",
       "lat": -87.18375,
       "lon": 133.34446,
-      "file": "slater_plain.json",
-      "pctSunlit": 60.8,
+      "files": {
+        "2026": "slater_plain/2026.json",
+        "2027": "slater_plain/2027.json",
+        "2028": "slater_plain/2028.json",
+        "2029": "slater_plain/2029.json",
+        "2030": "slater_plain/2030.json",
+        "2031": "slater_plain/2031.json",
+        "2032": "slater_plain/2032.json",
+        "2033": "slater_plain/2033.json",
+        "2034": "slater_plain/2034.json",
+        "2035": "slater_plain/2035.json"
+      },
+      "pctSunlit": 60.0,
       "pctComms": 33.7,
-      "longestDarkHours": 333,
-      "horizonCoveragePct": 100.0
+      "longestDarkHours": 335,
+      "horizonCoveragePct": 100.0,
+      "byYear": {
+        "2026": {
+          "pctSunlit": 65.2,
+          "pctComms": 26.4,
+          "longestDarkHours": 247
+        },
+        "2027": {
+          "pctSunlit": 61.2,
+          "pctComms": 30.7,
+          "longestDarkHours": 331
+        },
+        "2028": {
+          "pctSunlit": 60.4,
+          "pctComms": 36.6,
+          "longestDarkHours": 333
+        },
+        "2029": {
+          "pctSunlit": 59.0,
+          "pctComms": 35.7,
+          "longestDarkHours": 333
+        },
+        "2030": {
+          "pctSunlit": 61.1,
+          "pctComms": 35.9,
+          "longestDarkHours": 332
+        },
+        "2031": {
+          "pctSunlit": 59.3,
+          "pctComms": 31.5,
+          "longestDarkHours": 332
+        },
+        "2032": {
+          "pctSunlit": 59.2,
+          "pctComms": 29.8,
+          "longestDarkHours": 334
+        },
+        "2033": {
+          "pctSunlit": 60.8,
+          "pctComms": 32.3,
+          "longestDarkHours": 335
+        },
+        "2034": {
+          "pctSunlit": 58.3,
+          "pctComms": 34.0,
+          "longestDarkHours": 333
+        },
+        "2035": {
+          "pctSunlit": 60.3,
+          "pctComms": 38.3,
+          "longestDarkHours": 333
+        }
+      }
     }
   ]
 }

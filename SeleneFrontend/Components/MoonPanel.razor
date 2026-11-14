@@ -16,6 +16,8 @@
     <div id="moon-viewer-element" class="moon-viewer-canvas"></div>
     @* Landing animation HUD: owned by landingAnimation.js — Blazor never renders children into it. *@
     <div class="landing-hud-host" @ref="landingHud"></div>
+    @* Mission replay HUD: owned by missionReplay.js — Blazor never renders children into it. *@
+    <div class="replay-hud-host" @ref="replayHud"></div>
 
     @if (!moonLoaded && initError is null)
     {
@@ -31,6 +33,10 @@
                         @onclick="SouthPoleViewAsync">⌂ View</button>
                 <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)"
                         aria-describedby="@(MissionState.SelectedSite is null ? "zoom-reason" : null)" @onclick="ZoomToSiteAsync">Zoom to site</button>
+                @if (Ui.CanPlayMission && !Ui.ReplayPlaying)
+                {
+                    <button type="button" class="hud-btn play-mission" @onclick="Ui.PlayMissionAsync">▶ Play mission</button>
+                }
                 @if (Ui.Landed || Ui.LandingInProgress)
                 {
                     <button type="button" class="hud-btn new-landing" disabled="@Ui.LandingInProgress"
@@ -130,6 +136,7 @@
     {
         <VerdictCard />
     }
+    <ReplaySummary />
     <WelcomeCard />
     @if (initError is not null)
     {
@@ -188,6 +195,7 @@
         Ui.IntroRequested += HandleIntro;
         Ui.LandingRequested += HandleLandingRequested;
         Ui.NewLandingRequested += HandleNewLanding;
+        Ui.ReplayRequested += HandleReplayRequested;
         Ui.HoverTimeChanged += HandleHoverTime;
     }
 
@@ -279,6 +287,59 @@
     }
 
     private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); await SyncViewerFlagsAsync(); StateHasChanged(); });
+
+    private ElementReference replayHud;
+
+    /// <summary>Start (true) or stop and reset (false) the mission replay in the viewer.</summary>
+    private void HandleReplayRequested(bool play) => _ = InvokeAsync(async () =>
+    {
+        if (moonModule is null) { if (play) Ui.ReplayEnded(Ui.OutcomeOf()); return; }
+        try
+        {
+            if (!play) { await moonModule.InvokeVoidAsync("stopReplay"); return; }
+            var payload = await ReplayPayloadAsync();
+            if (payload is null) { Ui.ReplayEnded(Ui.OutcomeOf()); return; }
+            await moonModule.InvokeVoidAsync("playReplay", payload, replayHud);
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Replay] {ex.Message}");
+            Ui.ReplayEnded(Ui.OutcomeOf());
+        }
+    });
+
+    /// <summary>Hourly mission data for the replay: Sun direction from illumination, battery and contact from the simulation.</summary>
+    private async Task<object?> ReplayPayloadAsync()
+    {
+        if (Analysis.Mission is not { } m || MissionState.SelectedSite is not { } site || MissionState.SelectedLander is not { } lander) return null;
+        var series = await Repo.GetSeries(site.Id);
+        var start = series.IndexOf(m.LandingUtc);
+        if (start < 0 || !series.HasSunGeometry) return null;
+        var n = new[] { m.Steps, m.Sun.Length, m.Earth.Length, m.SocPct.Length, series.Count - start }.Min();
+        if (n < 2) return null;
+        return new
+        {
+            startUtc = m.LandingUtc.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture),
+            stepHours = m.StepHours,
+            lat = site.Lat, lon = site.Lon,
+            sunAz = Enumerable.Range(start, n).Select(i => series.SunAzCentiDeg[i] / 100.0).ToArray(),
+            sunEl = Enumerable.Range(start, n).Select(i => series.SunElevCentiDeg[i] / 100.0).ToArray(),
+            sunPct = m.Sun.Take(n).ToArray(),
+            earth = m.Earth.Take(n).ToArray(),
+            soc = m.SocPct.Take(n).Select(v => Math.Round(v, 1)).ToArray(),
+            depletedAt = m.DepletedAtStep ?? -1,
+            outcome = Ui.OutcomeOf(),
+            landerName = lander.Name, siteName = site.Name,
+            sizeM = lander.Model?.SizeM ?? 4,
+            nozzleOffset = lander.Model?.NozzleOffset,
+            reason = m.Reason,
+        };
+    }
+
+    [JSInvokable] public void OnReplayStep(int step) => Ui.SetReplayStep(step);
+
+    [JSInvokable] public void OnReplayEnded(string outcome) => Ui.ReplayEnded(outcome);
 
     /// <summary>NEW LANDING: remove the landed model and give the camera back.</summary>
     private void HandleNewLanding() => _ = InvokeAsync(async () =>
@@ -563,6 +624,7 @@
         Ui.IntroRequested -= HandleIntro;
         Ui.LandingRequested -= HandleLandingRequested;
         Ui.NewLandingRequested -= HandleNewLanding;
+        Ui.ReplayRequested -= HandleReplayRequested;
         Ui.HoverTimeChanged -= HandleHoverTime;
 
         if (moonModule is not null)

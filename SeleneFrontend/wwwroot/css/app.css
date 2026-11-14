@@ -2539,3 +2539,131 @@ body { font-size: var(--fs-m); line-height: 1.45; }
 }
 .verdict-outdated .btn-secondary { flex: none; }
 .verdict-card.outdated .verdict-big, .verdict-card.outdated .verdict-numbers, .verdict-card.outdated .verdict-sentence { opacity: 0.8; }
+
+/* ---- Polish 2026-11-14: Analyst mode button, step 3 subtitle ---- */
+.analyst-btn {
+    display: inline-flex; align-items: center; gap: var(--s2);
+    padding: 6px 10px;
+    font: inherit; font-size: var(--fs-s); font-weight: 600;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.analyst-btn:hover { border-color: var(--accent-cyan); }
+.analyst-btn:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+.analyst-icon { width: 14px; height: 14px; fill: currentColor; }
+.analyst-state { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 1px 5px; border-radius: 2px; background: var(--bg-raised); color: var(--text-dim); }
+.analyst-btn.on { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #000; }
+.analyst-btn.on .analyst-state { background: rgba(0, 0, 0, 0.25); color: #000; }
+.step-title small.step-sub { display: block; font-size: var(--fs-s); font-weight: 400; color: var(--text-dim); }
+@media (max-width: 1023px) { .analyst-btn > span:not(.analyst-state) { display: none; } }
+
+/* ---- Analyst mode: the analysis panel takes the height it needs, the page scrolls if needed ---- */
+html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: auto; }
+.mode-analyst.app-container { height: auto; min-height: 100dvh; }
+.mode-analyst > .main-content { flex: none; height: var(--moon-h, calc(100dvh - 56px - 56px - 30px)); min-height: 240px; transition: height var(--t) var(--ease); }
+.mode-analyst .results-strip.expanded { height: auto; }
+.mode-analyst .results-strip.expanded .results-content { overflow: visible; flex: none; }
+.results-head-row { display: flex; align-items: center; gap: var(--s2); padding-right: var(--s4); }
+.results-head-row .results-header { flex: 1; min-width: 0; }
+.results-size-btns { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.results-resize {
+    height: 8px; margin-top: -4px; cursor: row-resize; flex: none;
+    background: linear-gradient(var(--border-color), var(--border-color)) center / 48px 2px no-repeat;
+}
+.results-resize:hover, .results-resize:focus-visible { background-color: rgba(79, 195, 247, 0.15); outline: none; }
+@media (prefers-reduced-motion: reduce) { .mode-analyst > .main-content { transition: none; } }
+@media (max-width: 1023px) { .mode-analyst > .main-content { height: auto; } .results-resize { display: none; } }
+
+/* ---- Date picker limited to the data range ---- */
+.date-field { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.date-field > label { font-size: var(--fs-s); color: var(--text-dim); }
+.date-value {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; font: inherit; font-size: var(--fs-m);
+    color: var(--text-primary); background: var(--bg-panel);
+    border: 1px solid var(--border-color); border-radius: 2px; cursor: pointer; text-align: left;
+}
+.date-value:hover { border-color: var(--accent-cyan); }
+.date-value:focus-visible, .date-day:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 1px; }
+.date-pop {
+    position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 280px;
+    padding: var(--s3); background: var(--bg-raised); border: 1px solid var(--border-color); border-radius: 2px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5); display: grid; gap: var(--s2);
+}
+.date-pop-head { display: flex; gap: 6px; align-items: center; }
+.date-pop-head select { flex: 1; min-width: 0; padding: 4px; background: var(--bg-panel); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 2px; font: inherit; font-size: var(--fs-s); }
+.date-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.date-grid th { font-size: 11px; font-weight: 500; color: var(--text-dim); padding: 2px 0; }
+.date-grid td { padding: 1px; }
+.date-day {
+    width: 100%; aspect-ratio: 1; font: inherit; font-size: var(--fs-s);
+    color: var(--text-primary); background: none; border: 1px solid transparent; border-radius: 2px; cursor: pointer;
+}
+.date-day:hover:not(:disabled) { border-color: var(--accent-cyan); }
+.date-day.selected { background: var(--accent-cyan); color: #000; font-weight: 600; }
+.date-day.cursor:not(.selected) { border-color: var(--border-color); }
+.date-day:disabled { color: #4a5866; cursor: not-allowed; }
+.date-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---- Mission replay: HUD (top left, clear of the lander) and end summary (bottom, like the verdict) ---- */
+.replay-hud-host { position: absolute; top: 56px; left: 12px; z-index: 7; pointer-events: none; }
+.replay-hud {
+    pointer-events: auto;
+    width: min(340px, calc(100vw - 48px));
+    display: grid; gap: var(--s2);
+    padding: var(--s3) var(--s4);
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-color);
+    border-left: 2px solid var(--accent-cyan);
+    border-radius: 2px;
+    animation: card-in var(--t) var(--ease) both;
+}
+.replay-head { display: flex; gap: var(--s2); align-items: baseline; flex-wrap: wrap; }
+.replay-badge { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--accent-cyan); }
+.replay-where { font-size: var(--fs-s); color: var(--text-dim); }
+.replay-clock { font-size: var(--fs-l); }
+.replay-rows { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--s3); margin: 0; font-size: var(--fs-s); }
+.replay-rows dt { color: var(--text-dim); }
+.replay-rows dd { margin: 0; }
+.replay-rows dd.on { color: var(--text-primary); }
+.replay-rows dd.off { color: var(--text-dim); }
+.replay-battery { display: flex; align-items: center; gap: var(--s2); }
+.replay-bar { position: relative; flex: 1; height: 8px; background: var(--bg-raised); border: 1px solid var(--border-color); border-radius: 2px; overflow: hidden; }
+.replay-bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--status-ok); }
+.replay-bar-fill.low { background: var(--status-warn); }
+.replay-banner { font-size: var(--fs-m); font-weight: 600; padding: 6px var(--s2); border-radius: 2px; }
+.replay-banner.ok { color: var(--status-ok); background: rgba(61, 220, 132, 0.1); }
+.replay-banner.lost { color: #ff6b6d; background: rgba(255, 77, 79, 0.12); }
+.replay-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.replay-scrub { flex: 1 1 120px; accent-color: var(--accent-cyan); }
+.replay-speeds .segmented-option { padding: 4px 8px; }
+.replay-summary {
+    position: absolute; left: 50%; bottom: var(--s4); translate: -50% 0; z-index: 8;
+    width: min(760px, calc(100% - 140px));
+    display: grid; gap: var(--s3);
+    padding: var(--s4) var(--s5);
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-color);
+    border-top: 2px solid var(--status-ok);
+    border-radius: 2px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    animation: card-in var(--t-slow) var(--ease) both;
+}
+.replay-summary.lost { border-top-color: var(--status-error); }
+.replay-kicker { font-size: var(--fs-s); color: var(--text-dim); }
+.replay-title { font-size: var(--fs-l); font-weight: 600; }
+.replay-summary.lost .replay-title { color: #ff6b6d; }
+.replay-summary.complete .replay-title { color: var(--status-ok); }
+.replay-numbers { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.replay-numbers dd { font-size: var(--fs-l); }
+.tl-cursor.replay { fill: var(--accent-cyan); opacity: 0.9; }
+.btn-primary.small { flex: none; padding: 6px 12px; font-size: var(--fs-s); }
+@media (max-width: 1023px) {
+    .replay-summary { position: static; translate: none; width: auto; margin: var(--s3); }
+    .replay-numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.replay-speeds { display: inline-flex; flex: none; }

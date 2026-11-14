@@ -115,7 +115,7 @@
                 <div class="step-body" id="step-body-2">
                     <LanderPicker />
                     <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedLander is null)"
-                            aria-describedby="@(MissionState.SelectedLander is null ? "next2-reason" : null)" @onclick="() => Open(3)">Next: run the analysis</button>
+                            aria-describedby="@(MissionState.SelectedLander is null ? "next2-reason" : null)" @onclick="() => Open(3)">Next: when to land</button>
                     @if (MissionState.SelectedLander is null)
                     {
                         <p class="reason" id="next2-reason">Choose a lander card above first.</p>
@@ -129,7 +129,7 @@
             <h2 class="step-head">
                 <button type="button" aria-expanded="@(open == 3 ? "true" : "false")" aria-controls="step-body-3" @onclick="() => Toggle(3)">
                     <span class="step-num" aria-hidden="true">@(Done(3) && open != 3 ? "✓" : "3")</span>
-                    <span class="step-title">Run analysis</span>
+                    <span class="step-title">When to land<small class="step-sub">Landing window &amp; mission length</small></span>
                     @if (open != 3)
                     {
                         <span class="step-value">@VerdictText.Days(MissionState.MissionDurationDays) on the surface</span>
@@ -146,22 +146,27 @@
                     <details class="change-dates" open="@Ui.AnalystMode">
                         <summary>Change dates</summary>
                         <div class="change-dates-body">
-                            <div class="field">
-                                <label for="win-start">Earliest landing date (UTC)</label>
-                                <input id="win-start" @key="@($"ws-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowStart)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
-                                       @onchange="@((ChangeEventArgs e) => OnStartDateChanged(e.Value?.ToString() ?? ""))" />
+                            <div class="date-shortcuts" role="group" aria-label="Quick landing windows">
+                                @foreach (var (label, from, to) in Shortcuts())
+                                {
+                                    var (f, t) = (from, to);
+                                    <button type="button" class="hud-btn small" @onclick="() => MissionState.SetWindow(f, t)">@label</button>
+                                }
                             </div>
+                            <DateField Id="win-start" Label="Earliest landing date (UTC)" Value="MissionState.WindowStart"
+                                       Min="@(MissionState.DataStart ?? DateTime.UtcNow.Date)" Max="@(MissionState.DataEnd ?? DateTime.UtcNow.Date)"
+                                       OnChange="d => MissionState.UpdateWindowStart(d)" />
                             <div class="field">
-                                <label for="win-end">Latest landing date (UTC)</label>
-                                <input id="win-end" @key="@($"we-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowEnd)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
-                                       @onchange="@((ChangeEventArgs e) => OnEndDateChanged(e.Value?.ToString() ?? ""))" />
+                                <DateField Id="win-end" Label="Latest landing date (UTC)" Value="MissionState.WindowEnd"
+                                           Min="@(MissionState.DataStart ?? DateTime.UtcNow.Date)" Max="@(MissionState.DataEnd ?? DateTime.UtcNow.Date)"
+                                           OnChange="d => MissionState.UpdateWindowEnd(d)" />
                                 @if (MissionState.WindowNotice is { } notice)
                                 {
                                     <small class="window-notice" role="status">Dates adjusted — @notice</small>
                                 }
-                                else if (!string.IsNullOrEmpty(MissionState.DataRangeText))
+                                else
                                 {
-                                    <small class="window-hint">@MissionState.DataRangeText</small>
+                                    <small class="window-hint">Up to @MissionConfigState.MaxWindowMonths months · data @ShortDate(MissionState.DataStart) – @ShortDate(MissionState.DataEnd)</small>
                                 }
                             </div>
                             <div class="field">
@@ -274,6 +279,16 @@
 
     private void Toggle(int n) => open = open == n ? 0 : n;
 
+    /// <summary>Calendar shortcuts: from today (or the first data day) and the two default years.</summary>
+    private IEnumerable<(string Label, DateTime From, DateTime To)> Shortcuts()
+    {
+        var start = MissionState.DataStart ?? DateTime.UtcNow.Date;
+        yield return ("Next 6 months", start, start.AddMonths(6).AddDays(-1));
+        yield return ("Next 12 months", start, start.AddMonths(12).AddDays(-1));
+        yield return ("2027", new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2027, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        yield return ("2028", new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2028, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+    }
+
     private static string Circled(int n) => n switch { 1 => "①", 2 => "②", 3 => "③", _ => n.ToString() };
 
     /// <summary>A "To continue" link: open that step and bring it into view.</summary>
@@ -324,18 +339,6 @@
     {
         if (Ui.Landed) return;
         await MissionState.SelectSite(siteId);
-    }
-
-    private async Task OnStartDateChanged(string value)
-    {
-        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date))
-            await MissionState.UpdateWindowStart(date);
-    }
-
-    private async Task OnEndDateChanged(string value)
-    {
-        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date))
-            await MissionState.UpdateWindowEnd(date);
     }
 
     private async Task OnDurationChanged(string value)

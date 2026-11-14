@@ -188,18 +188,19 @@ numbers below.
 No conversion is needed. If the site is placed in the Principal-Axis frame instead, the
 residuals grow by a factor of about 2000.
 
-Results (pipeline or shipped JSON minus Horizons, absolute values, 216 samples per row):
+Results (pipeline or shipped JSON minus Horizons, absolute values, 378 samples per row: 7 dates
+2026-11-20 … 2035-12-15, 6 hours each; re-run 2026-11-15 for the 2026–2035 data):
 
 | Comparison | Elevation range | max \|Δel\| | mean \|Δel\| | max \|Δaz\| | mean \|Δaz\| |
 |---|---:|---:|---:|---:|---:|
-| Sun: pipeline (DE421, `MOON_ME_DE421`) | −7.6° … 6.2° | 0.000010° (0.036″) | 0.000005° (0.018″) | 0.000008° (0.028″) | 0.000004° (0.013″) |
-| Earth: pipeline (DE421, `MOON_ME_DE421`) | −8.5° … 11.4° | 0.000010° (0.035″) | 0.000007° (0.024″) | 0.000009° (0.032″) | 0.000005° (0.017″) |
-| Sun: shipped `illumination/*.json` (0.01° steps) | −7.6° … 6.2° | 0.0050° | 0.0025° | 0.0050° | 0.0025° |
-| Earth: shipped `illumination/*.json` (0.01° steps) | −8.4° … 11.4° | 0.0050° | 0.0027° | 0.0050° | 0.0024° |
-| *Sun: site in `MOON_PA_DE421` (wrong frame)* | | *0.0227°* | *0.0138°* | *0.0211°* | *0.0190°* |
-| *Earth: site in `MOON_PA_DE421` (wrong frame)* | | *0.0236°* | *0.0219°* | *0.0211°* | *0.0185°* |
+| Sun: pipeline (DE421, `MOON_ME_DE421`) | −7.6° … 7.9° | 0.000014° (0.052″) | 0.000006° (0.021″) | 0.000008° (0.028″) | 0.000003° (0.009″) |
+| Earth: pipeline (DE421, `MOON_ME_DE421`) | −8.5° … 11.4° | 0.000014° (0.052″) | 0.000009° (0.033″) | 0.000009° (0.032″) | 0.000004° (0.013″) |
+| Sun: shipped `illumination/*/*.json` (0.01° steps) | −7.6° … 7.9° | 0.0050° | 0.0024° | 0.0050° | 0.0026° |
+| Earth: shipped `illumination/*/*.json` (0.01° steps) | −8.4° … 11.4° | 0.0050° | 0.0026° | 0.0050° | 0.0024° |
+| *Sun: site in `MOON_PA_DE421` (wrong frame)* | | *0.0235°* | *0.0143°* | *0.0211°* | *0.0191°* |
+| *Earth: site in `MOON_PA_DE421` (wrong frame)* | | *0.0236°* | *0.0219°* | *0.0214°* | *0.0186°* |
 
-The pipeline agrees with Horizons to about 0.04″. The shipped files agree to within their
+The pipeline agrees with Horizons to about 0.05″ over the whole range, up to the end of 2035. The shipped files agree to within their
 0.01° rounding. The test uses a tolerance of **0.001°** for the pipeline. That is about
 100× the observed residual, which leaves headroom if Horizons moves to a newer ephemeris.
 It is still 20× tighter than the ME↔PA offset, so a frame or convention error fails the
@@ -355,12 +356,12 @@ like-for-like validation.
 
 ## Output format
 
-`illumination/{siteId}.json` (one file per site):
+`illumination/{siteId}/{year}.json` (one file per site and calendar year, 2026-11 … 2035; same fields in every file):
 
 ```jsonc
 {
   "siteId": "malapert_massif", "lat": -85.8, "lon": -3.5, "observerHeightM": 2,
-  "start": "2027-01-01T00:00:00Z", "stepHours": 1, "count": 17544,
+  "start": "2027-01-01T00:00:00Z", "stepHours": 1, "count": 8760,   // one calendar year; 2026 starts 2026-11-01
   "sunFraction": [0..100],            // % of solar disk visible (int)
   "sunElevCentiDeg": [int],           // Sun elevation × 100
   "sunAzCentiDeg": [int],             // Sun azimuth × 100, clockwise from north

@@ -1,7 +1,7 @@
 """Tests for landing-site selection and the NASA 6.5-day sunlight statement.
 
 The NASA check reads the generated frontend data (``sites.json`` and
-``illumination/{siteId}.json``); it is skipped if the data has not been built.
+``illumination/{siteId}/{year}.json``); it is skipped if the data has not been built.
 """
 
 from __future__ import annotations
@@ -36,12 +36,12 @@ def _sites() -> list[dict]:
 @pytest.mark.parametrize("site", _sites(), ids=lambda s: s["id"])
 def test_best_site_has_continuous_sunlight_for_6_5_days(site):
     """At least one uninterrupted ≥156 h window with sunFraction ≥ 50 in 2027–28."""
-    path = DATA / "illumination" / f"{site['id']}.json"
-    if not path.exists():
-        pytest.skip(f"{path.name} not built")
-    doc = json.loads(path.read_text(encoding="utf-8"))
-    lit = np.array(doc["sunFraction"]) >= illumination.LIT_THRESHOLD_PCT
-    longest_h = illumination.longest_run(lit) * doc["stepHours"]
+    paths = [DATA / "illumination" / site["id"] / f"{y}.json" for y in (2027, 2028)]   # yearly files
+    if not all(p.exists() for p in paths):
+        pytest.skip(f"{site['id']} 2027/2028 not built")
+    docs = [json.loads(p.read_text(encoding="utf-8")) for p in paths]
+    lit = np.concatenate([np.array(d["sunFraction"]) for d in docs]) >= illumination.LIT_THRESHOLD_PCT
+    longest_h = illumination.longest_run(lit) * docs[0]["stepHours"]
     scope = "NASA 2022 statement" if site["id"] in REGIONS_IN_NASA_2022_LIST else "planning criterion (region added 2024)"
     assert longest_h >= SIX_AND_HALF_DAYS_H, f"{site['id']}: longest continuous light {longest_h} h < 156 h [{scope}]"
 

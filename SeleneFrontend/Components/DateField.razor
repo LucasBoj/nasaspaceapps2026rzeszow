@@ -1,0 +1,159 @@
+@using System.Globalization
+@inject IJSRuntime JS
+@* Date picker limited to the data range: only those years and months are offered, days outside are disabled
+   (a native <input type=date> lets you browse any year). Keyboard: arrows move by day/week, Enter or Space
+   picks the focused day, Escape closes. *@
+
+<div class="date-field" @onkeydown="OnKey">
+    <label id="@($"{Id}-label")">@Label</label>
+    <button type="button" class="date-value" id="@Id" aria-haspopup="dialog" aria-expanded="@(open ? "true" : "false")"
+            aria-labelledby="@($"{Id}-label {Id}")" @onclick="Toggle">
+        <span class="num">@(Value?.ToString("d MMM yyyy", CultureInfo.InvariantCulture) ?? "—")</span>
+        <span aria-hidden="true">▾</span>
+    </button>
+    @if (open)
+    {
+        <div class="date-pop" id="@($"{Id}-pop")" role="dialog" aria-label="@($"{Label}: choose a date")">
+            <div class="date-pop-head">
+                <button type="button" class="hud-btn small" aria-label="Previous month" disabled="@(!CanPrev)" @onclick="() => Shift(-1)">‹</button>
+                <select aria-label="Month" value="@view.Month" @onchange="e => SetMonth(int.Parse((string)e.Value!, CultureInfo.InvariantCulture))">
+                    @for (var m = 1; m <= 12; m++)
+                    {
+                        var month = m;
+                        @if (MonthInRange(view.Year, month))
+                        {
+                            <option value="@month">@CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(month)</option>
+                        }
+                    }
+                </select>
+                <select aria-label="Year" value="@view.Year" @onchange="e => SetYear(int.Parse((string)e.Value!, CultureInfo.InvariantCulture))">
+                    @for (var y = Min.Year; y <= Max.Year; y++)
+                    {
+                        <option value="@y">@y</option>
+                    }
+                </select>
+                <button type="button" class="hud-btn small" aria-label="Next month" disabled="@(!CanNext)" @onclick="() => Shift(1)">›</button>
+            </div>
+            <table class="date-grid" role="grid">
+                <thead><tr>@foreach (var d in new[] { "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" }) { <th scope="col">@d</th> }</tr></thead>
+                <tbody>
+                    @foreach (var week in Weeks())
+                    {
+                        <tr>
+                            @foreach (var day in week)
+                            {
+                                if (day is not { } d)
+                                {
+                                    <td></td>
+                                    continue;
+                                }
+                                var inRange = d >= Min.Date && d <= Max.Date;
+                                var selected = Value?.Date == d;
+                                var focused = cursor == d;
+                                <td>
+                                    <button type="button" class="date-day @(selected ? "selected" : "") @(focused ? "cursor" : "")"
+                                            disabled="@(!inRange)" tabindex="@(focused ? 0 : -1)"
+                                            aria-label="@d.ToString("dddd d MMMM yyyy", CultureInfo.InvariantCulture)" aria-pressed="@(selected ? "true" : "false")"
+                                            @onclick="() => Pick(d)">@d.Day</button>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <p class="reason">Data: @Min.ToString("d MMM yyyy", CultureInfo.InvariantCulture) – @Max.ToString("d MMM yyyy", CultureInfo.InvariantCulture)</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public DateTime? Value { get; set; }
+    [Parameter] public DateTime Min { get; set; }
+    [Parameter] public DateTime Max { get; set; }
+    [Parameter] public EventCallback<DateTime> OnChange { get; set; }
+
+    private bool open;
+    private DateTime view;     // first day of the month on screen
+    private DateTime cursor;   // keyboard focus day
+
+    private bool CanPrev => view > new DateTime(Min.Year, Min.Month, 1);
+    private bool CanNext => view < new DateTime(Max.Year, Max.Month, 1);
+
+    private bool MonthInRange(int y, int m)
+    {
+        var first = new DateTime(y, m, 1);
+        return first <= Max.Date && first.AddMonths(1) > Min.Date;
+    }
+
+    private void Toggle()
+    {
+        open = !open;
+        if (!open) return;
+        cursor = Clamp(Value?.Date ?? Min.Date);
+        view = new DateTime(cursor.Year, cursor.Month, 1);
+    }
+
+    private DateTime Clamp(DateTime d) => d < Min.Date ? Min.Date : d > Max.Date ? Max.Date : d;
+
+    private void Shift(int months)
+    {
+        var v = view.AddMonths(months);
+        if (MonthInRange(v.Year, v.Month)) view = v;
+    }
+
+    private void SetMonth(int m) => view = new DateTime(view.Year, m, 1);
+
+    private void SetYear(int y)
+    {
+        var m = view.Month;
+        while (!MonthInRange(y, m)) m = y == Min.Year ? m + 1 : m - 1;   // first/last data year are partial
+        view = new DateTime(y, m, 1);
+    }
+
+    private IEnumerable<DateTime?[]> Weeks()
+    {
+        var offset = ((int)view.DayOfWeek + 6) % 7;   // Monday first
+        var days = DateTime.DaysInMonth(view.Year, view.Month);
+        var cells = Enumerable.Repeat<DateTime?>(null, offset)
+            .Concat(Enumerable.Range(1, days).Select(d => (DateTime?)new DateTime(view.Year, view.Month, d))).ToList();
+        while (cells.Count % 7 != 0) cells.Add(null);
+        for (var i = 0; i < cells.Count; i += 7) yield return cells.GetRange(i, 7).ToArray();
+    }
+
+    private async Task Pick(DateTime d)
+    {
+        if (d < Min.Date || d > Max.Date) return;
+        open = false;
+        await OnChange.InvokeAsync(DateTime.SpecifyKind(d, DateTimeKind.Utc));
+    }
+
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        if (!open) return;
+        var move = e.Key switch { "ArrowLeft" => -1, "ArrowRight" => 1, "ArrowUp" => -7, "ArrowDown" => 7, _ => 0 };
+        if (move != 0)
+        {
+            cursor = Clamp(cursor.AddDays(move));
+            view = new DateTime(cursor.Year, cursor.Month, 1);
+        }
+        else if (e.Key == "Escape") open = false;
+        focusCursor = move != 0;
+        await Task.CompletedTask;
+    }
+
+    private bool focusCursor;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusCursor) return;
+        focusCursor = false;
+        try
+        {
+            var ui = await JS.InvokeAsync<IJSObjectReference>("import", "./js/ui.js");
+            await ui.InvokeVoidAsync("focusSelector", $"#{Id}-pop .date-day.cursor");
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

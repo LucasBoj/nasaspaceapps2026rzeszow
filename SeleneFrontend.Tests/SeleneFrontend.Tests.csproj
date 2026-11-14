@@ -27,6 +27,7 @@
     <Compile Include="..\SeleneFrontend\Services\SensitivityAnalysis.cs" Link="Linked\SensitivityAnalysis.cs" />
     <Compile Include="..\SeleneFrontend\Models\NasaIlluminationCheck.cs" Link="Linked\NasaIlluminationCheck.cs" />
     <Compile Include="..\SeleneFrontend\Models\VerdictText.cs" Link="Linked\VerdictText.cs" />
+    <Compile Include="..\SeleneFrontend\Services\IlluminationRepository.cs" Link="Linked\IlluminationRepository.cs" />
   </ItemGroup>
 
   <ItemGroup>

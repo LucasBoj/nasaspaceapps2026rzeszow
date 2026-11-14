@@ -17,22 +17,22 @@
         "candidateId": "PCB03",
         "lat": -83.56301,
         "lon": -68.20093,
-        "sunPct": 51.1,
-        "earthPct": 68.1
+        "sunPct": 51.6,
+        "earthPct": 69.0
       },
       {
         "candidateId": "PCB05",
         "lat": -83.53879,
         "lon": -71.94191,
-        "sunPct": 47.2,
-        "earthPct": 19.1
+        "sunPct": 47.8,
+        "earthPct": 10.1
       },
       {
         "candidateId": "PCB01",
         "lat": -83.76333,
         "lon": -69.98287,
-        "sunPct": 41.1,
-        "earthPct": 26.5
+        "sunPct": 41.4,
+        "earthPct": 27.1
       }
     ]
   },
@@ -55,21 +55,21 @@
         "lat": -86.93235,
         "lon": -23.0203,
         "sunPct": 57.5,
-        "earthPct": 55.8
+        "earthPct": 54.9
       },
       {
         "candidateId": "HW06",
         "lat": -87.04986,
         "lon": -24.24022,
-        "sunPct": 57.4,
-        "earthPct": 49.3
+        "sunPct": 56.9,
+        "earthPct": 48.5
       },
       {
         "candidateId": "HW01",
         "lat": -86.76818,
         "lon": -20.51401,
         "sunPct": 56.0,
-        "earthPct": 63.7
+        "earthPct": 63.2
       }
     ]
   },
@@ -91,22 +91,22 @@
         "candidateId": "MMA03",
         "lat": -85.95772,
         "lon": -3.27827,
-        "sunPct": 68.1,
-        "earthPct": 71.8
+        "sunPct": 67.6,
+        "earthPct": 70.2
       },
       {
         "candidateId": "MMA01",
         "lat": -85.94247,
         "lon": -0.94365,
-        "sunPct": 45.1,
-        "earthPct": 97.4
+        "sunPct": 45.3,
+        "earthPct": 96.3
       },
       {
         "candidateId": "MMA02",
         "lat": -86.01532,
         "lon": 3.38206,
         "sunPct": 28.0,
-        "earthPct": 60.3
+        "earthPct": 60.0
       }
     ]
   },
@@ -128,22 +128,22 @@
         "candidateId": "MMP11",
         "lat": -84.26896,
         "lon": 36.67241,
-        "sunPct": 41.8,
-        "earthPct": 56.5
+        "sunPct": 41.4,
+        "earthPct": 55.5
       },
       {
         "candidateId": "MMP01",
         "lat": -85.1114,
         "lon": 26.7102,
-        "sunPct": 37.8,
-        "earthPct": 57.3
+        "sunPct": 37.7,
+        "earthPct": 56.5
       },
       {
         "candidateId": "MMP09",
         "lat": -83.68443,
         "lon": 32.88481,
-        "sunPct": 36.3,
-        "earthPct": 79.9
+        "sunPct": 36.2,
+        "earthPct": 77.9
       }
     ]
   },
@@ -165,22 +165,22 @@
         "candidateId": "MMO01",
         "lat": -85.41599,
         "lon": 31.85064,
-        "sunPct": 72.1,
-        "earthPct": 57.4
+        "sunPct": 70.8,
+        "earthPct": 56.4
       },
       {
         "candidateId": "MMO09",
         "lat": -85.46653,
         "lon": 33.03979,
-        "sunPct": 52.6,
-        "earthPct": 45.6
+        "sunPct": 51.5,
+        "earthPct": 45.5
       },
       {
         "candidateId": "MMO03",
         "lat": -85.40851,
         "lon": 30.40563,
-        "sunPct": 47.3,
-        "earthPct": 81.0
+        "sunPct": 47.5,
+        "earthPct": 79.9
       }
     ]
   },
@@ -202,22 +202,22 @@
         "candidateId": "NR101",
         "lat": -85.29497,
         "lon": 36.91678,
-        "sunPct": 76.0,
-        "earthPct": 66.6
+        "sunPct": 75.2,
+        "earthPct": 66.5
       },
       {
         "candidateId": "NR102",
         "lat": -85.26058,
         "lon": 36.88879,
         "sunPct": 65.0,
-        "earthPct": 62.3
+        "earthPct": 61.5
       },
       {
         "candidateId": "NR105",
         "lat": -85.07216,
         "lon": 37.55498,
-        "sunPct": 53.9,
-        "earthPct": 59.9
+        "sunPct": 53.3,
+        "earthPct": 58.9
       }
     ]
   },
@@ -239,22 +239,22 @@
         "candidateId": "NR2_K2023",
         "lat": -84.07372,
         "lon": 59.19742,
-        "sunPct": 50.8,
-        "earthPct": 63.3
+        "sunPct": 50.1,
+        "earthPct": 62.5
       },
       {
         "candidateId": "NR207",
         "lat": -83.91813,
         "lon": 59.32649,
-        "sunPct": 50.5,
-        "earthPct": 62.9
+        "sunPct": 49.9,
+        "earthPct": 61.5
       },
       {
         "candidateId": "NR202",
         "lat": -84.15531,
         "lon": 59.83514,
-        "sunPct": 50.1,
-        "earthPct": 52.8
+        "sunPct": 49.4,
+        "earthPct": 51.9
       }
     ]
   },
@@ -276,22 +276,22 @@
         "candidateId": "dGR201",
         "lat": -88.38907,
         "lon": -68.86474,
-        "sunPct": 69.9,
-        "earthPct": 54.9
+        "sunPct": 70.1,
+        "earthPct": 54.7
       },
       {
         "candidateId": "dGR203",
         "lat": -88.14078,
         "lon": -71.69547,
-        "sunPct": 56.5,
-        "earthPct": 53.0
+        "sunPct": 56.6,
+        "earthPct": 52.2
       },
       {
         "candidateId": "dGR204",
         "lat": -88.13771,
         "lon": -74.33303,
         "sunPct": 52.3,
-        "earthPct": 52.4
+        "earthPct": 51.5
       }
     ]
   },
@@ -313,22 +313,22 @@
         "candidateId": "SP06",
         "lat": -87.07296,
         "lon": 126.131,
-        "sunPct": 56.3,
+        "sunPct": 55.4,
         "earthPct": 40.5
       },
       {
         "candidateId": "SP11",
         "lat": -86.95036,
         "lon": 126.67472,
-        "sunPct": 51.4,
-        "earthPct": 39.7
+        "sunPct": 50.7,
+        "earthPct": 39.6
       },
       {
         "candidateId": "SP07",
         "lat": -87.13064,
         "lon": 127.85709,
-        "sunPct": 50.4,
-        "earthPct": 41.0
+        "sunPct": 49.3,
+        "earthPct": 40.1
       }
     ]
   }

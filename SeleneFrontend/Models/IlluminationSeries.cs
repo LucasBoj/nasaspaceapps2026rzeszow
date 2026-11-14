@@ -1,8 +1,9 @@
 namespace SeleneFrontend.Models;
 
 /// <summary>
-/// One site's precomputed hourly series — mirrors <c>illumination/{siteId}.json</c>
-/// (contract in CLAUDE.md; do not change field names).
+/// One site's precomputed hourly series — mirrors <c>illumination/{siteId}/{year}.json</c>
+/// (contract in CLAUDE.md; do not change field names). The repository joins consecutive
+/// yearly files into one series covering the analysis window (<see cref="Concat"/>).
 /// </summary>
 public sealed class IlluminationSeries
 {
@@ -88,6 +89,32 @@ public sealed class IlluminationSeries
         return (_cosEl, _sinEl!, _cosAz!, _sinAz!);
     }
 
+    /// <summary>Consecutive yearly parts of one site joined into a single series (same fields, same grid).</summary>
+    public static IlluminationSeries Concat(IReadOnlyList<IlluminationSeries> parts)
+    {
+        if (parts.Count == 0) throw new ArgumentException("no parts", nameof(parts));
+        if (parts.Count == 1) return parts[0];
+        var first = parts[0];
+        for (var i = 1; i < parts.Count; i++)
+        {
+            if (TimeUtil.AsUtc(parts[i].Start) != TimeUtil.AsUtc(parts[i - 1].End))
+                throw new InvalidOperationException($"{first.SiteId}: yearly files are not consecutive ({parts[i - 1].End:u} vs {parts[i].Start:u}).");
+        }
+        static int[] Join(IEnumerable<int[]> arrays) => arrays.SelectMany(a => a).ToArray();
+        return new IlluminationSeries
+        {
+            SiteId = first.SiteId, Lat = first.Lat, Lon = first.Lon, ObserverHeightM = first.ObserverHeightM,
+            Start = first.Start, StepHours = first.StepHours, Count = parts.Sum(p => p.Count),
+            SunFraction = Join(parts.Select(p => p.SunFraction)),
+            SunElevCentiDeg = Join(parts.Select(p => p.SunElevCentiDeg)),
+            SunAzCentiDeg = Join(parts.Select(p => p.SunAzCentiDeg)),
+            EarthVisible = Join(parts.Select(p => p.EarthVisible)),
+            EarthElevCentiDeg = Join(parts.Select(p => p.EarthElevCentiDeg)),
+            EarthAzCentiDeg = parts.All(p => p.EarthAzCentiDeg.Length == p.Count) ? Join(parts.Select(p => p.EarthAzCentiDeg)) : [],
+            HorizonDeg = first.HorizonDeg,
+        };
+    }
+
     /// <summary>Sample index containing <paramref name="utc"/>, or −1 if outside the data.</summary>
     public int IndexOf(DateTime utc)
     {
@@ -103,6 +130,7 @@ public sealed class IlluminationIndex
     public DateTime Start { get; set; }
     public DateTime End { get; set; }           // last sample (inclusive)
     public double StepHours { get; set; } = 1;
+    public List<int> Years { get; set; } = [];   // one file per site and year: {siteId}/{year}.json
     public List<IlluminationIndexSite> Sites { get; set; } = [];
 }
 
@@ -110,7 +138,7 @@ public sealed class IlluminationIndexSite
 {
     public string SiteId { get; set; } = "";
     public string Name { get; set; } = "";
-    public string File { get; set; } = "";
+    public Dictionary<string, string> Files { get; set; } = [];   // "2027" → "nobile_rim_1/2027.json"
     public double PctSunlit { get; set; }
     public double PctComms { get; set; }
     public double LongestDarkHours { get; set; }

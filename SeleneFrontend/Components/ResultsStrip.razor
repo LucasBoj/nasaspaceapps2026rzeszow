@@ -4,10 +4,15 @@
 @inject AnalysisService Analysis
 @inject MissionConfigState MissionState
 @inject UiService Ui
+@inject IJSRuntime JS
 
-<div class="results-strip @(expanded ? "expanded" : "")">
+<div class="results-strip @(expanded ? "expanded" : "")" id="results-strip">
+    @* Drag (or arrow keys) to trade Moon height for analysis height; the page scrolls when both do not fit. *@
+    <div class="results-resize" role="separator" aria-orientation="horizontal" aria-label="Moon view height (arrow keys resize the analysis panel)"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0" @ref="handle"></div>
+    <div class="results-head-row">
     <button type="button" class="results-header" aria-expanded="@(expanded ? "true" : "false")" aria-controls="results-content"
-            @onclick="() => expanded = !expanded">
+            @onclick="ToggleAsync">
         <span class="toggle-icon" aria-hidden="true">@(expanded ? "▼" : "▶")</span>
         <span class="results-title">Analysis details</span>
         @if (Ui.LandingInProgress)
@@ -28,13 +33,23 @@
         }
         else
         {
-            <span class="results-status">choose a site and a lander, then run the analysis</span>
+            <span class="results-status">choose a site and a lander, then Land &amp; analyze</span>
         }
         @if (Analysis.IsOutdated)
         {
             <span class="outdated-badge">Results are out of date — settings changed</span>
         }
     </button>
+    <span class="results-size-btns">
+        <button type="button" class="hud-btn small" @onclick="ExpandAsync" disabled="@(!Analysis.HasResults)"
+                aria-describedby="@(Analysis.HasResults ? null : "expand-reason")">Expand</button>
+        <button type="button" class="hud-btn small" @onclick="CollapseAsync" disabled="@(!expanded)">Collapse</button>
+        @if (!Analysis.HasResults)
+        {
+            <span class="reason" id="expand-reason">nothing to show yet</span>
+        }
+    </span>
+    </div>
 
     <div class="results-content" id="results-content" hidden="@(!expanded)">
         @if (expanded)
@@ -78,11 +93,11 @@
                             <h3>MISSION TIMELINE · @mission.DurationDays.ToString("0.#") d</h3>
                             <MissionTimeline Result="mission" ThresholdPct="Analysis.ThresholdBatteryPct" OnHoverTime="Ui.SetHoverTime" />
                         </section>
-                        <section class="results-panel" aria-label="Landing window heatmap">
+                        <section class="results-panel" aria-label="Landing window heatmap" id="results-heatmap">
                             @if (Analysis.Heatmap is { } heatmap)
                             {
                                 <div class="panel-head">
-                                    <h3>LANDING WINDOW · @heatmap.Sites.Count REGIONS × @heatmap.Days DAYS · <Term Key="score">score</Term></h3>
+                                    <h3>LANDING WINDOW · @heatmap.Sites.Count REGIONS × @heatmap.Days DAYS@(heatmap.Days > 366 ? " · one column per week (best day)" : "") · <Term Key="score">score</Term></h3>
                                     <button type="button" class="hud-btn small" @onclick="@(() => Ui.SetResultsTab("compare"))">COMPARE ▸</button>
                                 </div>
                                 <LandingHeatmap Result="heatmap" Selected="Analysis.SelectedCell" OnCellClick="OnCellClick" Pulse="PulseToken()" />
@@ -147,6 +162,47 @@
 
     private Task OnCellClick((int Site, int Day) cell) => Analysis.SelectCellAsync(cell.Site, cell.Day);
 
+    private ElementReference handle;
+    private IJSObjectReference? ui;
+    private bool fitPending = true;
+
+    private async Task<IJSObjectReference> UiJs() => ui ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/ui.js");
+
+    private async Task ToggleAsync()
+    {
+        if (expanded) await CollapseAsync(); else await ExpandAsync();
+    }
+
+    /// <summary>Open to the full height the timeline and heatmap need (the Moon gives way; the page scrolls if needed).</summary>
+    private async Task ExpandAsync()
+    {
+        expanded = true;
+        fitPending = true;
+        StateHasChanged();
+        await Task.Yield();
+        try { await (await UiJs()).InvokeVoidAsync("fitResults", true); } catch (JSDisconnectedException) { }
+    }
+
+    private async Task CollapseAsync()
+    {
+        expanded = false;
+        try { await (await UiJs()).InvokeVoidAsync("resetMoonHeight"); } catch (JSDisconnectedException) { }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender) await (await UiJs()).InvokeVoidAsync("attachResultsResize", handle);
+            if (expanded && fitPending && Analysis.HasResults)
+            {
+                fitPending = false;
+                await (await UiJs()).InvokeVoidAsync("fitResults", false);
+            }
+        }
+        catch (JSDisconnectedException) { }
+    }
+
     protected override void OnInitialized()
     {
         pulseConsumed = Analysis.HighlightBestToken;
@@ -164,6 +220,7 @@
         {
             seenExpand = Analysis.ExpandToken;
             expanded = true;
+            fitPending = true;
         }
         if (Analysis.Error is not null) expanded = true;
         InvokeAsync(StateHasChanged);
