@@ -82,7 +82,7 @@
 
 ## 🔄 In progress
 
-_(nic przypisanego — wpisz się tutaj, gdy zaczynasz zadanie)_
+- [ ] **Start aplikacji (P1)** — pomiar i skrócenie bloku 0,5–1,2 s przy starcie, kolejność startu analizy i wczytywania modeli 3D. Może dotknąć `moonViewer.js` (preload GLB), `UiService`/`AnalysisService` (start analizy), `index.html`. Jakub + Claude Code, start 2026-11-14 ~22:15. **Marek/Łukasz: dajcie znać przed pushem zmian w tych plikach.**
 
 ## 📋 Todo — według priorytetu
 
