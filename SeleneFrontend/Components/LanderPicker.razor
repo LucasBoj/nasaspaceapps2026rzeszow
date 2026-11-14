@@ -1,0 +1,138 @@
+@using System.Globalization
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@implements IAsyncDisposable
+@inject MissionConfigState MissionState
+@inject IJSRuntime JS
+
+<div class="segmented" role="group" aria-label="Spacecraft class">
+    @foreach (var (cls, label) in Classes)
+    {
+        var active = MissionState.SelectedLanderClass == cls;
+        <button type="button" class="segmented-option @(active ? "active" : "")" aria-pressed="@(active ? "true" : "false")"
+                @onclick="() => SelectClass(cls)">@label</button>
+    }
+</div>
+
+<div class="lander-grid" role="radiogroup" aria-label="Spacecraft model" @ref="gridRef">
+    @{ var landers = MissionState.FilteredLanders; var tabStop = TabStopId(landers); }
+    @foreach (var lander in landers)
+    {
+        var selected = MissionState.SelectedLander?.Id == lander.Id;
+        <button type="button" data-card role="radio" aria-checked="@(selected ? "true" : "false")"
+                tabindex="@(lander.Id == tabStop ? 0 : -1)"
+                class="lander-card @(selected ? "selected" : "") @(lander.IsCustom ? "custom" : "")"
+                @key="lander.Id" @onclick="() => SelectLander(lander.Id)">
+            @if (selected)
+            {
+                <span class="lander-card-tag">SELECTED</span>
+            }
+            <LanderSilhouette Kind="@lander.Id" />
+            <span class="lander-card-name">@(lander.IsCustom ? "CUSTOM" : lander.Name)</span>
+            <span class="lander-card-maker">@lander.Manufacturer</span>
+            <span class="lander-card-class">@ClassLabel(lander.Class)</span>
+            <span class="lander-card-params @(lander.HasParams ? "set" : "")">PARAMS: @(lander.HasParams ? "SET" : "NOT SET")</span>
+        </button>
+    }
+</div>
+
+@if (MissionState.SelectedLander is { } sel)
+{
+    <div class="lander-params" @key="sel.Id">
+        <div class="lander-params-title">PARAMETERS · @(sel.IsCustom ? "CUSTOM" : sel.Name.ToUpperInvariant())</div>
+        <div class="field">
+            <label for="lp-power">Solar Array Power [W]</label>
+            <input id="lp-power" type="number" min="0" step="any" placeholder="enter from public source"
+                   value="@Fmt(sel.Power)" @onchange="e => MissionState.UpdateLanderPower(Parse(e))" />
+            <small><span class="badge-assumption">ASSUMPTION</span></small>
+        </div>
+        <div class="field">
+            <label for="lp-battery">Battery Capacity [Wh]</label>
+            <input id="lp-battery" type="number" min="0" step="any" placeholder="enter from public source"
+                   value="@Fmt(sel.Battery)" @onchange="e => MissionState.UpdateLanderBattery(Parse(e))" />
+            <small><span class="badge-assumption">ASSUMPTION</span></small>
+        </div>
+        <div class="field">
+            <label for="lp-load">Baseline Load [W]</label>
+            <input id="lp-load" type="number" min="0" step="any" placeholder="enter from public source"
+                   value="@Fmt(sel.Load)" @onchange="e => MissionState.UpdateLanderLoad(Parse(e))" />
+            <small><span class="badge-assumption">ASSUMPTION</span></small>
+        </div>
+        <div class="field">
+            <label for="lp-dark">Max Survivable Darkness [h]</label>
+            <input id="lp-dark" type="number" min="0" step="any" placeholder="enter from public source"
+                   value="@Fmt(sel.MaxDarkness)" @onchange="e => MissionState.UpdateLanderDarkness(Parse(e))" />
+            <small><span class="badge-assumption">ASSUMPTION</span></small>
+        </div>
+        <div class="field">
+            <label for="lp-source">Source URL</label>
+            <input id="lp-source" type="url" placeholder="https://… (public source for these values)"
+                   value="@sel.SourceUrl" @onchange="e => MissionState.UpdateLanderSourceUrl(e.Value?.ToString()?.Trim() ?? string.Empty)" />
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly (string Class, string Label)[] Classes =
+    [
+        ("clps", "CLPS · ROBOTIC"),
+        ("hls", "HLS · CREWED"),
+    ];
+
+    private ElementReference gridRef;
+    private IJSObjectReference? gridModule;
+
+    private static string ClassLabel(string cls) => cls == "hls" ? "HLS · CREWED" : "CLPS · ROBOTIC";
+
+    // Inputs of type=number need invariant formatting regardless of the browser culture (e.g. pl uses commas).
+    private static string? Fmt(double v) => v > 0 ? v.ToString(CultureInfo.InvariantCulture) : null;
+
+    private static double Parse(ChangeEventArgs e) =>
+        double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v >= 0 ? v : 0;
+
+    // Roving tabindex: the selected card (or the first one) is the single Tab stop of the grid.
+    private string? TabStopId(List<LanderPreset> landers) =>
+        landers.FirstOrDefault(l => l.Id == MissionState.SelectedLander?.Id)?.Id ?? landers.FirstOrDefault()?.Id;
+
+    protected override void OnInitialized()
+    {
+        MissionState.OnStateChanged += HandleStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            gridModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/cardGrid.js");
+            await gridModule.InvokeVoidAsync("attach", gridRef);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[LanderPicker] Keyboard navigation unavailable: {ex.Message}");
+        }
+    }
+
+    private void HandleStateChanged() => InvokeAsync(StateHasChanged);
+
+    private Task SelectClass(string cls) =>
+        cls == MissionState.SelectedLanderClass ? Task.CompletedTask : MissionState.SelectLanderClass(cls);
+
+    private Task SelectLander(string id) => MissionState.SelectLander(id);
+
+    public async ValueTask DisposeAsync()
+    {
+        MissionState.OnStateChanged -= HandleStateChanged;
+        if (gridModule is not null)
+        {
+            try
+            {
+                await gridModule.InvokeVoidAsync("detach", gridRef);
+                await gridModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

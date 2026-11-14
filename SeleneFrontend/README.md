@@ -33,7 +33,7 @@ Without a token, the app will show the Moon as an ellipsoid with a notice.
 ## Architecture
 
 - **Frontend**: Blazor WebAssembly (.NET 10)
-- **3D Visualization**: CesiumJS 1.116
+- **3D Visualization**: CesiumJS 1.120
 - **Styling**: Custom CSS (no MudBlazor/Radzen) with CSS variables for theming
 - **State Management**: `MissionConfigState` service
 

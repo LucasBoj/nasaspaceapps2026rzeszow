@@ -62,3 +62,6 @@ _ReSharper*/
 
 # IDE
 .vscode/
+
+# Local secrets (Cesium ion token) — never commit, repo is public
+wwwroot/appsettings.Development.json

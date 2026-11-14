@@ -1,30 +1,62 @@
+@using Microsoft.Extensions.Configuration
 @using SeleneFrontend.Models
 @using SeleneFrontend.Services
+@implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject IConfiguration Config
 @inject MissionConfigState MissionState
 
-<div class="moon-viewer-container" id="moon-viewer-element">
-    @if (!moonLoaded)
+<div class="moon-viewer-container">
+    @* Cesium owns this element exclusively — Blazor must never render children into it. *@
+    <div id="moon-viewer-element" class="moon-viewer-canvas"></div>
+
+    @if (!moonLoaded && initError is null)
     {
         <div class="loading-overlay">
             <p>Initializing Cesium...</p>
         </div>
     }
-    @if (tokenError)
+    @if (moonLoaded)
+    {
+        <div class="viewer-hud">
+            <div class="viewer-hud-buttons">
+                <button type="button" class="hud-btn" @onclick="SouthPoleViewAsync">SOUTH POLE VIEW</button>
+                <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)" @onclick="ZoomToSiteAsync">ZOOM TO SITE</button>
+            </div>
+            @if (badgeText is not null)
+            {
+                <div class="viewer-badge">@badgeText</div>
+            }
+        </div>
+    }
+    @if (initError is not null)
     {
         <div class="token-error-overlay">
-            <p style="font-weight: 500;">Add Cesium ion token in appsettings.json</p>
-            <p style="font-size: 0.875rem; color: #7f93a6;">
-                The moon terrain visualization requires a Cesium ion token.
-            </p>
+            <p style="font-weight: 500;">Moon viewer failed to initialize</p>
+            <p style="font-size: 0.875rem; color: #7f93a6;">@initError</p>
         </div>
     }
 </div>
 
 @code {
-    private bool moonLoaded = false;
-    private bool tokenError = false;
+    private bool moonLoaded;
+    private string? initError;
+    private string? badgeText;
     private IJSObjectReference? moonModule;
+    private DotNetObjectReference<MoonPanel>? dotNetRef;
+    private List<Site>? loadedSites;
+
+    public class InitResult
+    {
+        public bool TerrainLoaded { get; set; }
+        public bool HasToken { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        MissionState.OnStateChanged += HandleStateChanged;
+        MissionState.OnFlyToRequested += HandleFlyToRequested;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -33,18 +65,101 @@
         try
         {
             moonModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/moonViewer.js");
-            
-            var dotNetRef = DotNetObjectReference.Create(this);
-            await moonModule.InvokeVoidAsync("initViewer", "moon-viewer-element", dotNetRef);
-            
+            dotNetRef = DotNetObjectReference.Create(this);
+
+            var token = Config["CesiumIonToken"] ?? "";
+            var result = await moonModule.InvokeAsync<InitResult>("initViewer", "moon-viewer-element", token, dotNetRef);
+
+            if (!result.TerrainLoaded)
+            {
+                badgeText = result.HasToken
+                    ? "3D TERRAIN UNAVAILABLE — 2D MOSAIC"
+                    : "NO ION TOKEN — 2D MOSAIC ONLY";
+            }
+
             moonLoaded = true;
-            StateHasChanged();
+            await SyncViewerAsync();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
-            tokenError = true;
-            StateHasChanged();
+            Console.Error.WriteLine($"[MoonPanel] Viewer initialization failed: {ex}");
+            initError = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private void HandleStateChanged()
+    {
+        _ = SyncViewerAsync();
+        _ = InvokeAsync(StateHasChanged); // keeps HUD button state in sync with the selection
+    }
+
+    private async Task SouthPoleViewAsync()
+    {
+        if (moonModule is null) return;
+        try
+        {
+            await moonModule.InvokeVoidAsync("resetView", true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private Task ZoomToSiteAsync()
+    {
+        var site = MissionState.SelectedSite;
+        if (site is null) return Task.CompletedTask;
+        // A user-clicked custom site lives in the viewer under a fixed entity id.
+        var entityId = site.Id.StartsWith("CUSTOM", StringComparison.Ordinal) ? "custom-site" : site.Id;
+        return FlyToAsync(entityId);
+    }
+
+    private async Task SyncViewerAsync()
+    {
+        if (!moonLoaded || moonModule is null) return;
+
+        try
+        {
+            // Sites may arrive after the viewer started; only re-send when the list actually changed.
+            if (!ReferenceEquals(loadedSites, MissionState.AvailableSites))
+            {
+                loadedSites = MissionState.AvailableSites;
+                await moonModule.InvokeVoidAsync("loadSites", loadedSites);
+            }
+
+            var selected = MissionState.SelectedSite;
+            if (selected is not null && !selected.Id.StartsWith("CUSTOM", StringComparison.Ordinal))
+            {
+                await moonModule.InvokeVoidAsync("selectSite", selected.Id);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[MoonPanel] Failed to sync sites: {ex}");
+        }
+    }
+
+    private void HandleFlyToRequested(string siteId) => _ = FlyToAsync(siteId);
+
+    private async Task FlyToAsync(string siteId)
+    {
+        if (!moonLoaded || moonModule is null) return;
+
+        try
+        {
+            await moonModule.InvokeVoidAsync("flyToSite", siteId);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[MoonPanel] Fly-to failed: {ex}");
         }
     }
 
@@ -67,5 +182,25 @@
             Source = "USER_INPUT"
         };
         return MissionState.SelectSite(customSite.Id, customSite);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        MissionState.OnStateChanged -= HandleStateChanged;
+        MissionState.OnFlyToRequested -= HandleFlyToRequested;
+
+        if (moonModule is not null)
+        {
+            try
+            {
+                await moonModule.InvokeVoidAsync("dispose");
+                await moonModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
     }
 }

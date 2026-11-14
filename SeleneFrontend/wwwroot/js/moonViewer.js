@@ -1,174 +1,272 @@
+// Cesium ion asset ID of the lunar 3D terrain tileset — sprawdź w Cesium ion (Asset Depot → Moon terrain).
+const MOON_TERRAIN_ION_ASSET_ID = 2684829;
+
+const MOON_TREK_WAC_URL =
+  "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/default/default028mm/{z}/{y}/{x}.jpg";
+
+const SITE_COLOR = Cesium.Color.fromCssColorString("#4fc3f7");
+const SELECTED_COLOR = Cesium.Color.fromCssColorString("#ffb020");
+const CUSTOM_COLOR = Cesium.Color.fromCssColorString("#3ddc84");
+const LABEL_BG_COLOR = Cesium.Color.fromCssColorString("#0a0e13").withAlpha(0.75);
+const CUSTOM_SITE_ID = "custom-site";
+const FLY_DURATION_S = 1.8;
+const PIN_SIZE = { site: 8, selected: 12, custom: 10 };
+const HOVER_GROW_PX = 3;
+
 let viewer = null;
 let dotNetRef = null;
-let sitePins = [];
-let selectedPinId = null;
+let selectedSiteId = null;
+let hoveredId = null;
+let pendingHoverPos = null;
+let hoverFrame = 0;
 
-export async function initViewer(elementId, dotNetReference) {
+export async function initViewer(elementId, token, dotNetReference) {
   dotNetRef = dotNetReference;
-  
-  // Set Moon as the ellipsoid BEFORE creating viewer
+  const hasToken = typeof token === "string" && token.trim().length > 0;
+  if (hasToken) {
+    Cesium.Ion.defaultAccessToken = token.trim();
+  }
+
+  // Moon must be the default ellipsoid BEFORE the viewer (and its globe) is created.
   Cesium.Ellipsoid.default = Cesium.Ellipsoid.MOON;
-  
-  const container = document.getElementById(elementId);
-  
-  try {
-    viewer = new Cesium.Viewer(elementId, {
-      terrainProvider: Cesium.Terrain.fromWorldTerrain(),
-      baseLayerPicker: false,
-      geocoder: false,
-      homeButton: false,
-      sceneModePicker: false,
-      navigationHelpButton: false,
-      animation: false,
-      timeline: false,
-      fullscreenButton: false,
-      infoBox: false,
-      skyAtmosphere: false,
-      skyBox: new Cesium.SkyBox({
-        sources: {
-          positiveX: 'https://cesium.com/downloads/cesiumjs/releases/1.116/Assets/Skybox/px.jpg',
-          negativeX: 'https://cesium.com/downloads/cesiumjs/releases/1.116/Assets/Skybox/nx.jpg',
-          positiveY: 'https://cesium.com/downloads/cesiumjs/releases/1.116/Assets/Skybox/py.jpg',
-          negativeY: 'https://cesium.com/downloads/cesiumjs/releases/1.116/Assets/Skybox/ny.jpg',
-          positiveZ: 'https://cesium.com/downloads/cesiumjs/releases/1.116/Assets/Skybox/pz.jpg',
-          negativeZ: 'https://cesium.com/downloads/cesiumjs/releases/1.116/Assets/Skybox/nz.jpg'
-        }
-      }),
-      scene3DOnly: true
-    });
-    
-    // Remove atmosphere
-    viewer.scene.atmosphere = null;
-    viewer.scene.globe.showGroundAtmosphere = false;
-    
-    // Black background
-    viewer.scene.backgroundColor = Cesium.Color.BLACK;
-    
-    // Load Cesium Moon terrain - would need valid token in appsettings.json
-    try {
-      const moonTerrain = await Cesium.Cesium3DTileset.fromIonAssetId(2684829);
-      viewer.scene.primitives.add(moonTerrain);
-    } catch (e) {
-      console.warn("Cesium ion token not configured. Showing ellipsoid only.");
-    }
-    
-    // Start camera over south pole, angled view
-    const southPole = Cesium.Cartesian3.fromDegrees(0, -90, 400000);
-    viewer.camera.setView({
-      destination: southPole,
-      orientation: {
-        heading: Cesium.Math.toRadians(0),
-        pitch: Cesium.Math.toRadians(-45),
-        roll: 0
-      }
-    });
-    
-    // Load sites
-    const response = await fetch('data/sites.json');
-    const sites = await response.json();
-    await loadSites(sites);
-    
-    // Click handler for terrain
-    viewer.screenSpaceEventHandler.setInputAction((click) => {
-      const pickedObject = viewer.scene.pick(click.position);
-      if (!Cesium.defined(pickedObject)) {
-        const earthPosition = viewer.scene.pickPosition(click.position);
-        if (Cesium.defined(earthPosition)) {
-          const cartographic = Cesium.Cartographic.fromCartesian(earthPosition);
-          const lat = Cesium.Math.toDegrees(cartographic.latitude);
-          const lon = Cesium.Math.toDegrees(cartographic.longitude);
-          dotNetRef.invokeMethodAsync('OnCustomSiteCreated', lat, lon);
-        }
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    
-  } catch (error) {
-    console.error("Error initializing viewer:", error);
-    throw error;
-  }
-}
 
-export async function loadSites(sites) {
-  if (!viewer) return;
-  
-  // Clear existing pins
-  sitePins.forEach(pin => {
-    viewer.entities.remove(pin.entity);
+  viewer = new Cesium.Viewer(elementId, {
+    terrainProvider: new Cesium.EllipsoidTerrainProvider({ ellipsoid: Cesium.Ellipsoid.MOON }),
+    baseLayer: false, // no default Bing (Earth) imagery
+    baseLayerPicker: false,
+    geocoder: false,
+    homeButton: false,
+    sceneModePicker: false,
+    navigationHelpButton: false,
+    animation: false,
+    timeline: false,
+    fullscreenButton: false,
+    infoBox: false,
+    selectionIndicator: false,
+    skyAtmosphere: false,
+    scene3DOnly: true,
   });
-  sitePins = [];
-  
-  for (const site of sites) {
-    const pin = new Cesium.Entity({
-      position: Cesium.Cartesian3.fromDegrees(site.lon, site.lat),
-      point: {
-        pixelSize: 8,
-        color: Cesium.Color.CYAN,
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 1
-      },
-      label: {
-        text: site.name,
-        font: '11px "IBM Plex Mono", monospace',
-        horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        pixelOffset: new Cesium.Cartesian2(10, -10),
-        fillColor: Cesium.Color.CYAN,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 1
-      },
-      siteId: site.id
-    });
-    
-    viewer.entities.add(pin);
-    sitePins.push({ id: site.id, entity: pin });
-  }
-  
-  // Re-add click handler for pins
-  viewer.screenSpaceEventHandler.setInputAction((click) => {
-    const pickedObject = viewer.scene.pick(click.position);
-    if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.siteId) {
-      selectSite(pickedObject.id.siteId);
-      dotNetRef.invokeMethodAsync('OnSiteSelected', pickedObject.id.siteId);
+
+  const scene = viewer.scene;
+  scene.globe.showGroundAtmosphere = false;
+  scene.globe.baseColor = Cesium.Color.fromCssColorString("#1a1d21");
+  scene.backgroundColor = Cesium.Color.BLACK;
+  // Sun and Moon billboards belong to Earth's sky — hide them.
+  if (scene.sun) scene.sun.show = false;
+  if (scene.moon) scene.moon.show = false;
+  // Attribution is shown in the app footer.
+  viewer.cesiumWidget.creditContainer.style.display = "none";
+
+  // NASA Moon Trek LRO WAC mosaic — works without any token.
+  viewer.imageryLayers.addImageryProvider(
+    new Cesium.UrlTemplateImageryProvider({
+      url: MOON_TREK_WAC_URL,
+      tilingScheme: new Cesium.GeographicTilingScheme({ ellipsoid: Cesium.Ellipsoid.MOON }),
+      maximumLevel: 7,
+      credit: "NASA/JPL Moon Trek — LRO WAC mosaic",
+    })
+  );
+
+  let terrainLoaded = false;
+  if (hasToken) {
+    try {
+      const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(MOON_TERRAIN_ION_ASSET_ID);
+      scene.primitives.add(tileset);
+      scene.globe.show = false;
+      terrainLoaded = true;
+    } catch (e) {
+      console.warn("Lunar 3D terrain unavailable, falling back to Moon Trek mosaic:", e);
     }
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  resetView();
+  viewer.screenSpaceEventHandler.setInputAction(onLeftClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  viewer.screenSpaceEventHandler.setInputAction(onMouseMove, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+  return { terrainLoaded, hasToken };
 }
 
-export function flyToSite(siteId) {
+/** South-pole overview. Instant by default; pass animate=true for a camera flight. */
+export function resetView(animate = false) {
   if (!viewer) return;
-  
-  const pin = sitePins.find(p => p.id === siteId);
-  if (pin && pin.entity.position) {
-    viewer.camera.flyTo({
-      destination: pin.entity.position,
-      orientation: {
-        heading: Cesium.Math.toRadians(0),
-        pitch: Cesium.Math.toRadians(-45),
-        roll: 0
-      },
-      duration: 1.5
+  const view = {
+    destination: Cesium.Cartesian3.fromDegrees(0, -72, 420000, Cesium.Ellipsoid.MOON),
+    orientation: {
+      heading: Cesium.Math.toRadians(180),
+      pitch: Cesium.Math.toRadians(-38),
+      roll: 0,
+    },
+  };
+  if (animate) {
+    viewer.camera.flyTo({ ...view, duration: FLY_DURATION_S });
+  } else {
+    viewer.camera.setView(view);
+  }
+}
+
+function isPin(entity) {
+  const kind = entityKind(entity);
+  return kind === "site" || kind === "custom";
+}
+
+// Hover: pick at most once per animation frame.
+function onMouseMove(movement) {
+  pendingHoverPos = movement.endPosition;
+  if (!hoverFrame) hoverFrame = requestAnimationFrame(updateHover);
+}
+
+function updateHover() {
+  hoverFrame = 0;
+  if (!viewer || viewer.isDestroyed() || !pendingHoverPos) return;
+
+  const picked = viewer.scene.pick(pendingHoverPos);
+  const entity = Cesium.defined(picked) && picked.id instanceof Cesium.Entity ? picked.id : undefined;
+  const nextId = entity && isPin(entity) ? entity.id : null;
+  if (nextId === hoveredId) return;
+
+  const prevId = hoveredId;
+  hoveredId = nextId;
+  restylePin(prevId);
+  restylePin(nextId);
+  viewer.scene.canvas.style.cursor = nextId ? "pointer" : "";
+}
+
+function restylePin(id) {
+  if (!id) return;
+  const entity = viewer.entities.getById(id);
+  if (!entity) return;
+  const hover = id === hoveredId ? HOVER_GROW_PX : 0;
+  if (entityKind(entity) === "custom") {
+    entity.point.pixelSize = PIN_SIZE.custom + hover;
+  } else if (entityKind(entity) === "site") {
+    styleSitePin(entity, id === selectedSiteId);
+  }
+}
+
+function entityKind(entity) {
+  const kind = entity?.properties?.kind;
+  return kind ? kind.getValue(viewer.clock.currentTime) : undefined;
+}
+
+function onLeftClick(click) {
+  const picked = viewer.scene.pick(click.position);
+  const entity = Cesium.defined(picked) ? picked.id : undefined;
+
+  if (entity instanceof Cesium.Entity && entityKind(entity) === "site") {
+    selectSite(entity.id);
+    dotNetRef?.invokeMethodAsync("OnSiteSelected", entity.id);
+    return;
+  }
+
+  let position;
+  if (viewer.scene.pickPositionSupported) {
+    position = viewer.scene.pickPosition(click.position);
+  }
+  if (!Cesium.defined(position)) {
+    position = viewer.camera.pickEllipsoid(click.position, Cesium.Ellipsoid.MOON);
+  }
+  if (!Cesium.defined(position)) return; // clicked empty space
+
+  const carto = Cesium.Cartographic.fromCartesian(position, Cesium.Ellipsoid.MOON);
+  if (!carto) return;
+  const lat = Cesium.Math.toDegrees(carto.latitude);
+  const lon = Cesium.Math.toDegrees(carto.longitude);
+
+  placeCustomPin(lat, lon);
+  selectSite(null);
+  dotNetRef?.invokeMethodAsync("OnCustomSiteCreated", lat, lon);
+}
+
+function pinGraphics(color, pixelSize, text) {
+  return {
+    point: {
+      pixelSize,
+      color,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 1,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+    label: {
+      text: text.toUpperCase(),
+      font: '11px "IBM Plex Mono", monospace',
+      fillColor: color,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2,
+      showBackground: true,
+      backgroundColor: LABEL_BG_COLOR,
+      horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      pixelOffset: new Cesium.Cartesian2(10, -10),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  };
+}
+
+function placeCustomPin(lat, lon) {
+  const existing = viewer.entities.getById(CUSTOM_SITE_ID);
+  if (existing) viewer.entities.remove(existing);
+  viewer.entities.add({
+    id: CUSTOM_SITE_ID,
+    position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, Cesium.Ellipsoid.MOON),
+    properties: { kind: "custom" },
+    ...pinGraphics(CUSTOM_COLOR, PIN_SIZE.custom, `CUSTOM ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`),
+  });
+}
+
+export function loadSites(sites) {
+  if (!viewer) return;
+
+  const stale = viewer.entities.values.filter((e) => entityKind(e) === "site");
+  for (const e of stale) viewer.entities.remove(e);
+
+  for (const s of sites ?? []) {
+    viewer.entities.add({
+      id: s.id,
+      position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 0, Cesium.Ellipsoid.MOON),
+      properties: { kind: "site", approximate: !!s.approximate },
+      ...pinGraphics(SITE_COLOR, PIN_SIZE.site, s.name ?? s.id),
     });
   }
+
+  if (selectedSiteId) {
+    const id = selectedSiteId;
+    selectedSiteId = null;
+    selectSite(id);
+  }
+}
+
+function styleSitePin(entity, selected) {
+  const color = selected ? SELECTED_COLOR : SITE_COLOR;
+  entity.point.color = color;
+  entity.point.pixelSize = (selected ? PIN_SIZE.selected : PIN_SIZE.site) + (entity.id === hoveredId ? HOVER_GROW_PX : 0);
+  entity.label.fillColor = color;
 }
 
 export function selectSite(siteId) {
   if (!viewer) return;
-  
-  // Reset previous selection
-  if (selectedPinId) {
-    const oldPin = sitePins.find(p => p.id === selectedPinId);
-    if (oldPin) {
-      oldPin.entity.point.color = Cesium.Color.CYAN;
-      oldPin.entity.point.pixelSize = 8;
-    }
+
+  if (selectedSiteId && selectedSiteId !== siteId) {
+    const prev = viewer.entities.getById(selectedSiteId);
+    if (prev && entityKind(prev) === "site") styleSitePin(prev, false);
   }
-  
-  // Highlight new selection
-  const newPin = sitePins.find(p => p.id === siteId);
-  if (newPin) {
-    newPin.entity.point.color = Cesium.Color.YELLOW;
-    newPin.entity.point.pixelSize = 12;
-    selectedPinId = siteId;
-  }
+
+  selectedSiteId = siteId ?? null;
+  if (!siteId) return;
+
+  const entity = viewer.entities.getById(siteId);
+  if (entity && entityKind(entity) === "site") styleSitePin(entity, true);
+}
+
+export function flyToSite(siteId) {
+  if (!viewer) return;
+  const entity = viewer.entities.getById(siteId);
+  if (!entity) return;
+  // Fly to an offset above the site — flying to the surface point puts the camera into the ground.
+  viewer.flyTo(entity, {
+    duration: FLY_DURATION_S,
+    offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-50), 90000),
+  });
 }
 
 export function setSunDirection(azimuthDeg, elevationDeg) {
@@ -178,8 +276,14 @@ export function setSunDirection(azimuthDeg, elevationDeg) {
 }
 
 export function dispose() {
-  if (viewer) {
+  if (hoverFrame) cancelAnimationFrame(hoverFrame);
+  hoverFrame = 0;
+  pendingHoverPos = null;
+  hoveredId = null;
+  if (viewer && !viewer.isDestroyed()) {
     viewer.destroy();
-    viewer = null;
   }
+  viewer = null;
+  dotNetRef = null;
+  selectedSiteId = null;
 }

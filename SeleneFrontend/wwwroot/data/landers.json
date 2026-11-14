@@ -1,7 +1,8 @@
 [
   {
     "id": "nova_c",
-    "name": "Intuitive Machines Nova-C",
+    "name": "Nova-C",
+    "manufacturer": "Intuitive Machines",
     "class": "clps",
     "defaultPowerW": null,
     "defaultBatteryWh": null,
@@ -10,11 +11,13 @@
     "power": 0,
     "battery": 0,
     "load": 0,
-    "maxDarkness": 0
+    "maxDarkness": 0,
+    "sourceUrl": ""
   },
   {
     "id": "blue_ghost",
-    "name": "Firefly Blue Ghost",
+    "name": "Blue Ghost",
+    "manufacturer": "Firefly Aerospace",
     "class": "clps",
     "defaultPowerW": null,
     "defaultBatteryWh": null,
@@ -23,11 +26,13 @@
     "power": 0,
     "battery": 0,
     "load": 0,
-    "maxDarkness": 0
+    "maxDarkness": 0,
+    "sourceUrl": ""
   },
   {
     "id": "griffin",
-    "name": "Astrobotic Griffin",
+    "name": "Griffin",
+    "manufacturer": "Astrobotic",
     "class": "clps",
     "defaultPowerW": null,
     "defaultBatteryWh": null,
@@ -36,11 +41,13 @@
     "power": 0,
     "battery": 0,
     "load": 0,
-    "maxDarkness": 0
+    "maxDarkness": 0,
+    "sourceUrl": ""
   },
   {
     "id": "custom_clps",
     "name": "Custom",
+    "manufacturer": "User-defined",
     "class": "clps",
     "defaultPowerW": null,
     "defaultBatteryWh": null,
@@ -49,11 +56,13 @@
     "power": 0,
     "battery": 0,
     "load": 0,
-    "maxDarkness": 0
+    "maxDarkness": 0,
+    "sourceUrl": ""
   },
   {
     "id": "starship_hls",
-    "name": "SpaceX Starship HLS",
+    "name": "Starship HLS",
+    "manufacturer": "SpaceX",
     "class": "hls",
     "defaultPowerW": null,
     "defaultBatteryWh": null,
@@ -62,11 +71,13 @@
     "power": 0,
     "battery": 0,
     "load": 0,
-    "maxDarkness": 0
+    "maxDarkness": 0,
+    "sourceUrl": ""
   },
   {
     "id": "blue_moon_mk2",
-    "name": "Blue Origin Blue Moon Mk2",
+    "name": "Blue Moon Mk2",
+    "manufacturer": "Blue Origin",
     "class": "hls",
     "defaultPowerW": null,
     "defaultBatteryWh": null,
@@ -75,11 +86,13 @@
     "power": 0,
     "battery": 0,
     "load": 0,
-    "maxDarkness": 0
+    "maxDarkness": 0,
+    "sourceUrl": ""
   },
   {
     "id": "custom_hls",
     "name": "Custom",
+    "manufacturer": "User-defined",
     "class": "hls",
     "defaultPowerW": null,
     "defaultBatteryWh": null,
@@ -88,6 +101,7 @@
     "power": 0,
     "battery": 0,
     "load": 0,
-    "maxDarkness": 0
+    "maxDarkness": 0,
+    "sourceUrl": ""
   }
 ]

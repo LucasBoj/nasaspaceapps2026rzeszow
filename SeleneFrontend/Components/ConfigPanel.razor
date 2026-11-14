@@ -29,56 +29,14 @@
                     }
                 </select>
             </div>
-            <button class="btn-secondary" disabled>Fly to</button>
+            <button class="btn-secondary" disabled="@(!MissionState.CanFlyTo)" @onclick="MissionState.RequestFlyTo">Fly to</button>
         </div>
     </section>
 
     <section class="config-section">
         <h2><span class="section-number">02</span>LANDER</h2>
         <div class="section-body">
-            <div class="field">
-                <label>Spacecraft Class</label>
-                <select @onchange="@((ChangeEventArgs e) => OnLanderClassSelected(e.Value?.ToString() ?? ""))">
-                    <option value="clps">CLPS (robotic)</option>
-                    <option value="hls">HLS (crewed)</option>
-                </select>
-            </div>
-            <div class="field">
-                <label>Spacecraft Model</label>
-                <select @onchange="@((ChangeEventArgs e) => OnLanderSelected(e.Value?.ToString() ?? ""))">
-                    <option value="">-- Select a lander --</option>
-                    @foreach (var lander in MissionState.FilteredLanders)
-                    {
-                        <option value="@lander.Id">@lander.Name</option>
-                    }
-                </select>
-            </div>
-
-            @if (MissionState.SelectedLander != null)
-            {
-                <div style="border-top: 1px solid #223040; margin-top: 1rem; padding-top: 1rem;">
-                    <div class="field">
-                        <label>Solar Array Power [W]</label>
-                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnPowerChanged(e.Value?.ToString() ?? ""))" />
-                        <small><span class="badge-assumption">ASSUMPTION</span></small>
-                    </div>
-                    <div class="field">
-                        <label>Battery Capacity [Wh]</label>
-                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnBatteryChanged(e.Value?.ToString() ?? ""))" />
-                        <small><span class="badge-assumption">ASSUMPTION</span></small>
-                    </div>
-                    <div class="field">
-                        <label>Baseline Load [W]</label>
-                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnLoadChanged(e.Value?.ToString() ?? ""))" />
-                        <small><span class="badge-assumption">ASSUMPTION</span></small>
-                    </div>
-                    <div class="field">
-                        <label>Max Survivable Darkness [h]</label>
-                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnDarknessChanged(e.Value?.ToString() ?? ""))" />
-                        <small><span class="badge-assumption">ASSUMPTION</span></small>
-                    </div>
-                </div>
-            }
+            <LanderPicker />
         </div>
     </section>
 
@@ -133,40 +91,6 @@
     private async Task OnSiteSelected(string siteId)
     {
         await MissionState.SelectSite(siteId);
-    }
-
-    private async Task OnLanderClassSelected(string landerClass)
-    {
-        await MissionState.SelectLanderClass(landerClass);
-    }
-
-    private async Task OnLanderSelected(string landerId)
-    {
-        await MissionState.SelectLander(landerId);
-    }
-
-    private async Task OnPowerChanged(string value)
-    {
-        if (double.TryParse(value, out var power))
-            await MissionState.UpdateLanderPower(power);
-    }
-
-    private async Task OnBatteryChanged(string value)
-    {
-        if (double.TryParse(value, out var battery))
-            await MissionState.UpdateLanderBattery(battery);
-    }
-
-    private async Task OnLoadChanged(string value)
-    {
-        if (double.TryParse(value, out var load))
-            await MissionState.UpdateLanderLoad(load);
-    }
-
-    private async Task OnDarknessChanged(string value)
-    {
-        if (double.TryParse(value, out var darkness))
-            await MissionState.UpdateLanderDarkness(darkness);
     }
 
     private async Task OnStartDateChanged(string value)

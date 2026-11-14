@@ -5,12 +5,17 @@ namespace SeleneFrontend.Services;
 
 public class MissionConfigState
 {
+    // JSON files use camelCase keys; Web defaults make property matching case-insensitive.
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+
     private readonly HttpClient _httpClient;
-    
+
     public event Action? OnStateChanged;
-    
+    public event Action<string>? OnFlyToRequested;
+
     public List<Site> AvailableSites { get; private set; } = [];
     public Site? SelectedSite { get; private set; }
+    public bool CanFlyTo => SelectedSite is not null && !SelectedSite.Id.StartsWith("CUSTOM", StringComparison.Ordinal);
     
     public List<LanderPreset> AllLanders { get; private set; } = [];
     public List<LanderPreset> FilteredLanders => AllLanders.Where(l => l.Class == SelectedLanderClass).ToList();
@@ -35,10 +40,10 @@ public class MissionConfigState
         try
         {
             var sitesJson = await _httpClient.GetStringAsync("data/sites.json");
-            AvailableSites = JsonSerializer.Deserialize<List<Site>>(sitesJson) ?? [];
-            
+            AvailableSites = JsonSerializer.Deserialize<List<Site>>(sitesJson, JsonOpts) ?? [];
+
             var landersJson = await _httpClient.GetStringAsync("data/landers.json");
-            AllLanders = JsonSerializer.Deserialize<List<LanderPreset>>(landersJson) ?? [];
+            AllLanders = JsonSerializer.Deserialize<List<LanderPreset>>(landersJson, JsonOpts) ?? [];
             
             if (AvailableSites.Count > 0)
             {
@@ -64,7 +69,17 @@ public class MissionConfigState
             SelectedSite = AvailableSites.FirstOrDefault(s => s.Id == siteId);
         }
         OnStateChanged?.Invoke();
+        // Every explicit site selection (map pin or list) flies the camera there.
+        RequestFlyTo();
         await Task.CompletedTask;
+    }
+
+    public void RequestFlyTo()
+    {
+        if (CanFlyTo)
+        {
+            OnFlyToRequested?.Invoke(SelectedSite!.Id);
+        }
     }
 
     public async Task SelectLanderClass(string landerClass)
@@ -117,6 +132,16 @@ public class MissionConfigState
         if (SelectedLander != null)
         {
             SelectedLander.MaxDarkness = value;
+            OnStateChanged?.Invoke();
+        }
+        await Task.CompletedTask;
+    }
+
+    public async Task UpdateLanderSourceUrl(string url)
+    {
+        if (SelectedLander != null)
+        {
+            SelectedLander.SourceUrl = url;
             OnStateChanged?.Invoke();
         }
         await Task.CompletedTask;
