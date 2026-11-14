@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 19:55 CET
+**Ostatnia aktualizacja:** 2026-11-14 20:15 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -153,6 +153,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — animacja lądowania (moduł, HUD, integracja z analizą), diagnoza błędu renderowania Cesium (lot kamery vs `lookAt`), testy w 4 konfiguracjach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — pierwsze wrażenie i dopracowanie frontu: ekran startowy, QUICK DEMO, porównanie miejsc, róża Słońca/Ziemi, nakładka kandydatów, słowniczek, responsywność, metadane i `og.png`, poprawki wdrożeniowe, pomiary wydajności, testy w 3 przeglądarkach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — przestawienie CI na jedną domenę (main → stable), weryfikacja produkcji (przebieg Actions, smoke test, token Cesium ion z naszej domeny)
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — przegląd Known issues pod kątem dokładności modelu (wrażliwość na punkt lądowania z zakresu 3×3 px map NASA, optymizm DEM, założenia energii), porządki w nieaktualnych wpisach
 
 ## ⚠️ Known issues / ryzyka
 
@@ -175,7 +176,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Dane lądowników HLS to głównie założenia** — moc paneli, bateria i obciążenia Starship HLS i Blue Moon nie są publikowane (ASSUMPTION). Wyniki dla HLS trzeba na pitchu przedstawiać jako szacunek klasy, nie dane producenta.
 - **Dwa linki źródłowe nie odpowiadają automatom** (sprawdzone 2026-11-14 ~12:50): `nasaspaceflight.com` (Griffin, czas misji) zwraca 403 dla zapytań automatycznych, a cały `collectspace.com` (Blue Moon: czas misji, załoga, panele) zwracał 522 (awaria serwera). Sprawdzić ręcznie w przeglądarce przed zgłoszeniem; `nasaspaceflight.com/tag/viper/` to strona tagu, czyli słabe źródło, więc warto podmienić na konkretny artykuł.
 - **Demo zależy od internetu tylko przez kafle Moon Trek** — Cesium i czcionki są lokalne od `c6085d3`. Bez sieci globus powinien zostać bez zdjęć (szary kolor bazowy z `moonViewer.js`), a reszta aplikacji działać — nie sprawdzone przy wyłączonej sieci. → P0.
-- **Teren 3D tylko lokalnie** — asset Moon Terrain jest już na koncie i lokalnie działa „3D TERRAIN”. Token jest tylko w `appsettings.Development.json` (gitignored, wykluczony z publikacji), więc wdrożona wersja pokaże „2D MOSAIC MODE”, dopóki nie zostanie podjęta decyzja o tokenie z ograniczeniem do domeny.
+- ~~**Teren 3D tylko lokalnie**~~ (rozwiązane: produkcja dostaje token z sekretu `CESIUM_ION_TOKEN`, smoke test `85d36e0` → `appsettings.json` 3D; ograniczenie domen tokena — osobny wpis niżej) — asset Moon Terrain jest już na koncie i lokalnie działa „3D TERRAIN”. Token jest tylko w `appsettings.Development.json` (gitignored, wykluczony z publikacji), więc wdrożona wersja pokaże „2D MOSAIC MODE”, dopóki nie zostanie podjęta decyzja o tokenie z ograniczeniem do domeny.
 - **Przybliżenie liniowe tarczy Słońca** — maksymalny błąd to 5,8 pkt proc. przy częściowym zakryciu. Statystyka „jakiekolwiek światło” nie jest dotknięta.
 - **Uproszczenia modelu** — Księżyc jako sfera R = 1737,4 km, horyzont do 150 km, DEM 120 m/px, okres 2027–28 (nie pełny cykl 18,6 roku). „Ziemia widoczna” to nie to samo co kontakt ze stacją DSN.
 - ~~Zagnieżdżone `SeleneFrontend/.git`~~ — usunięte w `1e7a604`.
