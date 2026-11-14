@@ -21,6 +21,42 @@ public class MissionConfigState
     public List<LanderPreset> FilteredLanders => AllLanders.Where(l => l.Class == SelectedLanderClass).ToList();
     public LanderPreset? SelectedLander { get; private set; }
     public string SelectedLanderClass { get; private set; } = "clps";
+
+    // ---- What-if overrides (pitch comparisons). Data presets are never mutated. ----
+    public const string WhatIfSolarArrayW = "solarArrayW";
+    public const string WhatIfBatteryWh = "batteryWh";
+    public const string WhatIfSurvivalLoadW = "survivalLoadW";
+
+    private readonly Dictionary<string, double> _whatIf = [];
+
+    public bool HasWhatIf => _whatIf.Count > 0;
+    public bool IsWhatIf(string key) => _whatIf.ContainsKey(key);
+
+    /// <summary>Effective value used by calculations: what-if override if set, otherwise the preset figure.</summary>
+    public double? Effective(string key)
+    {
+        if (_whatIf.TryGetValue(key, out var v)) return v;
+        return key switch
+        {
+            WhatIfSolarArrayW => SelectedLander?.SolarArrayW?.Value,
+            WhatIfBatteryWh => SelectedLander?.BatteryWh?.Value,
+            WhatIfSurvivalLoadW => SelectedLander?.SurvivalLoadW?.Value,
+            _ => null,
+        };
+    }
+
+    public void SetWhatIf(string key, double value)
+    {
+        _whatIf[key] = value;
+        OnStateChanged?.Invoke();
+    }
+
+    public void ResetWhatIf()
+    {
+        if (_whatIf.Count == 0) return;
+        _whatIf.Clear();
+        OnStateChanged?.Invoke();
+    }
     
     public DateTime WindowStart { get; private set; } = DateTime.UtcNow;
     public DateTime WindowEnd { get; private set; } = DateTime.UtcNow.AddYears(2);
@@ -86,6 +122,7 @@ public class MissionConfigState
     {
         SelectedLanderClass = landerClass;
         SelectedLander = null;
+        _whatIf.Clear();
         OnStateChanged?.Invoke();
         await Task.CompletedTask;
     }
@@ -93,57 +130,12 @@ public class MissionConfigState
     public async Task SelectLander(string landerId)
     {
         SelectedLander = AllLanders.FirstOrDefault(l => l.Id == landerId);
+        _whatIf.Clear();
+        if (SelectedLander?.MissionDurationDays is { } duration)
+        {
+            MissionDurationDays = duration.Value;
+        }
         OnStateChanged?.Invoke();
-        await Task.CompletedTask;
-    }
-
-    public async Task UpdateLanderPower(double value)
-    {
-        if (SelectedLander != null)
-        {
-            SelectedLander.Power = value;
-            OnStateChanged?.Invoke();
-        }
-        await Task.CompletedTask;
-    }
-
-    public async Task UpdateLanderBattery(double value)
-    {
-        if (SelectedLander != null)
-        {
-            SelectedLander.Battery = value;
-            OnStateChanged?.Invoke();
-        }
-        await Task.CompletedTask;
-    }
-
-    public async Task UpdateLanderLoad(double value)
-    {
-        if (SelectedLander != null)
-        {
-            SelectedLander.Load = value;
-            OnStateChanged?.Invoke();
-        }
-        await Task.CompletedTask;
-    }
-
-    public async Task UpdateLanderDarkness(double value)
-    {
-        if (SelectedLander != null)
-        {
-            SelectedLander.MaxDarkness = value;
-            OnStateChanged?.Invoke();
-        }
-        await Task.CompletedTask;
-    }
-
-    public async Task UpdateLanderSourceUrl(string url)
-    {
-        if (SelectedLander != null)
-        {
-            SelectedLander.SourceUrl = url;
-            OnStateChanged?.Invoke();
-        }
         await Task.CompletedTask;
     }
 
@@ -198,6 +190,7 @@ public class MissionConfigState
         MinCommsPercent = 50;
         MinBatteryPercent = 20;
         SelectedLander = null;
+        _whatIf.Clear();
         OnStateChanged?.Invoke();
     }
 }

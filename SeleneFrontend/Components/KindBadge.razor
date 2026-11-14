@@ -1,0 +1,15 @@
+@using SeleneFrontend.Models
+
+<span class="kind-badge @Kind">@Label</span>
+
+@code {
+    /// <summary>One of <see cref="ParamKind"/> values.</summary>
+    [Parameter] public string Kind { get; set; } = ParamKind.Assumption;
+
+    private string Label => Kind switch
+    {
+        ParamKind.Sourced => "SOURCED",
+        ParamKind.Derived => "DERIVED",
+        _ => "ASSUMPTION",
+    };
+}

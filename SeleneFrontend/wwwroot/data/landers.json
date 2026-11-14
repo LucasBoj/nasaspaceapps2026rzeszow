@@ -4,104 +4,267 @@
     "name": "Nova-C",
     "manufacturer": "Intuitive Machines",
     "class": "clps",
-    "defaultPowerW": null,
-    "defaultBatteryWh": null,
-    "defaultLoadW": null,
-    "defaultMaxDarknessH": null,
-    "power": 0,
-    "battery": 0,
-    "load": 0,
-    "maxDarkness": 0,
-    "sourceUrl": ""
+    "solarArrayW": {
+      "value": 200,
+      "unit": "W",
+      "kind": "sourced",
+      "note": "3 panels, ~1 lunar day of operations",
+      "sourceUrl": "https://www.astronomy.com/space-exploration/intuitive-machines-preps-im-2-mission-for-moon-launch-this-week/"
+    },
+    "batteryWh": {
+      "value": 700,
+      "unit": "Wh",
+      "kind": "derived",
+      "note": "25 Ah battery × 28 V bus",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
+    },
+    "dayLoadW": {
+      "value": 150,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "class estimate",
+      "sourceUrl": ""
+    },
+    "survivalLoadW": {
+      "value": 47,
+      "unit": "W",
+      "kind": "derived",
+      "note": "700 Wh / ~15 h (IM: comms 10–20 h after sunset)",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
+    },
+    "missionDurationDays": {
+      "value": 14,
+      "unit": "d",
+      "kind": "sourced",
+      "note": "design life 14 days after landing",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
+    },
+    "designedForNight": {
+      "value": false,
+      "unit": "",
+      "kind": "sourced",
+      "note": "battery limits — cannot survive lunar night",
+      "sourceUrl": "https://www.astronomy.com/space-exploration/intuitive-machines-preps-im-2-mission-for-moon-launch-this-week/"
+    },
+    "payloadKg": {
+      "value": 100,
+      "unit": "kg",
+      "kind": "sourced",
+      "note": "",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
+    }
   },
   {
     "id": "blue_ghost",
     "name": "Blue Ghost",
     "manufacturer": "Firefly Aerospace",
     "class": "clps",
-    "defaultPowerW": null,
-    "defaultBatteryWh": null,
-    "defaultLoadW": null,
-    "defaultMaxDarknessH": null,
-    "power": 0,
-    "battery": 0,
-    "load": 0,
-    "maxDarkness": 0,
-    "sourceUrl": ""
+    "solarArrayW": {
+      "value": 400,
+      "unit": "W",
+      "kind": "sourced",
+      "note": "up to 400 W from 3 panels",
+      "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
+    },
+    "batteryWh": {
+      "value": 600,
+      "unit": "Wh",
+      "kind": "derived",
+      "note": "survivalLoadW × ~5 h night ops observed on M1",
+      "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
+    },
+    "dayLoadW": {
+      "value": 300,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "class estimate",
+      "sourceUrl": ""
+    },
+    "survivalLoadW": {
+      "value": 120,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "class estimate",
+      "sourceUrl": ""
+    },
+    "missionDurationDays": {
+      "value": 14,
+      "unit": "d",
+      "kind": "sourced",
+      "note": "M1: 14+ days daylight + ~5 h into night",
+      "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
+    },
+    "designedForNight": {
+      "value": false,
+      "unit": "",
+      "kind": "sourced",
+      "note": "M1 configuration ended ~5 h after sunset",
+      "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
+    }
   },
   {
     "id": "griffin",
     "name": "Griffin",
     "manufacturer": "Astrobotic",
     "class": "clps",
-    "defaultPowerW": null,
-    "defaultBatteryWh": null,
-    "defaultLoadW": null,
-    "defaultMaxDarknessH": null,
-    "power": 0,
-    "battery": 0,
-    "load": 0,
-    "maxDarkness": 0,
-    "sourceUrl": ""
-  },
-  {
-    "id": "custom_clps",
-    "name": "Custom",
-    "manufacturer": "User-defined",
-    "class": "clps",
-    "defaultPowerW": null,
-    "defaultBatteryWh": null,
-    "defaultLoadW": null,
-    "defaultMaxDarknessH": null,
-    "power": 0,
-    "battery": 0,
-    "load": 0,
-    "maxDarkness": 0,
-    "sourceUrl": ""
+    "solarArrayW": {
+      "value": 1000,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "class estimate",
+      "sourceUrl": ""
+    },
+    "batteryWh": {
+      "value": 2000,
+      "unit": "Wh",
+      "kind": "assumption",
+      "note": "class estimate",
+      "sourceUrl": ""
+    },
+    "dayLoadW": {
+      "value": 700,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "≈ payload power 1.0 W/kg × 625 kg + bus — class estimate",
+      "sourceUrl": "https://astrobotic.com/lunar-delivery/landers"
+    },
+    "survivalLoadW": {
+      "value": 150,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "class estimate",
+      "sourceUrl": ""
+    },
+    "missionDurationDays": {
+      "value": 14,
+      "unit": "d",
+      "kind": "sourced",
+      "note": "",
+      "sourceUrl": "https://www.nasaspaceflight.com/tag/viper/"
+    },
+    "designedForNight": {
+      "value": false,
+      "unit": "",
+      "kind": "assumption",
+      "note": "",
+      "sourceUrl": ""
+    },
+    "payloadKg": {
+      "value": 625,
+      "unit": "kg",
+      "kind": "sourced",
+      "note": "",
+      "sourceUrl": "https://astrobotic.com/lunar-delivery/landers"
+    }
   },
   {
     "id": "starship_hls",
     "name": "Starship HLS",
     "manufacturer": "SpaceX",
     "class": "hls",
-    "defaultPowerW": null,
-    "defaultBatteryWh": null,
-    "defaultLoadW": null,
-    "defaultMaxDarknessH": null,
-    "power": 0,
-    "battery": 0,
-    "load": 0,
-    "maxDarkness": 0,
-    "sourceUrl": ""
+    "solarArrayW": {
+      "value": 40000,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "solar arrays confirmed, output not public — class estimate",
+      "sourceUrl": "https://www.americaspace.com/2023/12/01/spacexs-new-design-for-lunar-starship-unveiled/"
+    },
+    "batteryWh": {
+      "value": 200000,
+      "unit": "Wh",
+      "kind": "assumption",
+      "note": "",
+      "sourceUrl": ""
+    },
+    "dayLoadW": {
+      "value": 15000,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "",
+      "sourceUrl": ""
+    },
+    "survivalLoadW": {
+      "value": 5000,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "",
+      "sourceUrl": ""
+    },
+    "missionDurationDays": {
+      "value": 6.5,
+      "unit": "d",
+      "kind": "sourced",
+      "note": "initial surface stay ~6.5 days",
+      "sourceUrl": "https://ntrs.nasa.gov/api/citations/20230013222/downloads/DRAFT-%20IAC%20Final_Sept14.pdf"
+    },
+    "designedForNight": {
+      "value": false,
+      "unit": "",
+      "kind": "sourced",
+      "note": "initial missions = lunar daylight sorties",
+      "sourceUrl": "https://ntrs.nasa.gov/api/citations/20220015885/downloads/22%2010%2025%20ASCEND%20HLS%20Panel%20.pdf"
+    },
+    "crew": {
+      "value": 2,
+      "unit": "crew",
+      "kind": "sourced",
+      "note": "",
+      "sourceUrl": "https://ntrs.nasa.gov/api/citations/20230013222/downloads/DRAFT-%20IAC%20Final_Sept14.pdf"
+    }
   },
   {
     "id": "blue_moon_mk2",
     "name": "Blue Moon Mk2",
     "manufacturer": "Blue Origin",
     "class": "hls",
-    "defaultPowerW": null,
-    "defaultBatteryWh": null,
-    "defaultLoadW": null,
-    "defaultMaxDarknessH": null,
-    "power": 0,
-    "battery": 0,
-    "load": 0,
-    "maxDarkness": 0,
-    "sourceUrl": ""
-  },
-  {
-    "id": "custom_hls",
-    "name": "Custom",
-    "manufacturer": "User-defined",
-    "class": "hls",
-    "defaultPowerW": null,
-    "defaultBatteryWh": null,
-    "defaultLoadW": null,
-    "defaultMaxDarknessH": null,
-    "power": 0,
-    "battery": 0,
-    "load": 0,
-    "maxDarkness": 0,
-    "sourceUrl": ""
+    "solarArrayW": {
+      "value": 30000,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "solar panels confirmed, output not public",
+      "sourceUrl": "https://www.collectspace.com/news/news-051923a-nasa-artemis-5-blue-moon-lunar-lander-selection.html"
+    },
+    "batteryWh": {
+      "value": 150000,
+      "unit": "Wh",
+      "kind": "assumption",
+      "note": "",
+      "sourceUrl": ""
+    },
+    "dayLoadW": {
+      "value": 12000,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "",
+      "sourceUrl": ""
+    },
+    "survivalLoadW": {
+      "value": 4000,
+      "unit": "W",
+      "kind": "assumption",
+      "note": "",
+      "sourceUrl": ""
+    },
+    "missionDurationDays": {
+      "value": 7,
+      "unit": "d",
+      "kind": "sourced",
+      "note": "initial stay about a week",
+      "sourceUrl": "https://www.collectspace.com/news/news-051923a-nasa-artemis-5-blue-moon-lunar-lander-selection.html"
+    },
+    "designedForNight": {
+      "value": false,
+      "unit": "",
+      "kind": "sourced",
+      "note": "fuel-cell night-survival system in development with NASA; design life up to 30 days",
+      "sourceUrl": "https://en.wikipedia.org/wiki/Blue_Moon_(spacecraft)"
+    },
+    "crew": {
+      "value": 2,
+      "unit": "crew",
+      "kind": "sourced",
+      "note": "",
+      "sourceUrl": "https://www.collectspace.com/news/news-051923a-nasa-artemis-5-blue-moon-lunar-lander-selection.html"
+    }
   }
 ]

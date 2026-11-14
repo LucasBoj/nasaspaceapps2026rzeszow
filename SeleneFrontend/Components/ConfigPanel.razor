@@ -1,3 +1,4 @@
+@using System.Globalization
 @using SeleneFrontend.Models
 @using SeleneFrontend.Services
 @inject MissionConfigState MissionState
@@ -53,11 +54,11 @@
             </div>
             <div class="field">
                 <label>Mission Duration [Earth days]</label>
-                <input type="number" min="0" value="@MissionState.MissionDurationDays" @onchange="@((ChangeEventArgs e) => OnDurationChanged(e.Value?.ToString() ?? ""))" />
+                <input type="number" min="0" step="any" value="@Inv(MissionState.MissionDurationDays)" @onchange="@((ChangeEventArgs e) => OnDurationChanged(e.Value?.ToString() ?? ""))" />
             </div>
             <div class="field">
                 <label>Time Step [h]</label>
-                <input type="number" min="0.5" step="0.5" value="@MissionState.TimeStepHours" @onchange="@((ChangeEventArgs e) => OnTimeStepChanged(e.Value?.ToString() ?? ""))" />
+                <input type="number" min="0.5" step="0.5" value="@Inv(MissionState.TimeStepHours)" @onchange="@((ChangeEventArgs e) => OnTimeStepChanged(e.Value?.ToString() ?? ""))" />
             </div>
         </div>
     </section>
@@ -67,11 +68,11 @@
         <div class="section-body">
             <div class="field">
                 <label>Min Earth Comms Time [%]</label>
-                <input type="number" min="0" max="100" value="@MissionState.MinCommsPercent" @onchange="@((ChangeEventArgs e) => OnMinCommsChanged(e.Value?.ToString() ?? ""))" />
+                <input type="number" min="0" max="100" value="@Inv(MissionState.MinCommsPercent)" @onchange="@((ChangeEventArgs e) => OnMinCommsChanged(e.Value?.ToString() ?? ""))" />
             </div>
             <div class="field">
                 <label>Min Battery State [%]</label>
-                <input type="number" min="0" max="100" value="@MissionState.MinBatteryPercent" @onchange="@((ChangeEventArgs e) => OnMinBatteryChanged(e.Value?.ToString() ?? ""))" />
+                <input type="number" min="0" max="100" value="@Inv(MissionState.MinBatteryPercent)" @onchange="@((ChangeEventArgs e) => OnMinBatteryChanged(e.Value?.ToString() ?? ""))" />
             </div>
         </div>
     </section>
@@ -83,6 +84,9 @@
 </div>
 
 @code {
+    // type=number inputs need invariant formatting; the browser culture (pl) would render "6,5".
+    private static string Inv(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
     protected override void OnInitialized()
     {
         MissionState.OnStateChanged += StateHasChanged;
@@ -95,37 +99,37 @@
 
     private async Task OnStartDateChanged(string value)
     {
-        if (DateTime.TryParse(value, out var date))
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date))
             await MissionState.UpdateWindowStart(date);
     }
 
     private async Task OnEndDateChanged(string value)
     {
-        if (DateTime.TryParse(value, out var date))
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date))
             await MissionState.UpdateWindowEnd(date);
     }
 
     private async Task OnDurationChanged(string value)
     {
-        if (double.TryParse(value, out var duration))
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var duration))
             await MissionState.UpdateMissionDuration(duration);
     }
 
     private async Task OnTimeStepChanged(string value)
     {
-        if (double.TryParse(value, out var step))
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var step))
             await MissionState.UpdateTimeStep(step);
     }
 
     private async Task OnMinCommsChanged(string value)
     {
-        if (double.TryParse(value, out var comms))
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var comms))
             await MissionState.UpdateMinComms(comms);
     }
 
     private async Task OnMinBatteryChanged(string value)
     {
-        if (double.TryParse(value, out var battery))
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var battery))
             await MissionState.UpdateMinBattery(battery);
     }
 }

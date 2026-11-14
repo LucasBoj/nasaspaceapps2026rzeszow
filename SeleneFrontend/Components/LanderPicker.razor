@@ -21,54 +21,101 @@
         var selected = MissionState.SelectedLander?.Id == lander.Id;
         <button type="button" data-card role="radio" aria-checked="@(selected ? "true" : "false")"
                 tabindex="@(lander.Id == tabStop ? 0 : -1)"
-                class="lander-card @(selected ? "selected" : "") @(lander.IsCustom ? "custom" : "")"
+                class="lander-card @(selected ? "selected" : "")"
                 @key="lander.Id" @onclick="() => SelectLander(lander.Id)">
             @if (selected)
             {
                 <span class="lander-card-tag">SELECTED</span>
             }
             <LanderSilhouette Kind="@lander.Id" />
-            <span class="lander-card-name">@(lander.IsCustom ? "CUSTOM" : lander.Name)</span>
+            <span class="lander-card-name">@lander.Name</span>
             <span class="lander-card-maker">@lander.Manufacturer</span>
             <span class="lander-card-class">@ClassLabel(lander.Class)</span>
-            <span class="lander-card-params @(lander.HasParams ? "set" : "")">PARAMS: @(lander.HasParams ? "SET" : "NOT SET")</span>
+            <span class="lander-card-data">@DataSummary(lander)</span>
         </button>
     }
 </div>
 
 @if (MissionState.SelectedLander is { } sel)
 {
-    <div class="lander-params" @key="sel.Id">
-        <div class="lander-params-title">PARAMETERS · @(sel.IsCustom ? "CUSTOM" : sel.Name.ToUpperInvariant())</div>
-        <div class="field">
-            <label for="lp-power">Solar Array Power [W]</label>
-            <input id="lp-power" type="number" min="0" step="any" placeholder="enter from public source"
-                   value="@Fmt(sel.Power)" @onchange="e => MissionState.UpdateLanderPower(Parse(e))" />
-            <small><span class="badge-assumption">ASSUMPTION</span></small>
+    <div class="lander-detail" @key="sel.Id">
+        <div class="lander-detail-title">SPECS · @sel.Name.ToUpperInvariant()</div>
+        <table class="specs-table">
+            <tbody>
+                @foreach (var row in SpecRows(sel))
+                {
+                    var infoId = $"spec-info-{row.Key}";
+                    var open = openInfo == row.Key;
+                    <tr>
+                        <th scope="row">@row.Label</th>
+                        <td class="spec-value">@row.Display</td>
+                        <td class="spec-kind"><KindBadge Kind="@row.Param.Kind" /></td>
+                        <td class="spec-info">
+                            <button type="button" class="info-btn" aria-label="@($"Source and note for {row.Label}")"
+                                    aria-expanded="@(open ? "true" : "false")" aria-controls="@infoId"
+                                    @onclick="() => ToggleInfo(row.Key)" @onkeydown="OnInfoKeyDown">ⓘ</button>
+                            @if (open)
+                            {
+                                <div class="info-popover" id="@infoId" role="note" @onkeydown="OnInfoKeyDown">
+                                    <p>@NoteText(row.Param)</p>
+                                    @if (!string.IsNullOrEmpty(row.Param.SourceUrl))
+                                    {
+                                        <a href="@row.Param.SourceUrl" target="_blank" rel="noopener">Source ↗</a>
+                                    }
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="specs-footnote">Values marked ASSUMPTION are class estimates where manufacturers publish no figures.</p>
+
+        <div class="lander-impact" aria-live="polite">
+            <div class="lander-detail-title">LANDER IMPACT</div>
+            @foreach (var item in ImpactRows(sel))
+            {
+                <div class="impact-row">
+                    <span class="impact-label">@item.Label</span>
+                    <span class="impact-value @item.Tone">@item.Value</span>
+                    <span class="impact-basis">
+                        @if (item.WhatIf)
+                        {
+                            <span class="kind-badge whatif">WHAT-IF</span>
+                        }
+                        else if (item.Basis is not null)
+                        {
+                            <KindBadge Kind="@item.Basis" />
+                        }
+                    </span>
+                </div>
+            }
         </div>
-        <div class="field">
-            <label for="lp-battery">Battery Capacity [Wh]</label>
-            <input id="lp-battery" type="number" min="0" step="any" placeholder="enter from public source"
-                   value="@Fmt(sel.Battery)" @onchange="e => MissionState.UpdateLanderBattery(Parse(e))" />
-            <small><span class="badge-assumption">ASSUMPTION</span></small>
-        </div>
-        <div class="field">
-            <label for="lp-load">Baseline Load [W]</label>
-            <input id="lp-load" type="number" min="0" step="any" placeholder="enter from public source"
-                   value="@Fmt(sel.Load)" @onchange="e => MissionState.UpdateLanderLoad(Parse(e))" />
-            <small><span class="badge-assumption">ASSUMPTION</span></small>
-        </div>
-        <div class="field">
-            <label for="lp-dark">Max Survivable Darkness [h]</label>
-            <input id="lp-dark" type="number" min="0" step="any" placeholder="enter from public source"
-                   value="@Fmt(sel.MaxDarkness)" @onchange="e => MissionState.UpdateLanderDarkness(Parse(e))" />
-            <small><span class="badge-assumption">ASSUMPTION</span></small>
-        </div>
-        <div class="field">
-            <label for="lp-source">Source URL</label>
-            <input id="lp-source" type="url" placeholder="https://… (public source for these values)"
-                   value="@sel.SourceUrl" @onchange="e => MissionState.UpdateLanderSourceUrl(e.Value?.ToString()?.Trim() ?? string.Empty)" />
-        </div>
+
+        <details class="whatif-panel">
+            <summary>What-if (advanced)</summary>
+            <div class="whatif-body">
+                @foreach (var slider in Sliders(sel))
+                {
+                    var changed = MissionState.IsWhatIf(slider.Key);
+                    var current = MissionState.Effective(slider.Key) ?? slider.Data;
+                    var inputId = $"whatif-{slider.Key}";
+                    <div class="whatif-row">
+                        <label for="@inputId">@slider.Label</label>
+                        <span class="whatif-value">@Fmt(current) @slider.Unit</span>
+                        @if (changed)
+                        {
+                            <span class="kind-badge whatif">WHAT-IF</span>
+                        }
+                        <input id="@inputId" type="range" min="@Fmt(slider.Min, raw: true)" max="@Fmt(slider.Max, raw: true)"
+                               step="@Fmt(slider.Step, raw: true)" value="@Fmt(current, raw: true)"
+                               @oninput="e => OnSlider(slider.Key, e)" />
+                    </div>
+                }
+                <button type="button" class="btn-secondary whatif-reset" disabled="@(!MissionState.HasWhatIf)"
+                        @onclick="MissionState.ResetWhatIf">Reset to data</button>
+            </div>
+        </details>
     </div>
 }
 
@@ -81,14 +128,119 @@
 
     private ElementReference gridRef;
     private IJSObjectReference? gridModule;
+    private string? openInfo;
+
+    private record SpecRow(string Key, string Label, LanderParam Param, string Display);
+    private record ImpactRow(string Label, string Value, string? Basis, bool WhatIf, string Tone = "");
+    private record Slider(string Key, string Label, string Unit, double Data, double Min, double Max, double Step);
 
     private static string ClassLabel(string cls) => cls == "hls" ? "HLS · CREWED" : "CLPS · ROBOTIC";
 
-    // Inputs of type=number need invariant formatting regardless of the browser culture (e.g. pl uses commas).
-    private static string? Fmt(double v) => v > 0 ? v.ToString(CultureInfo.InvariantCulture) : null;
+    /// <summary>Invariant number formatting; thousands separators for display, plain for attributes.</summary>
+    private static string Fmt(double v, bool raw = false)
+    {
+        if (raw) return v.ToString("0.###", CultureInfo.InvariantCulture);
+        return v.ToString(Math.Abs(v % 1) < 1e-9 ? "#,0" : "#,0.0", CultureInfo.InvariantCulture);
+    }
 
-    private static double Parse(ChangeEventArgs e) =>
-        double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v >= 0 ? v : 0;
+    private static string DataSummary(LanderPreset l)
+    {
+        var parts = new List<string>();
+        void Add(int n, string label) { if (n > 0) parts.Add($"{n} {label}"); }
+        Add(l.CountKind(ParamKind.Sourced), "SOURCED");
+        Add(l.CountKind(ParamKind.Derived), "DERIVED");
+        Add(l.CountKind(ParamKind.Assumption), "ASSUMED");
+        return "DATA: " + string.Join(" · ", parts);
+    }
+
+    private static IEnumerable<SpecRow> SpecRows(LanderPreset l)
+    {
+        static string Num(NumberParam p) => $"{Fmt(p.Value)} {p.Unit}".Trim();
+        if (l.SolarArrayW is { } a) yield return new("solar", "Solar array", a, Num(a));
+        if (l.BatteryWh is { } b) yield return new("battery", "Battery", b, Num(b));
+        if (l.DayLoadW is { } d) yield return new("dayload", "Day load", d, Num(d));
+        if (l.SurvivalLoadW is { } s) yield return new("survival", "Survival load", s, Num(s));
+        if (l.MissionDurationDays is { } m) yield return new("duration", "Mission duration", m, Num(m));
+        if (l.DesignedForNight is { } n) yield return new("night", "Night survival", n, n.Value ? "DESIGNED" : "NOT DESIGNED");
+        if (l.Crew is { } c) yield return new("crew", "Crew", c, Num(c));
+        if (l.PayloadKg is { } p) yield return new("payload", "Payload", p, Num(p));
+    }
+
+    private static string NoteText(LanderParam p) =>
+        !string.IsNullOrWhiteSpace(p.Note) ? p.Note
+        : p.IsAssumption ? "Class estimate — no published figure."
+        : "See source.";
+
+    /// <summary>Weakest provenance among inputs: assumption &lt; derived &lt; sourced.</summary>
+    private static string Weakest(params LanderParam?[] inputs)
+    {
+        var kinds = inputs.OfType<LanderParam>().Select(p => p.Kind).ToList();
+        if (kinds.Contains(ParamKind.Assumption)) return ParamKind.Assumption;
+        if (kinds.Contains(ParamKind.Derived)) return ParamKind.Derived;
+        return ParamKind.Sourced;
+    }
+
+    private IEnumerable<ImpactRow> ImpactRows(LanderPreset l)
+    {
+        var battery = MissionState.Effective(MissionConfigState.WhatIfBatteryWh);
+        var survival = MissionState.Effective(MissionConfigState.WhatIfSurvivalLoadW);
+        var solar = MissionState.Effective(MissionConfigState.WhatIfSolarArrayW);
+
+        if (battery is > 0 && survival is > 0)
+        {
+            var whatIf = MissionState.IsWhatIf(MissionConfigState.WhatIfBatteryWh) || MissionState.IsWhatIf(MissionConfigState.WhatIfSurvivalLoadW);
+            yield return new("Survives darkness", $"≈ {Fmt(Math.Round(battery.Value / survival.Value, 1))} h",
+                Weakest(l.BatteryWh, l.SurvivalLoadW), whatIf);
+        }
+
+        if (solar is not null && l.DayLoadW is { } day)
+        {
+            var margin = solar.Value - day.Value;
+            yield return new("Daylight margin", $"≈ {(margin >= 0 ? "+" : "−")}{Fmt(Math.Abs(margin))} W",
+                Weakest(l.SolarArrayW, l.DayLoadW), MissionState.IsWhatIf(MissionConfigState.WhatIfSolarArrayW),
+                margin < 0 ? "negative" : "");
+        }
+
+        if (l.MissionDurationDays is { } m)
+            yield return new("Mission duration", $"{Fmt(m.Value)} d", m.Kind, false);
+
+        if (l.DesignedForNight is { } n)
+            yield return new("Night survival", n.Value ? "DESIGNED" : "NOT DESIGNED", n.Kind, false, n.Value ? "" : "warn");
+    }
+
+    private static IEnumerable<Slider> Sliders(LanderPreset l)
+    {
+        static Slider Make(string key, string label, NumberParam p)
+        {
+            var step = NiceStep(p.Value / 100);
+            return new(key, label, p.Unit, p.Value, step, Math.Ceiling(p.Value * 3 / step) * step, step);
+        }
+        if (l.SolarArrayW is { } a) yield return Make(MissionConfigState.WhatIfSolarArrayW, "Solar array", a);
+        if (l.BatteryWh is { } b) yield return Make(MissionConfigState.WhatIfBatteryWh, "Battery", b);
+        if (l.SurvivalLoadW is { } s) yield return Make(MissionConfigState.WhatIfSurvivalLoadW, "Survival load", s);
+    }
+
+    /// <summary>1, 2 or 5 × 10^n closest to (and not above) the raw step.</summary>
+    private static double NiceStep(double raw)
+    {
+        if (raw <= 0) return 1;
+        var pow = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        var f = raw / pow;
+        return (f >= 5 ? 5 : f >= 2 ? 2 : 1) * pow;
+    }
+
+    private void OnSlider(string key, ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+            MissionState.SetWhatIf(key, v);
+    }
+
+    private void ToggleInfo(string key) => openInfo = openInfo == key ? null : key;
+
+    private void OnInfoKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") openInfo = null;
+    }
 
     // Roving tabindex: the selected card (or the first one) is the single Tab stop of the grid.
     private string? TabStopId(List<LanderPreset> landers) =>
@@ -118,7 +270,11 @@
     private Task SelectClass(string cls) =>
         cls == MissionState.SelectedLanderClass ? Task.CompletedTask : MissionState.SelectLanderClass(cls);
 
-    private Task SelectLander(string id) => MissionState.SelectLander(id);
+    private Task SelectLander(string id)
+    {
+        openInfo = null;
+        return MissionState.SelectLander(id);
+    }
 
     public async ValueTask DisposeAsync()
     {
