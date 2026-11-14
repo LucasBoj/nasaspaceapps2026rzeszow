@@ -1,0 +1,23 @@
+@implements IAsyncDisposable
+
+<div class="results-strip" [class.expanded]="expanded">
+    <div class="results-header" @onclick="@(() => expanded = !expanded)">
+        <span class="toggle-icon">@(expanded ? "▼" : "▶")</span>
+        <span class="results-title">RESULTS — run analysis to compute illumination & comm windows</span>
+    </div>
+    @if (expanded)
+    {
+        <div class="results-content">
+            <p style="color: #7f93a6; font-size: 0.875rem;">Analysis results will appear here</p>
+        </div>
+    }
+</div>
+
+@code {
+    private bool expanded = false;
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        await Task.CompletedTask;
+    }
+}

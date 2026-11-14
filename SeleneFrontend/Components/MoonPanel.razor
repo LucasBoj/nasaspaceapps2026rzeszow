@@ -1,0 +1,71 @@
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@inject IJSRuntime JS
+@inject MissionConfigState MissionState
+
+<div class="moon-viewer-container" id="moon-viewer-element">
+    @if (!moonLoaded)
+    {
+        <div class="loading-overlay">
+            <p>Initializing Cesium...</p>
+        </div>
+    }
+    @if (tokenError)
+    {
+        <div class="token-error-overlay">
+            <p style="font-weight: 500;">Add Cesium ion token in appsettings.json</p>
+            <p style="font-size: 0.875rem; color: #7f93a6;">
+                The moon terrain visualization requires a Cesium ion token.
+            </p>
+        </div>
+    }
+</div>
+
+@code {
+    private bool moonLoaded = false;
+    private bool tokenError = false;
+    private IJSObjectReference? moonModule;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            moonModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/moonViewer.js");
+            
+            var dotNetRef = DotNetObjectReference.Create(this);
+            await moonModule.InvokeVoidAsync("initViewer", "moon-viewer-element", dotNetRef);
+            
+            moonLoaded = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+            tokenError = true;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public Task OnSiteSelected(string siteId)
+    {
+        return MissionState.SelectSite(siteId);
+    }
+
+    [JSInvokable]
+    public Task OnCustomSiteCreated(double lat, double lon)
+    {
+        var customSite = new Site
+        {
+            Id = "CUSTOM_" + DateTime.UtcNow.Ticks,
+            Name = "CUSTOM SITE",
+            Lat = lat,
+            Lon = lon,
+            Approximate = true,
+            Source = "USER_INPUT"
+        };
+        return MissionState.SelectSite(customSite.Id, customSite);
+    }
+}

@@ -1,0 +1,207 @@
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@inject MissionConfigState MissionState
+
+<div class="config-panel-content">
+    <section class="config-section">
+        <h2><span class="section-number">01</span>TARGET SITE</h2>
+        <div class="section-body">
+            <div class="field">
+                <label>Selected Site</label>
+                <div class="site-info">
+                    <p><strong>@MissionState.SelectedSite?.Name</strong></p>
+                    <p style="font-size: 0.875rem; color: #7f93a6;">
+                        @string.Format("{0:F2}°, {1:F2}°", MissionState.SelectedSite?.Lat ?? 0, MissionState.SelectedSite?.Lon ?? 0)
+                    </p>
+                    @if (MissionState.SelectedSite?.Approximate ?? false)
+                    {
+                        <p style="font-size: 0.75rem; color: #ffb020;">positions approximate — verify</p>
+                    }
+                </div>
+            </div>
+            <div class="field">
+                <label>Choose Site</label>
+                <select @onchange="@((ChangeEventArgs e) => OnSiteSelected(e.Value?.ToString() ?? ""))">
+                    <option value="">-- Select a site --</option>
+                    @foreach (var site in MissionState.AvailableSites)
+                    {
+                        <option value="@site.Id">@site.Name</option>
+                    }
+                </select>
+            </div>
+            <button class="btn-secondary" disabled>Fly to</button>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2><span class="section-number">02</span>LANDER</h2>
+        <div class="section-body">
+            <div class="field">
+                <label>Spacecraft Class</label>
+                <select @onchange="@((ChangeEventArgs e) => OnLanderClassSelected(e.Value?.ToString() ?? ""))">
+                    <option value="clps">CLPS (robotic)</option>
+                    <option value="hls">HLS (crewed)</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Spacecraft Model</label>
+                <select @onchange="@((ChangeEventArgs e) => OnLanderSelected(e.Value?.ToString() ?? ""))">
+                    <option value="">-- Select a lander --</option>
+                    @foreach (var lander in MissionState.FilteredLanders)
+                    {
+                        <option value="@lander.Id">@lander.Name</option>
+                    }
+                </select>
+            </div>
+
+            @if (MissionState.SelectedLander != null)
+            {
+                <div style="border-top: 1px solid #223040; margin-top: 1rem; padding-top: 1rem;">
+                    <div class="field">
+                        <label>Solar Array Power [W]</label>
+                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnPowerChanged(e.Value?.ToString() ?? ""))" />
+                        <small><span class="badge-assumption">ASSUMPTION</span></small>
+                    </div>
+                    <div class="field">
+                        <label>Battery Capacity [Wh]</label>
+                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnBatteryChanged(e.Value?.ToString() ?? ""))" />
+                        <small><span class="badge-assumption">ASSUMPTION</span></small>
+                    </div>
+                    <div class="field">
+                        <label>Baseline Load [W]</label>
+                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnLoadChanged(e.Value?.ToString() ?? ""))" />
+                        <small><span class="badge-assumption">ASSUMPTION</span></small>
+                    </div>
+                    <div class="field">
+                        <label>Max Survivable Darkness [h]</label>
+                        <input type="number" placeholder="enter from public source" @onchange="@((ChangeEventArgs e) => OnDarknessChanged(e.Value?.ToString() ?? ""))" />
+                        <small><span class="badge-assumption">ASSUMPTION</span></small>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2><span class="section-number">03</span>MISSION WINDOW</h2>
+        <div class="section-body">
+            <div class="field">
+                <label>Window Start</label>
+                <input type="date" @onchange="@((ChangeEventArgs e) => OnStartDateChanged(e.Value?.ToString() ?? ""))" />
+            </div>
+            <div class="field">
+                <label>Window End</label>
+                <input type="date" @onchange="@((ChangeEventArgs e) => OnEndDateChanged(e.Value?.ToString() ?? ""))" />
+            </div>
+            <div class="field">
+                <label>Mission Duration [Earth days]</label>
+                <input type="number" min="0" value="@MissionState.MissionDurationDays" @onchange="@((ChangeEventArgs e) => OnDurationChanged(e.Value?.ToString() ?? ""))" />
+            </div>
+            <div class="field">
+                <label>Time Step [h]</label>
+                <input type="number" min="0.5" step="0.5" value="@MissionState.TimeStepHours" @onchange="@((ChangeEventArgs e) => OnTimeStepChanged(e.Value?.ToString() ?? ""))" />
+            </div>
+        </div>
+    </section>
+
+    <section class="config-section">
+        <h2><span class="section-number">04</span>CONSTRAINTS</h2>
+        <div class="section-body">
+            <div class="field">
+                <label>Min Earth Comms Time [%]</label>
+                <input type="number" min="0" max="100" value="@MissionState.MinCommsPercent" @onchange="@((ChangeEventArgs e) => OnMinCommsChanged(e.Value?.ToString() ?? ""))" />
+            </div>
+            <div class="field">
+                <label>Min Battery State [%]</label>
+                <input type="number" min="0" max="100" value="@MissionState.MinBatteryPercent" @onchange="@((ChangeEventArgs e) => OnMinBatteryChanged(e.Value?.ToString() ?? ""))" />
+            </div>
+        </div>
+    </section>
+
+    <div class="config-actions">
+        <button class="btn-primary" disabled title="computation engine not connected">RUN ANALYSIS</button>
+        <button class="btn-secondary" @onclick="@(() => MissionState.Reset())">Reset</button>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        MissionState.OnStateChanged += StateHasChanged;
+    }
+
+    private async Task OnSiteSelected(string siteId)
+    {
+        await MissionState.SelectSite(siteId);
+    }
+
+    private async Task OnLanderClassSelected(string landerClass)
+    {
+        await MissionState.SelectLanderClass(landerClass);
+    }
+
+    private async Task OnLanderSelected(string landerId)
+    {
+        await MissionState.SelectLander(landerId);
+    }
+
+    private async Task OnPowerChanged(string value)
+    {
+        if (double.TryParse(value, out var power))
+            await MissionState.UpdateLanderPower(power);
+    }
+
+    private async Task OnBatteryChanged(string value)
+    {
+        if (double.TryParse(value, out var battery))
+            await MissionState.UpdateLanderBattery(battery);
+    }
+
+    private async Task OnLoadChanged(string value)
+    {
+        if (double.TryParse(value, out var load))
+            await MissionState.UpdateLanderLoad(load);
+    }
+
+    private async Task OnDarknessChanged(string value)
+    {
+        if (double.TryParse(value, out var darkness))
+            await MissionState.UpdateLanderDarkness(darkness);
+    }
+
+    private async Task OnStartDateChanged(string value)
+    {
+        if (DateTime.TryParse(value, out var date))
+            await MissionState.UpdateWindowStart(date);
+    }
+
+    private async Task OnEndDateChanged(string value)
+    {
+        if (DateTime.TryParse(value, out var date))
+            await MissionState.UpdateWindowEnd(date);
+    }
+
+    private async Task OnDurationChanged(string value)
+    {
+        if (double.TryParse(value, out var duration))
+            await MissionState.UpdateMissionDuration(duration);
+    }
+
+    private async Task OnTimeStepChanged(string value)
+    {
+        if (double.TryParse(value, out var step))
+            await MissionState.UpdateTimeStep(step);
+    }
+
+    private async Task OnMinCommsChanged(string value)
+    {
+        if (double.TryParse(value, out var comms))
+            await MissionState.UpdateMinComms(comms);
+    }
+
+    private async Task OnMinBatteryChanged(string value)
+    {
+        if (double.TryParse(value, out var battery))
+            await MissionState.UpdateMinBattery(battery);
+    }
+}
