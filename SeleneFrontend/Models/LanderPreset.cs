@@ -87,6 +87,8 @@ public class LanderPreset
 
     public NumberParam? SolarArrayW { get; set; }
     public NumberParam? BatteryWh { get; set; }
+    /// <summary>Battery round-trip energy efficiency (0..1], split evenly into charge and discharge; null = ideal battery.</summary>
+    public NumberParam? BatteryRoundTripEff { get; set; }
     public NumberParam? DayLoadW { get; set; }
     public NumberParam? SurvivalLoadW { get; set; }
     public NumberParam? MissionDurationDays { get; set; }
@@ -127,7 +129,7 @@ public class LanderPreset
 
     /// <summary>All present parameters, in display order.</summary>
     public IEnumerable<LanderParam> AllParams =>
-        new LanderParam?[] { SolarArrayW, Panels, BatteryWh, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg }
+        new LanderParam?[] { SolarArrayW, Panels, BatteryWh, BatteryRoundTripEff, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg }
             .OfType<LanderParam>();
 
     public int CountKind(string kind) => AllParams.Count(p => p.Kind == kind);

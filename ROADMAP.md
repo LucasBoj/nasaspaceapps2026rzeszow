@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 21:45 CET
+**Ostatnia aktualizacja:** 2026-11-14 21:55 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -75,10 +75,11 @@
 - [x] **Przebudowa UX: tryb SIMPLE (domyślny) i ANALYST** — juror dochodzi do werdyktu w 3 krokach (test: 8,8–11 s). SIMPLE: Księżyc + panel 3 kroków (lista 9 miejsc „sunlit X%”, karty lądowników z „● n/m sourced”, „Run analysis”) + jedna karta werdyktu (✓/⚠/✕, zdanie prostym językiem z `VerdictText`, 3 liczby, najlepsza data, „based on” jako szary dopisek). ANALYST (przełącznik w górnym pasku, localStorage): wszystko, co było, werdykt na górze panelu wyników, pasek wyników tylko jako uchwyt. Stan LANDED blokuje wybór miejsca (Księżyc i lista), NEW LANDING (karta + HUD) odblokowuje i wraca do kroku 1, zmiana lądownika działa tak samo. Kamera: bez bezwładności, ≤ 6 000 km, pochylenie −10…−89°, Księżyc zawsze w kadrze, swobodny lot ≥ 300 m nad terenem (dławione próbkowanie), odzysk z NaN, ⌂ View + klawisz Home, podwójne kliknięcie = płynny zoom; ujęcie po lądowaniu z pola widzenia (lądownik ~30 % wysokości kadru, Słońce za kamerą, nad kartą werdyktu). ENHANCE (tylko ekran). Stopka w jednej linii + panel Credits z pełną listą. Typografia 28/18/14/12 px, Mono tylko dla liczb. Ekran startowy ≤ 1,5 s, zamykany niezależnie od wczytywania. **Naprawiona regresja:** `Cesium3DTileset.enableCollision` dawał 1 kl./s przez kilka sekund — usunięty. Źródła (sekcja 7): Nova-C bateria 700 → **1554 Wh** i wysokość 3,94 m z wniosku FCC IM-1 (cytaty i tabela „co znalezione / co zostało” w `docs/ux-redesign-2026-11-14.md`). Testy: xUnit 54/54 (nowe `VerdictTextTests`), E2E UX Chromium 38/38, WebKit 38/38, Firefox 37/38 (karta powitalna 3,44 s w headless), axe 0 critical/serious, regresja GLB 49/49. Zrzuty przed/po: `docs/screenshots/` — 2026-11-14 21:15 CET — commit z tym wpisem — AI: Claude Code
 
 - [x] **Jeden główny przycisk i jasne powody blokady (UX sekcja 10):** „Land & analyze” jako jedyny główny przycisk (w ANALYST dodatkowo „Re-run analysis”), po zmianie ustawień „Update results” i komunikat „Results are out of date — settings changed” na karcie werdyktu; każda nieaktywna akcja ma widoczny powód prostym językiem powiązany przez `aria-describedby` (lista „To continue: ① … · ② …” z linkami do kroków; Zoom to site, Candidates, New landing w trakcie lądowania, Fly to, Next, Re-run, Reset to data, Quick demo w trakcie ładowania); punkt CUSTOM → komunikat + „Nearest region” (najbliższy z 9 regionów). Testy: `blockers` 16/16 w Chromium, Firefox, WebKit; regresja UX 38/38 — 2026-11-14 21:45 CET — commit z tym wpisem — AI: Claude Code
+- [x] **Fizyka baterii** (P1 „Fizyka baterii i paneli”, część bateryjna): sprawność round-trip 90% (`landers.json → batteryRoundTripEff`, ASSUMPTION dla wszystkich 5 lądowników; źródło: testy ogniw Li-ion LLNL dla misji LEO — 86% „bardzo dobrze”, 91% przy 30% DoD). Symulator: obciążenie najpierw z paneli (direct energy transfer), nadwyżka ładuje ×√η, deficyt pobiera ÷√η, nadwyżka przy pełnej baterii przepada bez straty. UI: wiersz „Battery efficiency” w SPECS, strata w kaflu SOLAR ENERGY, what-if REAL / IDEAL (no losses), „Survives darkness” z √η, słowniczek `batteff`. Głębokość rozładowania = próg baterii z sekcji 04; limit mocy ładowania pominięty (nie ogranicza). Efekt na QUICK DEMO (Nova-C 1554 Wh po poprawce FCC Łukasza, Nobile Rim 1, 7 d): strata 3 Wh, przy +20% obciążenia min. SoC 57 → 54%, próg +23 → +22%; większy wpływ przy misjach z nocą. Testy 67/67 (6 nowych, liczone ręcznie), build 0 ostrzeżeń, przeglądarka: przełącznik, kafel, SPECS, brak błędów konsoli — 2026-11-14 21:55 CET — commit z tym wpisem — AI: Claude Code
 
 ## 🔄 In progress
 
-- [ ] **Fizyka baterii** (z P1 „Fizyka baterii i paneli”) — sprawność ładowania/rozładowania, głębokość rozładowania, ograniczenie mocy ładowania; zmiany w `MissionSimulator.Run` i `landers.json → battery*`. Jakub + Claude Code, start 2026-11-14 ~20:40. **Marek: jeśli masz lokalne zmiany w `MissionSimulator.cs` / `landers.json`, daj znać przed pushem.**
+_(nic przypisanego — wpisz się tutaj, gdy zaczynasz zadanie)_
 
 ## 📋 Todo — według priorytetu
 
@@ -120,7 +121,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - [ ] **Elipsa lądowania zamiast punktu** (największa luka Validity) — pipeline: horyzonty dla siatki punktów wokół każdego miejsca (np. 5×5 co 120 m lub elipsa ~500 m), werdykt jako odsetek elipsy z FEASIBLE („FEASIBLE w 80% elipsy”). Addytywnie, osobny plik (np. `illumination/{siteId}_ellipse.json` ze statystykami), bez zmiany kontraktu — A/B
   - Gotowe, gdy: dla 9 miejsc jest rozkład oświetlenia w elipsie i UI pokazuje go obok punktu; liczby zgodne z zakresem 3×3 NASA.
 - [ ] **Teren 60 m / 20 m dla 9 miejsc** — przeliczyć horyzonty na LDEM 60 m (lub 20 m w okolicy bieguna) i porównać z mapą NASA 60 m; dziś jesteśmy +7…+22 pp optymistyczni. Alternatywa na szybko: tryb „conservative” z poprawką z porównania — A
-- [ ] **Fizyka baterii i paneli** — sprawność ładowania/rozładowania (round-trip), maks. głębokość rozładowania, spadek mocy paneli z temperaturą i kurzem; każda wartość z `sourceUrl` albo jako ASSUMPTION. Dziś bateria jest idealna (100% sprawności), co zawyża min. SoC — B
+- [ ] **Fizyka paneli** (część bateryjna zrobiona 2026-11-14 21:55) — spadek mocy paneli z temperaturą i kurzem, sprawność elektroniki mocy (MPPT/PCDU); każda wartość z `sourceUrl` albo jako ASSUMPTION — B
 - [ ] **Monte Carlo: prawdopodobieństwo powodzenia** — połączyć niepewność obciążenia, paneli, kursu i punktu lądowania w jedną liczbę „P(FEASIBLE)”; naturalny następnik wiersza odporności — B
 
 ### P2
@@ -168,6 +169,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — przestawienie CI na jedną domenę (main → stable), weryfikacja produkcji (przebieg Actions, smoke test, token Cesium ion z naszej domeny)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — przegląd Known issues pod kątem dokładności modelu (wrażliwość na punkt lądowania z zakresu 3×3 px map NASA, optymizm DEM, założenia energii), porządki w nieaktualnych wpisach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — wiersz odporności werdyktu (obciążenie ±20% z progiem opłacalności, zakres NASA ±120 m), testy xUnit liczone ręcznie, przegląd 9 regionów w przeglądarce, lista dalszych poprawek wiarygodności modelu
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — fizyka baterii: wyszukanie źródła sprawności Li-ion, model ładowania/rozładowania, what-if, testy liczone ręcznie, sprawdzenie, czy praca zespołu się nie pokrywa
 
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — przebudowa UX (SIMPLE/ANALYST, panel kroków, karta werdyktu, stan LANDED, kamera, Credits), testy E2E w 3 silnikach z axe-core, diagnoza regresji wydajności (profil CDP, trace), weryfikacja danych Nova-C w dokumentach FCC
 

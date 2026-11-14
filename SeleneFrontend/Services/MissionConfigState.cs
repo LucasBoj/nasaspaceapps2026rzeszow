@@ -35,6 +35,7 @@ public class MissionConfigState
     public const string WhatIfSurvivalLoadW = "survivalLoadW";
     public const string WhatIfHeadingDeg = "headingDeg";          // manual landing heading (absent = AUTO)
     public const string WhatIfIdealTracking = "idealTracking";    // present = ideal Sun tracking instead of fixed panels
+    public const string WhatIfIdealBattery = "idealBattery";      // present = lossless battery (round-trip efficiency 1)
 
     private readonly Dictionary<string, double> _whatIf = [];
 
@@ -46,6 +47,12 @@ public class MissionConfigState
 
     /// <summary>What-if: simulate ideal Sun tracking instead of the lander's fixed panels.</summary>
     public bool IdealTracking => _whatIf.ContainsKey(WhatIfIdealTracking);
+
+    /// <summary>What-if: lossless battery instead of the lander's round-trip efficiency.</summary>
+    public bool IdealBattery => _whatIf.ContainsKey(WhatIfIdealBattery);
+
+    /// <summary>Battery round-trip efficiency used by calculations (1 for the ideal-battery what-if or when the preset has none).</summary>
+    public double BatteryRoundTripEff => IdealBattery ? 1.0 : SelectedLander?.BatteryRoundTripEff?.Value ?? 1.0;
 
     /// <summary>The selected lander has fixed body-mounted panels (heading and incidence matter).</summary>
     public bool HasFixedPanels => SelectedLander?.Panels is { IsFixed: true };

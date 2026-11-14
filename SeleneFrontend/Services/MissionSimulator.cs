@@ -7,8 +7,13 @@ namespace SeleneFrontend.Services;
 /// <param name="Panels">Array mounting; null or <c>ideal</c> = the array always faces the Sun.</param>
 /// <param name="HeadingDeg">Lander heading at touchdown (clockwise from lunar north); null = AUTO (best for the mission).</param>
 /// <param name="IdealTracking">What-if: ignore the layout and use ideal Sun tracking (upper bound).</param>
+/// <param name="BatteryRoundTripEff">
+/// Energy out / energy in of the battery, (0, 1]; 1 = ideal battery. Split evenly: charge and discharge each lose √η.
+/// Loads are served from the array first (direct energy transfer), so only the energy that passes through the battery is lost.
+/// </param>
 public sealed record LanderInputs(double SolarArrayW, double BatteryWh, double DayLoadW, double SurvivalLoadW, string WeakestKind,
-                                  PanelLayout? Panels = null, double? HeadingDeg = null, bool IdealTracking = false);
+                                  PanelLayout? Panels = null, double? HeadingDeg = null, bool IdealTracking = false,
+                                  double BatteryRoundTripEff = 1.0);
 
 /// <summary>Constraints from section 04.</summary>
 public sealed record MissionThresholds(double MinBatteryPct, double MinCommsPct);
@@ -42,6 +47,10 @@ public sealed record SimulationResult
     public double EnergyLoadWh { get; init; }
     /// <summary>Produced / ideal (0..1): how much the incidence angle costs. NaN when the Sun never shows.</summary>
     public double PanelEfficiency { get; init; } = double.NaN;
+    /// <summary>Battery round-trip efficiency used (1 = ideal battery).</summary>
+    public double BatteryRoundTripEff { get; init; } = 1.0;
+    /// <summary>Energy lost in the battery (charge + discharge), Wh.</summary>
+    public double BatteryLossWh { get; init; }
 
     // ---- Sky geometry (NaN when the data file lacks the series) ----
     public double SunElevMinDeg { get; init; } = double.NaN;
@@ -84,7 +93,8 @@ public static class MissionSimulator
     /// Simulate from <paramref name="landingUtc"/> for <paramref name="durationDays"/>.
     /// Each step: production = solarArrayW × sunFraction/100 × incidence factor (1 for ideal tracking,
     /// Lambert cosine on fixed panels — see <see cref="SolarGeometry"/>); load = dayLoadW when lit,
-    /// otherwise survivalLoadW; the battery starts full and is clamped to [0, batteryWh].
+    /// otherwise survivalLoadW; the load is served from the array first, a surplus charges the battery at √η,
+    /// a deficit is drawn from it at 1/√η (η = round-trip efficiency); the battery starts full and is clamped to [0, batteryWh].
     /// Fixed panels fall back to ideal tracking when the data file has no Sun elevation/azimuth series.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">The mission does not fit in the data.</exception>
@@ -133,6 +143,9 @@ public static class MissionSimulator
         double elMin = double.PositiveInfinity, elMax = double.NegativeInfinity, elSum = 0;
         int? depletedAt = null;
         bool depletedInDarkness = false;
+        var eta = lander.BatteryRoundTripEff is > 0 and <= 1 ? lander.BatteryRoundTripEff : 1.0;
+        var etaHalf = Math.Sqrt(eta);                      // charge efficiency = discharge efficiency
+        double batteryLoss = 0;
         double factorAtDepletion = 1;
 
         for (var i = 0; i < steps; i++)
@@ -156,7 +169,19 @@ public static class MissionSimulator
             }
             if (recordSeries) power[i] = production;
 
-            soc += (production - load) * dt;
+            var net = (production - load) * dt;              // Wh at the bus
+            if (net >= 0)
+            {
+                var stored = Math.Min(net * etaHalf, Math.Max(0, lander.BatteryWh - soc));   // surplus beyond full is shunted
+                batteryLoss += stored / etaHalf - stored;
+                soc += stored;
+            }
+            else
+            {
+                var drawn = -net / etaHalf;                   // chemical energy needed for the deficit
+                batteryLoss += Math.Min(drawn, Math.Max(0, soc)) * (1 - etaHalf);
+                soc -= drawn;
+            }
             if (soc <= 1e-9)
             {
                 soc = 0;
@@ -225,6 +250,8 @@ public static class MissionSimulator
             EnergyIdealWh = energyIdeal,
             EnergyLoadWh = energyLoad,
             PanelEfficiency = energyIdeal > 0 ? energyProduced / energyIdeal : double.NaN,
+            BatteryRoundTripEff = eta,
+            BatteryLossWh = batteryLoss,
             SunElevMinDeg = hasElev ? elMin : double.NaN,
             SunElevMaxDeg = hasElev ? elMax : double.NaN,
             SunElevMeanDeg = hasElev ? elSum / steps : double.NaN,

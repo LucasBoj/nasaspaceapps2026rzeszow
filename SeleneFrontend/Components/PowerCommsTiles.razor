@@ -45,7 +45,11 @@
     <div class="metric-tile @EnergyTone" role="listitem">
         <span class="metric-label">SOLAR ENERGY</span>
         <span class="metric-value">@Energy(M.EnergyProducedWh) / @Energy(M.EnergyLoadWh)</span>
-        <span class="metric-sub">produced / used · @(M.EnergyLoadWh > 0 ? $"{D2(M.EnergyProducedWh / M.EnergyLoadWh)}×" : "—")</span>
+        <span class="metric-sub">produced / used · @(M.EnergyLoadWh > 0 ? $"{D2(M.EnergyProducedWh / M.EnergyLoadWh)}×" : "—")@if (M.BatteryRoundTripEff < 1)
+            {
+                <text> · <Term Key="batteff">battery loss</Term> @Energy(M.BatteryLossWh)</text>
+            }
+        </span>
     </div>
 
     <div class="metric-tile" role="listitem">

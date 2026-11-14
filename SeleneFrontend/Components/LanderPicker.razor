@@ -137,6 +137,24 @@
                                @oninput="e => OnSlider(slider.Key, e)" />
                     </div>
                 }
+                @if (sel.BatteryRoundTripEff is { } eff)
+                {
+                    var idealBattery = MissionState.IdealBattery;
+                    <div class="whatif-row">
+                        <span class="whatif-label" id="whatif-battery-label"><Term Key="batteff">Battery losses</Term></span>
+                        <span class="whatif-value">@(idealBattery ? "NONE (100%)" : $"{Fmt(Math.Round(eff.Value * 100))}% round trip")</span>
+                        @if (idealBattery)
+                        {
+                            <span class="kind-badge whatif">WHAT-IF</span>
+                        }
+                        <div class="segmented whatif-segmented" role="group" aria-labelledby="whatif-battery-label">
+                            <button type="button" class="segmented-option @(!idealBattery ? "active" : "")" aria-pressed="@(!idealBattery ? "true" : "false")"
+                                    @onclick="() => MissionState.ClearWhatIf(MissionConfigState.WhatIfIdealBattery)">REAL (data)</button>
+                            <button type="button" class="segmented-option @(idealBattery ? "active" : "")" aria-pressed="@(idealBattery ? "true" : "false")"
+                                    @onclick="() => MissionState.SetWhatIf(MissionConfigState.WhatIfIdealBattery, 1)">IDEAL (no losses)</button>
+                        </div>
+                    </div>
+                }
                 @if (MissionState.HasFixedPanels)
                 {
                     var ideal = MissionState.IdealTracking;
@@ -237,6 +255,7 @@
         if (l.SolarArrayW is { } a) yield return new("solar", "Solar array", a, Num(a));
         if (l.Panels is { } pl) yield return new("panels", "Panels", pl, PanelsText(pl));
         if (l.BatteryWh is { } b) yield return new("battery", "Battery", b, Num(b));
+        if (l.BatteryRoundTripEff is { } e) yield return new("batteff", "Battery efficiency", e, $"{Fmt(Math.Round(e.Value * 100))}% round trip");
         if (l.DayLoadW is { } d) yield return new("dayload", "Day load", d, Num(d));
         if (l.SurvivalLoadW is { } s) yield return new("survival", "Survival load", s, Num(s));
         if (l.MissionDurationDays is { } m) yield return new("duration", "Mission duration", m, Num(m));
@@ -272,8 +291,10 @@
         if (battery is > 0 && survival is > 0)
         {
             var whatIf = MissionState.IsWhatIf(MissionConfigState.WhatIfBatteryWh) || MissionState.IsWhatIf(MissionConfigState.WhatIfSurvivalLoadW);
-            yield return new("Survives darkness", $"≈ {Fmt(Math.Round(battery.Value / survival.Value, 1))} h",
-                Weakest(l.BatteryWh, l.SurvivalLoadW), whatIf);
+            // Usable energy after discharge losses (√η of the round-trip efficiency).
+            var usable = battery.Value * Math.Sqrt(MissionState.BatteryRoundTripEff);
+            yield return new("Survives darkness", $"≈ {Fmt(Math.Round(usable / survival.Value, 1))} h",
+                Weakest(l.BatteryWh, l.BatteryRoundTripEff, l.SurvivalLoadW), whatIf || MissionState.IdealBattery);
         }
 
         if (solar is not null && l.DayLoadW is { } day)
