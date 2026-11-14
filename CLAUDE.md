@@ -49,6 +49,17 @@ Time for sample `i` is `start + i × stepHours`.
 
 **Contract changelog:** 2026-11-14 added `earthAzCentiDeg` (additive; readers must tolerate missing fields in older files).
 
+## Energy model (fixed panels, Lambert incidence)
+
+`landers.json → panels` describes how the array is mounted: `{mode: "fixed" | "ideal", facets: [{name, azOffsetDeg, normalElevDeg, share}], kind, note, sourceUrl}`. `azOffsetDeg` is relative to the lander heading; `normalElevDeg` 0 = vertical wall panel, 90 = top deck. The current layouts are the team's description and are marked ASSUMPTION. HLS uses `ideal` because its layout is not public.
+
+- Per step: `P = solarArrayW × sunFraction/100 × Σ shareᵢ·max(0, cos θᵢ) / K`, with `cos θᵢ = cos εᵢ·cos el·cos(az − φᵢ) + sin εᵢ·sin el` and `φᵢ = heading + azOffsetᵢ` (`Services/SolarGeometry.cs`).
+- **K** is the maximum of the same sum over Sun directions az 0–359°, el 0–10°. So `solarArrayW` is read as the output at the best Sun direction for that layout, not as the sum of nameplate ratings.
+- **AUTO heading** maximises the mission's solar energy. It uses per-heading prefix sums (10° grid, built once per series and layout, ~20 MB for 9 sites) and a parabolic refinement. The what-ifs are a manual heading and `IDEAL` tracking (the old model, an upper bound).
+- Fixed panels need `sunElevCentiDeg` and `sunAzCentiDeg`. Files without them fall back to ideal tracking. **The data contract is unchanged.**
+- At the pole the Sun's azimuth moves ~12°/day, so fixed-panel CLPS landers survive only ~7–8 days from one landing. QUICK DEMO uses 7 days (`UiService.RecommendedMissionDays`).
+- Score = `40·minSoC + 25·comms + 15·light + 20·clamp(produced/used − 1, 0, 1)` (`WindowOptimizer.Score`).
+
 ## Commands
 
 ```bash
@@ -69,6 +80,7 @@ CESIUM_ION_TOKEN='<URL-restricted token>' ./deploy/deploy.sh stable   # optional
 python download_kernels.py
 python build.py --dem /path/ldem_75s_120m_float.lbl [--site ID]
 python -m pytest -q
+python validate_horizons.py [--refresh]   # Sun/Earth az/el vs JPL Horizons (offline snapshots in data/horizons/)
 ```
 
 ## Hard rules
@@ -105,6 +117,9 @@ python -m pytest -q
 - UI state that many components share (boot, welcome, help, compare, compass time) lives in `UiService`. Timeline hover uses its own `HoverTimeChanged` event so the whole UI does not re-render on mouse move.
 - `sites.json` is **generated** by `pipeline/select_sites.py` from Wueller et al. (2026) candidates (Zenodo, CC-BY-4.0). Do not edit coordinates by hand; re-run the pipeline. Their shapefile projection has true scale at −70°, unlike the DEM (−90°), so always reproject with the shipped `.prj`.
 - "Lit" has two definitions: `index.json → pctSunlit` uses `sunFraction > 0`, while site selection and the 6.5-day test use `≥ 50`.
+- `System.Text.Json` cannot serialise `NaN`. `SimulationResult` and `HeatmapResult` use NaN for "not applicable" (no heading with ideal tracking, never lit), so map NaN to a sentinel before sending data to JS (`LandingHeatmap.Payload` uses −1).
+- Lunar site coordinates in JPL Horizons are in the Mean-Earth frame, the same as `MOON_ME_DE421`. Do not convert to PA (`pipeline/validate_horizons.py`).
+- Any new UI-free logic file used by the simulator must also be linked in `SeleneFrontend.Tests.csproj` (as `SolarGeometry.cs` is).
 - `*.sh`, `*.conf` and `*.yml` are forced to LF by `.gitattributes`. With `core.autocrlf=true` a CRLF script fails on the server and in CI (`$'\r': command not found`). Clones from before `.gitattributes` keep CRLF until refreshed (`deploy/README.md`, step 2).
 - On Windows `python3` is often the Microsoft Store stub. Scripts must pick the first Python that actually runs (as `deploy.sh` does) and set `PYTHONIOENCODING=utf-8`: piped Windows Python crashes on `→` otherwise.
 - The published `index.html` names `blazor.webassembly` twice: the importmap alias (plain name) and the `<script src>` (fingerprinted). Checks must read the `src=` one.

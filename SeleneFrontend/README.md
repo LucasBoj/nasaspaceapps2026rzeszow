@@ -110,7 +110,7 @@ Exported functions:
 - `loadSites(sites)` — Render landing site pins
 - `flyToSite(siteId)` — Animate camera to site
 - `selectSite(siteId)` — Highlight site pin
-- `setSunDirection(azimuthDeg, elevationDeg)` — Update lighting (stub)
+- `setSunLight(lat, lon, azDeg, elDeg, sunPct)` — Scene light = the Sun from the precomputed ephemeris (soft shadows)
 - `dispose()` — Clean up viewer
 
 Callbacks to C#:

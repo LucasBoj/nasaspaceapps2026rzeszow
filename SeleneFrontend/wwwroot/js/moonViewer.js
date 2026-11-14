@@ -474,12 +474,6 @@ export function flyToSite(siteId) {
   });
 }
 
-export function setSunDirection(azimuthDeg, elevationDeg) {
-  if (!viewer) return;
-  // TODO: scene.light = new Cesium.DirectionalLight(...)
-  console.log(`Sun direction: az=${azimuthDeg}°, el=${elevationDeg}°`);
-}
-
 // ---- Landing animation (isolated module) ----
 
 /** Play the landing animation; resolves with { status, fps, simplified }. */

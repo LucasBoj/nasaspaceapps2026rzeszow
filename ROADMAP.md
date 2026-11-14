@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 17:40 CET
+**Ostatnia aktualizacja:** 2026-11-14 17:50 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -53,6 +53,10 @@
 - [x] Przygotowanie wdrożenia na Mikrus: `deploy/nginx-selene.conf` (stable :80 + preview :8080, MIME, gzip_static, cache, nagłówki bezpieczeństwa), `deploy/server-setup.sh` (idempotentny), `deploy/deploy.sh` (publish, kontrole, opcjonalny token z ENV, absolutny `og:image`, kompresja GLB, rsync, curl; tryb `--build-only`), `deploy/README.md`; kompresja i trimming włączone jawnie i sprawdzone. Lokalnie: build Release 39 MB, testy na serwerze zachowującym się jak nginx 23/23 + 11/11 — 2026-11-14 18:25 — `83a84bc` — AI: Claude Code (rsync/ssh nie były uruchamiane)
 - [x] Stałe panele i kąt padania Słońca (cosinus Lamberta): geometria paneli w `landers.json → panels` (opis od zespołu, ASSUMPTION), `SolarGeometry` z normalizacją K (opublikowana moc = moc przy najlepszym kierunku Słońca), kurs lądowania AUTO (maksimum energii misji) + what-if kurs ręczny i idealne śledzenie; nowe metryki (energia wyprodukowana / idealna / zużyta, sprawność geometryczna, zakres elewacji Słońca i Ziemi, najdłuższy okres światła, najdłuższa przerwa w łączności), maksymalna wykonalna długość pobytu, powód werdyktu wskazujący geometrię paneli. Na prawdziwych danych: stałe panele utrzymują misję CLPS na biegunie ~7–8 dni (Nobile Rim 1, Nova-C: 7 d → 133/239 dni lądowania FEASIBLE, 10 d → 0), więc QUICK DEMO używa 7 dni. Testy xUnit 28/28 — 2026-11-14 17:34 CET — `94e1d28` — AI: Claude Code (UI w kolejnym kroku)
 - [x] Automatyczne wdrażanie przez GitHub Actions (`.github/workflows/deploy.yml`): push `main` → preview, push `stable` → stable, ręczne uruchomienie z wyborem celu; `concurrency` per cel; testy xUnit blokują wdrożenie; token Cesium z sekretu tylko do publikacji (maskowany); klucz SSH + `ssh-keyscan` (opcjonalnie przypięty `MIKRUS_KNOWN_HOSTS`); rsync; smoke test; podsumowanie przebiegu. `deploy.sh` działa w CI (`--upload-only`, zmienne `MIKRUS_*`, brak pytań, kody wyjścia, adnotacje), nowe `smoke-test.sh` i `create-deploy-user.sh` (użytkownik `deploy` bez hasła, klucz z `restrict`), `.gitattributes` (LF dla `*.sh`), sekcja „Automatyczne wdrażanie” w `deploy/README.md`; gałąź `stable` = `main`. Sprawdzone lokalnie: build z atrapą tokena (token nie trafia do logu), smoke test na lokalnym serwerze (OK, inna wersja, brak serwera), ścieżka uploadu na atrapie rsync, logika `create-deploy-user.sh` na atrapach, skrypty z YAML na symulowanych wejściach; testy 14/14 — 2026-11-14 17:01 — `21ca97d`, poprawka składni workflow `32b7e3a` (17:13) — AI: Claude Code (workflow nie był jeszcze uruchomiony z sekretami na prawdziwym serwerze)
+- [x] Ocena optymalizatora ze składnikiem nadwyżki energii: `40·minSoC + 25·łączność + 15·światło + 20·clamp(wyprodukowana/zużyta − 1, 0, 1)`; `HeatmapResult` niesie metryki na komórkę (światło, łączność, bilans energii, min. SoC, kurs, sprawność paneli, czas przetrwania). Nova-C 7 d: najlepsze oceny regionów 79–83 zamiast 100 wszędzie. Testy 31/31 — 2026-11-14 17:40 CET — `4ccf12e` — AI: Claude Code
+- [x] UI mocy i łączności: kafle POWER & COMMS (zakres elewacji Słońca, godziny światła i najdłuższe okresy światła/ciemności, sprawność paneli vs idealne śledzenie + kurs, energia wyprodukowana/zużyta, łączność z Ziemią + najdłuższa przerwa + elewacja Ziemi, MAX STAY przy tym samym kursie); oś czasu pokazuje rzeczywistą moc paneli na tle dostępnego światła i linię elewacji Słońca; wiersz PANELS w SPECS z własnym schematem; what-if FIXED / IDEAL i ręczny kurs; róża pokazuje normalne paneli, przód lądownika i bieżącą moc; mapa ciepła z trybami SCORE / LIGHT / ENERGY / EARTH i bogatszym tooltipem; gdy nic nie jest wykonalne, pokazuje lądowanie, które trwa najdłużej; słowniczek (kąt padania, kurs, sprawność paneli, elewacja Słońca, przerwa w łączności, max stay). Sprawdzone w przeglądarce (Chromium): QUICK DEMO, what-if, 14 d → NOT FEASIBLE z powodem, COMPARE, brak błędów konsoli — 2026-11-14 17:45 CET — `385b224` — AI: Claude Code (Firefox/WebKit nie sprawdzane)
+- [x] Walidacja efemeryd z JPL Horizons: `pipeline/validate_horizons.py`, 9 miejsc × 24 epoki 2027–28, Słońce i Ziemia; Horizons podaje współrzędne miejsca w układzie Mean-Earth (jak nasz `MOON_ME_DE421`), różnica ~0,04″ (pipeline) i ≤ 0,005° (pliki JSON, zaokrąglenie 0,01°); snapshoty odpowiedzi w `pipeline/data/horizons/`, test offline `tests/test_horizons.py`, tabela w `pipeline/README.md`. Pytest 46 passed, 1 skipped (DEM) — 2026-11-14 17:30 CET — `a1e76c6` — AI: Claude Code (osobna sesja)
+- [x] Oświetlenie sceny z efemeryd (P2 „Animacja cieni”) — było zrobione w `345d6f8` (`setSunLight`); usunięta martwa zaślepka `setSunDirection`, README frontendu poprawione; `CLAUDE.md`: sekcja o modelu energii i nowe pułapki — 2026-11-14 17:50 CET — commit z tym wpisem — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -83,8 +87,11 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - Gotowe, gdy: plik < 2 MB, test GLB przechodzi, a pierwsze lądowanie w Firefoksie mieści się w 6 s. Uwaga: publikacja Blazor nie kompresuje `.glb` (13,9 MB transferu).
 - [ ] **Licencja obrazu koncepcyjnego z Meshy** — potwierdzić plan konta (darmowy = CC BY 4.0, wymaga atrybucji — jest w stopce) i że obraz nie odwzorowuje grafik producenta — zespół
 
-- [ ] **⬆ Ocena optymalizatora się nasyca (pilne)** — dla lądowników o małym poborze (np. Nova-C) wiele okien ma 100/100, więc mapa ciepła słabo różnicuje opcje, a w COMPARE domyślnej trójki wszystkie mają 100, czyli zwycięzca wynika tylko z daty. Dodać składnik rozróżniający (np. zapas energii w Wh, liczba godzin poniżej progu, najdłuższa ciemność) — B
-  - Gotowe, gdy: dla Nova-C i Blue Ghost najlepsze okna różnią się oceną, a wzór jest opisany w komentarzu i w teście.
+- [ ] **Źródła geometrii paneli i obciążeń dziennych** — przy stałych panelach to one decydują o wykonalności. Potrzebne: które ściany Nova-C mają panele i podział mocy, rozmieszczenie paneli Blue Ghost, nachylenie panelu Griffina, obciążenia dzienne CLPS (dziś ASSUMPTION, 70–75% mocy szczytowej) oraz źródło dla „~450 W nominalnie / 650 W szczytowo” Blue Ghost (w danych 400 W SOURCED) — zespół
+  - Gotowe, gdy: wartości w `landers.json → panels` / `dayLoadW` mają `sourceUrl` albo jawne uzasadnienie.
+- [ ] **Ocena optymalizatora — sprawdzić Blue Ghost i COMPARE** — z nadwyżką energii (`4ccf12e`) Nova-C ma oceny 79–83 zamiast 100, ale w COMPARE trzy najlepsze regiony mają po zaokrągleniu po 83, a w trybie IDEAL wszystkie 87. Sprawdzić Blue Ghost i ewentualnie pokazywać ocenę z jednym miejscem po przecinku albo dodać rozstrzygnięcie (np. MAX STAY) — B
+  - Gotowe, gdy: dla Nova-C i Blue Ghost najlepsze okna różnią się widocznie oceną.
+- [ ] **Kurs w animacji lądowania** — lądownik w `landingAnimation.js` ląduje z kursem 0°; mógłby lądować z kursem z analizy (AUTO), żeby panele w 3D patrzyły tam, gdzie liczy symulacja. Wymaga ustalenia, gdzie jest „przód” modelu GLB — C
 
 - [ ] **Wykres „nasze vs NASA”**: porównanie naszego oświetlenia z opublikowanymi mapami oświetlenia LOLA (PGDA / LROC) — A
   - Gotowe, gdy: dla kilku punktów jest wykres lub tabela z różnicą i opisem źródeł. Walidacja liczbowa grzbietu jest już zrobiona.
@@ -99,7 +106,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P2
 
-- [ ] Animacja cieni w 3D sterowana efemerydami (`scene.light = DirectionalLight`; zaślepka `setSunDirection` już istnieje) — C
 - [ ] Raport misji do druku/PDF — C
 - [ ] Dane partnera: JAXA Kaguya (SELENE) DEM jako druga warstwa terenu — A
 
@@ -123,6 +129,8 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — przygotowanie wdrożenia (nginx, skrypty setup/deploy, README), weryfikacja buildu Release z trimmingiem na serwerze zachowującym się jak nginx
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — model stałych paneli z kątem padania (Lambert), kurs AUTO, metryki mocy i łączności, maksymalna długość pobytu, testy xUnit, analiza wykonalności na prawdziwych danych
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — ocena z nadwyżką energii, kafle POWER & COMMS, tryby mapy ciepła, panele w SPECS / what-if / róży, testy w przeglądarce
+- 2026-11-14 — Claude Code (Claude Opus 5.5, osobna sesja) — walidacja efemeryd z JPL Horizons (skrypt, snapshoty, test offline, ustalenie układu Mean-Earth)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — automatyczne wdrażanie: workflow GitHub Actions, przeróbka `deploy.sh` pod CI, smoke test, skrypt użytkownika `deploy`, instrukcja po polsku, lokalne testy skryptów (w tym wykrycie błędów: kodowanie Pythona na Windows, CRLF w skryptach, nazwa skryptu Blazor z importmapy)
 - 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
 - 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)
@@ -139,7 +147,10 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Obciążenia dzienne CLPS to założenia (ASSUMPTION, 70–75% mocy szczytowej)** — przy stałych panelach decydują o wykonalności; warto znaleźć źródła.
 - **Lądowanie zawsze o 00:00 UTC** — optymalizator sprawdza jedną godzinę lądowania na dzień i nie modeluje ograniczeń trajektorii ani startu.
 - **Okno w sekcji 03 to daty lądowania** — misja musi zmieścić się w danych, więc ostatni możliwy dzień lądowania to koniec danych minus długość misji.
-- **Mapa ciepła to canvas** — czytnik ekranu dostaje tylko opis; obsługa z klawiatury przez przyciski „najlepsza data” pod mapą.
+- **Mapa ciepła to canvas** — czytnik ekranu dostaje tylko opis; obsługa z klawiatury przez przyciski „najlepsza data” pod mapą. Tryby LIGHT / ENERGY / EARTH zmieniają tylko kolory; BEST WINDOW zawsze według oceny.
+- **Stałe panele skracają misje CLPS na biegunie do ~7–8 dni** — Słońce przesuwa się o ~12° azymutu na dobę i wychodzi z pola widzenia paneli. 14-dniowe misje (źródłowy czas życia) wychodzą NOT FEASIBLE we wszystkich regionach; QUICK DEMO używa 7 dni. Na pitchu to mocna historia (IM-1 działał ~7 dni), ale trzeba ją podać wprost, zanim jury zobaczy 14 d → NOT FEASIBLE.
+- **Kurs AUTO maksymalizuje energię, nie przetrwanie** — dla misji niewykonalnych inny kurs mógłby przedłużyć działanie. MAX STAY liczony jest przy tym samym kursie co pokazana misja.
+- **Elewacja Słońca może być ujemna przy pełnej tarczy** — na wysokich grzbietach horyzont terenu leży poniżej płaszczyzny poziomej (np. −4,1°); to poprawne, ale warto umieć to wyjaśnić.
 - **Dwie definicje „światła”** — `index.json → pctSunlit` liczy każde światło (`sunFraction > 0`), a wybór miejsc i walidacja używają `sunFraction ≥ 50` (`sunPct` w `candidates/*.json`). W UI i na pitchu zawsze podawać, którą liczbę pokazujemy.
 - **Optymizm DEM 120 m** — rozdzielczość 120 m wygładza drobną rzeźbę, co zawyża oświetlenie i zaniża nachylenia (wszyscy kandydaci ≤ 4°). Opcja P2: przeliczyć wybrane miejsca na DEM 20–60 m.
 - **Twierdzenie NASA o 6,5 dnia** pochodzi z komunikatu z 2022 (13 regionów) i dosłownie obejmuje tylko 5 z naszych 9 regionów. Na pitchu nie mówić „NASA potwierdza dla wszystkich 9”.
