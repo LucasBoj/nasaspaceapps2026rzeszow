@@ -95,6 +95,28 @@ class Dem:
         x, y = self.project(np.array([lon_deg]), np.array([lat_deg]))
         return float(self.sample(x, y)[0])
 
+    def slope_at(self, lat_deg: float, lon_deg: float) -> float:
+        """Surface slope (deg) from the 3×3 pixel window around the nearest DEM pixel (Horn's method).
+
+        Returns NaN when the window touches the DEM edge or a no-data cell. The polar
+        stereographic scale factor (< 0.3 % poleward of 80°S) is neglected.
+        """
+        x, y = self.project(np.array([lon_deg]), np.array([lat_deg]))
+        inv = self._inverse
+        col = int(np.floor(inv.a * x[0] + inv.b * y[0] + inv.c))
+        row = int(np.floor(inv.d * x[0] + inv.e * y[0] + inv.f))
+        rows, cols = self.heights_m.shape
+        if not (1 <= row < rows - 1 and 1 <= col < cols - 1):
+            return float("nan")
+        z = self.heights_m[row - 1:row + 2, col - 1:col + 2].astype(np.float64)
+        if np.isnan(z).any():
+            return float("nan")
+        res_x, res_y = abs(self.transform.a), abs(self.transform.e)
+        # Row 0 is north (top) in a north-up grid.
+        dzdx = ((z[0, 2] + 2 * z[1, 2] + z[2, 2]) - (z[0, 0] + 2 * z[1, 0] + z[2, 0])) / (8 * res_x)
+        dzdy = ((z[0, 0] + 2 * z[0, 1] + z[0, 2]) - (z[2, 0] + 2 * z[2, 1] + z[2, 2])) / (8 * res_y)
+        return float(np.degrees(np.arctan(np.hypot(dzdx, dzdy))))
+
 
 def load_dem(path: str | Path, units: str = "auto") -> Dem:
     """Load a DEM (GeoTIFF, or PDS3 IMG via its .lbl) into metres.

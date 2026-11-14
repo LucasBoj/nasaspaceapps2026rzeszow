@@ -1,0 +1,121 @@
+{
+ "regionId": "nobile_rim_1",
+ "method": "published",
+ "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434",
+ "maxSlopeDeg": 10.0,
+ "observerHeightM": 2.0,
+ "start": "2027-01-01T00:00:00Z",
+ "end": "2028-12-31T23:00:00Z",
+ "litThresholdPct": 50,
+ "best": "NR103",
+ "candidates": [
+  {
+   "candidateId": "NR103",
+   "lat": -85.54562,
+   "lon": 37.55718,
+   "slopeDeg": 3.69,
+   "sunPct": 78.9,
+   "earthPct": 62.4,
+   "longestDarkH": 360,
+   "longestLightH": 3883,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR101",
+   "lat": -85.29497,
+   "lon": 36.91678,
+   "slopeDeg": 2.92,
+   "sunPct": 76.0,
+   "earthPct": 66.6,
+   "longestDarkH": 388,
+   "longestLightH": 4091,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR102",
+   "lat": -85.26058,
+   "lon": 36.88879,
+   "slopeDeg": 1.35,
+   "sunPct": 65.0,
+   "earthPct": 62.3,
+   "longestDarkH": 324,
+   "longestLightH": 558,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR105",
+   "lat": -85.07216,
+   "lon": 37.55498,
+   "slopeDeg": 3.85,
+   "sunPct": 53.9,
+   "earthPct": 59.9,
+   "longestDarkH": 382,
+   "longestLightH": 427,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR107",
+   "lat": -85.19776,
+   "lon": 37.17744,
+   "slopeDeg": 3.17,
+   "sunPct": 53.3,
+   "earthPct": 56.5,
+   "longestDarkH": 416,
+   "longestLightH": 428,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR108",
+   "lat": -85.10267,
+   "lon": 36.75137,
+   "slopeDeg": 2.73,
+   "sunPct": 50.6,
+   "earthPct": 59.0,
+   "longestDarkH": 394,
+   "longestLightH": 395,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR109",
+   "lat": -85.0405,
+   "lon": 37.43393,
+   "slopeDeg": 1.42,
+   "sunPct": 49.3,
+   "earthPct": 81.2,
+   "longestDarkH": 436,
+   "longestLightH": 410,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR104",
+   "lat": -85.0173,
+   "lon": 37.8745,
+   "slopeDeg": 3.04,
+   "sunPct": 49.2,
+   "earthPct": 74.0,
+   "longestDarkH": 435,
+   "longestLightH": 425,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "NR106",
+   "lat": -85.15568,
+   "lon": 36.98604,
+   "slopeDeg": 2.79,
+   "sunPct": 48.0,
+   "earthPct": 52.5,
+   "longestDarkH": 461,
+   "longestLightH": 443,
+   "rejected": false,
+   "reason": ""
+  }
+ ]
+}

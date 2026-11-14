@@ -44,6 +44,25 @@ def longest_run(mask: np.ndarray) -> int:
     return int((edges[1::2] - edges[::2]).max()) if edges.size else 0
 
 
+LIT_THRESHOLD_PCT = 50  # "sunlit" for site selection: at least half of the solar disk visible
+
+
+def site_metrics(sun_fraction_pct: np.ndarray, earth_vis: np.ndarray, step_hours: float,
+                 lit_threshold_pct: int = LIT_THRESHOLD_PCT) -> dict:
+    """Metrics used to rank candidate landing sites.
+
+    A step counts as lit when ``sunFraction >= lit_threshold_pct``; darkness is the
+    complement. Earth counts as visible with the same 0.5° margin as ``earth_visible``.
+    """
+    lit = np.asarray(sun_fraction_pct) >= lit_threshold_pct
+    return {
+        "sunPct": round(float(lit.mean() * 100), 1),
+        "earthPct": round(float(np.asarray(earth_vis).mean() * 100), 1),
+        "longestDarkH": round(longest_run(~lit) * step_hours, 1),
+        "longestLightH": round(longest_run(lit) * step_hours, 1),
+    }
+
+
 def summarize(sun_fraction_pct: np.ndarray, earth_vis: np.ndarray, step_hours: float) -> dict:
     """Headline statistics used by the frontend's site index."""
     lit = np.asarray(sun_fraction_pct) > 0

@@ -2,73 +2,334 @@
   {
     "id": "cabeus_b",
     "name": "Peak near Cabeus B",
-    "lat": -86.5,
-    "lon": -35.2,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -83.36914,
+    "lon": -67.6646,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 5 candidate sites by SELENE illumination score",
+    "candidateId": "PCB04",
+    "regionCenter": {
+      "lat": -86.5,
+      "lon": -35.2
+    },
+    "candidatesEvaluated": 5,
+    "alternatives": [
+      {
+        "candidateId": "PCB03",
+        "lat": -83.56301,
+        "lon": -68.20093,
+        "sunPct": 51.1,
+        "earthPct": 68.1
+      },
+      {
+        "candidateId": "PCB05",
+        "lat": -83.53879,
+        "lon": -71.94191,
+        "sunPct": 47.2,
+        "earthPct": 19.1
+      },
+      {
+        "candidateId": "PCB01",
+        "lat": -83.76333,
+        "lon": -69.98287,
+        "sunPct": 41.1,
+        "earthPct": 26.5
+      }
+    ]
   },
   {
     "id": "haworth",
     "name": "Haworth",
-    "lat": -85.2,
-    "lon": 98.5,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -86.98951,
+    "lon": -24.25453,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 11 candidate sites by SELENE illumination score",
+    "candidateId": "HW_K2023",
+    "regionCenter": {
+      "lat": -85.2,
+      "lon": 98.5
+    },
+    "candidatesEvaluated": 11,
+    "alternatives": [
+      {
+        "candidateId": "HW07",
+        "lat": -86.93235,
+        "lon": -23.0203,
+        "sunPct": 57.5,
+        "earthPct": 55.8
+      },
+      {
+        "candidateId": "HW06",
+        "lat": -87.04986,
+        "lon": -24.24022,
+        "sunPct": 57.4,
+        "earthPct": 49.3
+      },
+      {
+        "candidateId": "HW01",
+        "lat": -86.76818,
+        "lon": -20.51401,
+        "sunPct": 56.0,
+        "earthPct": 63.7
+      }
+    ]
   },
   {
     "id": "malapert_massif",
     "name": "Malapert Massif",
-    "lat": -85.8,
-    "lon": -3.5,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -85.99192,
+    "lon": 2.0564,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 5 candidate sites by SELENE illumination score",
+    "candidateId": "MMA_K2023",
+    "regionCenter": {
+      "lat": -85.8,
+      "lon": -3.5
+    },
+    "candidatesEvaluated": 5,
+    "alternatives": [
+      {
+        "candidateId": "MMA03",
+        "lat": -85.95772,
+        "lon": -3.27827,
+        "sunPct": 68.1,
+        "earthPct": 71.8
+      },
+      {
+        "candidateId": "MMA01",
+        "lat": -85.94247,
+        "lon": -0.94365,
+        "sunPct": 45.1,
+        "earthPct": 97.4
+      },
+      {
+        "candidateId": "MMA02",
+        "lat": -86.01532,
+        "lon": 3.38206,
+        "sunPct": 28.0,
+        "earthPct": 60.3
+      }
+    ]
   },
   {
     "id": "mons_mouton_plateau",
     "name": "Mons Mouton Plateau",
-    "lat": -84.5,
-    "lon": 16.2,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -84.13828,
+    "lon": 25.64223,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 11 candidate sites by SELENE illumination score",
+    "candidateId": "MMP10",
+    "regionCenter": {
+      "lat": -84.5,
+      "lon": 16.2
+    },
+    "candidatesEvaluated": 11,
+    "alternatives": [
+      {
+        "candidateId": "MMP11",
+        "lat": -84.26896,
+        "lon": 36.67241,
+        "sunPct": 41.8,
+        "earthPct": 56.5
+      },
+      {
+        "candidateId": "MMP01",
+        "lat": -85.1114,
+        "lon": 26.7102,
+        "sunPct": 37.8,
+        "earthPct": 57.3
+      },
+      {
+        "candidateId": "MMP09",
+        "lat": -83.68443,
+        "lon": 32.88481,
+        "sunPct": 36.3,
+        "earthPct": 79.9
+      }
+    ]
   },
   {
     "id": "mons_mouton",
     "name": "Mons Mouton",
-    "lat": -83.9,
-    "lon": 18.1,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -85.48099,
+    "lon": 29.54935,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 10 candidate sites by SELENE illumination score",
+    "candidateId": "MMO02",
+    "regionCenter": {
+      "lat": -83.9,
+      "lon": 18.1
+    },
+    "candidatesEvaluated": 10,
+    "alternatives": [
+      {
+        "candidateId": "MMO01",
+        "lat": -85.41599,
+        "lon": 31.85064,
+        "sunPct": 72.1,
+        "earthPct": 57.4
+      },
+      {
+        "candidateId": "MMO09",
+        "lat": -85.46653,
+        "lon": 33.03979,
+        "sunPct": 52.6,
+        "earthPct": 45.6
+      },
+      {
+        "candidateId": "MMO03",
+        "lat": -85.40851,
+        "lon": 30.40563,
+        "sunPct": 47.3,
+        "earthPct": 81.0
+      }
+    ]
   },
   {
     "id": "nobile_rim_1",
     "name": "Nobile Rim 1",
-    "lat": -88.2,
-    "lon": 25.0,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -85.54562,
+    "lon": 37.55718,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 9 candidate sites by SELENE illumination score",
+    "candidateId": "NR103",
+    "regionCenter": {
+      "lat": -88.2,
+      "lon": 25.0
+    },
+    "candidatesEvaluated": 9,
+    "alternatives": [
+      {
+        "candidateId": "NR101",
+        "lat": -85.29497,
+        "lon": 36.91678,
+        "sunPct": 76.0,
+        "earthPct": 66.6
+      },
+      {
+        "candidateId": "NR102",
+        "lat": -85.26058,
+        "lon": 36.88879,
+        "sunPct": 65.0,
+        "earthPct": 62.3
+      },
+      {
+        "candidateId": "NR105",
+        "lat": -85.07216,
+        "lon": 37.55498,
+        "sunPct": 53.9,
+        "earthPct": 59.9
+      }
+    ]
   },
   {
     "id": "nobile_rim_2",
     "name": "Nobile Rim 2",
-    "lat": -87.8,
-    "lon": 30.0,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -83.61854,
+    "lon": 59.05676,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 9 candidate sites by SELENE illumination score",
+    "candidateId": "NR205",
+    "regionCenter": {
+      "lat": -87.8,
+      "lon": 30.0
+    },
+    "candidatesEvaluated": 9,
+    "alternatives": [
+      {
+        "candidateId": "NR2_K2023",
+        "lat": -84.07372,
+        "lon": 59.19742,
+        "sunPct": 50.8,
+        "earthPct": 63.3
+      },
+      {
+        "candidateId": "NR207",
+        "lat": -83.91813,
+        "lon": 59.32649,
+        "sunPct": 50.5,
+        "earthPct": 62.9
+      },
+      {
+        "candidateId": "NR202",
+        "lat": -84.15531,
+        "lon": 59.83514,
+        "sunPct": 50.1,
+        "earthPct": 52.8
+      }
+    ]
   },
   {
     "id": "degerlache_rim_2",
     "name": "de Gerlache Rim 2",
-    "lat": -89.0,
-    "lon": -60.0,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -88.44999,
+    "lon": -67.85908,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 7 candidate sites by SELENE illumination score",
+    "candidateId": "dGR2_K2023",
+    "regionCenter": {
+      "lat": -89.0,
+      "lon": -60.0
+    },
+    "candidatesEvaluated": 7,
+    "alternatives": [
+      {
+        "candidateId": "dGR201",
+        "lat": -88.38907,
+        "lon": -68.86474,
+        "sunPct": 69.9,
+        "earthPct": 54.9
+      },
+      {
+        "candidateId": "dGR203",
+        "lat": -88.14078,
+        "lon": -71.69547,
+        "sunPct": 56.5,
+        "earthPct": 53.0
+      },
+      {
+        "candidateId": "dGR204",
+        "lat": -88.13771,
+        "lon": -74.33303,
+        "sunPct": 52.3,
+        "earthPct": 52.4
+      }
+    ]
   },
   {
     "id": "slater_plain",
     "name": "Slater Plain",
-    "lat": -84.1,
-    "lon": 55.3,
-    "approximate": true,
-    "source": "TODO"
+    "lat": -87.18375,
+    "lon": 133.34446,
+    "approximate": false,
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — best of 11 candidate sites by SELENE illumination score",
+    "candidateId": "SP09",
+    "regionCenter": {
+      "lat": -84.1,
+      "lon": 55.3
+    },
+    "candidatesEvaluated": 11,
+    "alternatives": [
+      {
+        "candidateId": "SP06",
+        "lat": -87.07296,
+        "lon": 126.131,
+        "sunPct": 56.3,
+        "earthPct": 40.5
+      },
+      {
+        "candidateId": "SP11",
+        "lat": -86.95036,
+        "lon": 126.67472,
+        "sunPct": 51.4,
+        "earthPct": 39.7
+      },
+      {
+        "candidateId": "SP07",
+        "lat": -87.13064,
+        "lon": 127.85709,
+        "sunPct": 50.4,
+        "earthPct": 41.0
+      }
+    ]
   }
 ]

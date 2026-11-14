@@ -44,17 +44,32 @@ def centi(values: np.ndarray) -> list[int]:
     return np.rint(np.asarray(values) * 100).astype(int).tolist()
 
 
+def compute_series(dem: horizon.Dem, sky: ephemeris.MoonSky, times, lat: float, lon: float,
+                   observer_height_m: float, max_distance_m: float) -> dict:
+    """Horizon mask plus hourly Sun/Earth geometry and visibility for one point.
+
+    Shared by ``build.py`` and ``select_sites.py`` so both use the identical method.
+    """
+    mask = horizon.horizon_profile(dem, lat, lon, observer_height_m, max_distance_m)
+    sun_alt, sun_az = sky.altaz(lat, lon, times, "sun")
+    earth_alt, earth_az = sky.altaz(lat, lon, times, "earth")
+    return {
+        "mask": mask,
+        "sun_alt": sun_alt, "sun_az": sun_az,
+        "earth_alt": earth_alt, "earth_az": earth_az,
+        "sun_pct": np.rint(illumination.sun_fraction(sun_alt, sun_az, mask) * 100).astype(int),
+        "earth_vis": illumination.earth_visible(earth_alt, earth_az, mask),
+    }
+
+
 def build_site(site: dict, dem: horizon.Dem, sky: ephemeris.MoonSky, times, start: datetime,
                observer_height_m: float, max_distance_m: float) -> dict:
     """Compute the full time series document for one site."""
     lat, lon = float(site["lat"]), float(site["lon"])
 
-    mask = horizon.horizon_profile(dem, lat, lon, observer_height_m, max_distance_m)
-    sun_alt, sun_az = sky.altaz(lat, lon, times, "sun")
-    earth_alt, earth_az = sky.altaz(lat, lon, times, "earth")
-
-    sun_pct = np.rint(illumination.sun_fraction(sun_alt, sun_az, mask) * 100).astype(int)
-    earth_vis = illumination.earth_visible(earth_alt, earth_az, mask)
+    s = compute_series(dem, sky, times, lat, lon, observer_height_m, max_distance_m)
+    mask, sun_alt, sun_az, earth_alt = s["mask"], s["sun_alt"], s["sun_az"], s["earth_alt"]
+    sun_pct, earth_vis = s["sun_pct"], s["earth_vis"]
 
     return {
         "siteId": site["id"],

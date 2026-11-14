@@ -1,0 +1,133 @@
+{
+ "regionId": "mons_mouton",
+ "method": "published",
+ "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434",
+ "maxSlopeDeg": 10.0,
+ "observerHeightM": 2.0,
+ "start": "2027-01-01T00:00:00Z",
+ "end": "2028-12-31T23:00:00Z",
+ "litThresholdPct": 50,
+ "best": "MMO02",
+ "candidates": [
+  {
+   "candidateId": "MMO02",
+   "lat": -85.48099,
+   "lon": 29.54935,
+   "slopeDeg": 3.7,
+   "sunPct": 75.2,
+   "earthPct": 70.8,
+   "longestDarkH": 251,
+   "longestLightH": 1403,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO01",
+   "lat": -85.41599,
+   "lon": 31.85064,
+   "slopeDeg": 3.74,
+   "sunPct": 72.1,
+   "earthPct": 57.4,
+   "longestDarkH": 439,
+   "longestLightH": 3978,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO09",
+   "lat": -85.46653,
+   "lon": 33.03979,
+   "slopeDeg": 4.77,
+   "sunPct": 52.6,
+   "earthPct": 45.6,
+   "longestDarkH": 399,
+   "longestLightH": 583,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO03",
+   "lat": -85.40851,
+   "lon": 30.40563,
+   "slopeDeg": 2.15,
+   "sunPct": 47.3,
+   "earthPct": 81.0,
+   "longestDarkH": 396,
+   "longestLightH": 366,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO04",
+   "lat": -85.4089,
+   "lon": 28.14999,
+   "slopeDeg": 2.57,
+   "sunPct": 46.9,
+   "earthPct": 77.2,
+   "longestDarkH": 417,
+   "longestLightH": 378,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO05",
+   "lat": -85.34386,
+   "lon": 28.59443,
+   "slopeDeg": 4.86,
+   "sunPct": 46.7,
+   "earthPct": 74.7,
+   "longestDarkH": 431,
+   "longestLightH": 387,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO06",
+   "lat": -85.26142,
+   "lon": 30.18623,
+   "slopeDeg": 4.06,
+   "sunPct": 44.5,
+   "earthPct": 76.8,
+   "longestDarkH": 423,
+   "longestLightH": 349,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO10",
+   "lat": -85.46076,
+   "lon": 31.49018,
+   "slopeDeg": 1.42,
+   "sunPct": 33.1,
+   "earthPct": 57.1,
+   "longestDarkH": 613,
+   "longestLightH": 425,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO07",
+   "lat": -85.19529,
+   "lon": 32.92869,
+   "slopeDeg": 1.46,
+   "sunPct": 27.8,
+   "earthPct": 78.0,
+   "longestDarkH": 543,
+   "longestLightH": 229,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMO08",
+   "lat": -85.51299,
+   "lon": 35.70408,
+   "slopeDeg": 2.66,
+   "sunPct": 26.5,
+   "earthPct": 58.4,
+   "longestDarkH": 665,
+   "longestLightH": 226,
+   "rejected": false,
+   "reason": ""
+  }
+ ]
+}

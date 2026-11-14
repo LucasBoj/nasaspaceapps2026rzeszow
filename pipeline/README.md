@@ -9,7 +9,7 @@ Output goes to `SeleneFrontend/wwwroot/data/illumination/`.
 
 ## Setup
 
-Python 3.11+.
+Python 3.11+. (`pyshp` is only needed by `import_wueller_sites.py`.)
 
 ```bash
 cd pipeline
@@ -78,6 +78,47 @@ python -m pytest -q                                          # synthetic DEM + e
 SELENE_DEM=/path/to/ldem_75s_120m_float.lbl python -m pytest -q   # + real DEM check
 ```
 
+## Landing-site selection
+
+The nine regions are NASA's October 2024 list of Artemis III candidate regions. They are
+~15 km wide. The specific landing points come from peer-reviewed work:
+
+```bash
+python import_wueller_sites.py                 # Zenodo → data/wueller2026_sites.csv (130 sites, 16 regions)
+python select_sites.py --dem /path/to/ldem_75s_120m_float.lbl   # best site per region + rebuild
+```
+
+1. **Candidates.** The 130 candidate landing sites (Table A1) come from Wueller et al.
+   (2026), *JGR Planets* 131(3), e2025JE009434, using the authors' georeferenced release
+   on Zenodo ([doi:10.5281/zenodo.17084058](https://doi.org/10.5281/zenodo.17084058),
+   CC-BY-4.0). The shapefile uses a south-polar stereographic projection with true scale
+   at **−70°**. It is reprojected with the `.prj` shipped in the archive and
+   cross-checked against the attribute lat/lon. All nine of our regions are covered,
+   with 78 candidates in total, so the grid fallback (500 m spacing, 15 × 15 km around
+   the old approximate centre, marked `approximate: true`) was **not** needed.
+2. **Slope filter.** Slope is computed from the DEM (3 × 3 px window, Horn's method).
+   Candidates above `--max-slope` (default **10°**) are rejected. **10° is our
+   assumption, not a NASA requirement.** Note that 120 m pixels smooth out local
+   slopes. No published candidate was rejected: all have ≤ 4° at 120 m/px, which is
+   consistent with the authors' own ≤ 8° HLS-area filter.
+3. **Score.** Scoring uses 2027-01-01 … 2028-12-31, hourly, with the same horizon and
+   ephemeris code as `build.py` (`build.compute_series`). The metrics are:
+   * **lit %**: hours with `sunFraction ≥ 50`
+   * **Earth %**: hours with Earth > horizon + 0.5°
+   * **longest darkness**: longest run with `sunFraction < 50`
+   * **longest continuous light**
+4. **Ranking.** Highest lit % first. Among candidates within 1 percentage point of the
+   best, the highest Earth % wins, then the shortest longest-darkness.
+
+`sites.json` gets the best point per region with these fields: `approximate: false`,
+`source` (DOI + "best of N candidate sites by SELENE illumination score"),
+`candidateId`, `regionCenter` (the previous approximate coordinate, kept stable across
+re-runs), `candidatesEvaluated`, and `alternatives` (next three). Every evaluated point
+is written to `illumination/candidates/{regionId}.json`, which the map overlay can use.
+
+`index.json → pctSunlit` keeps its original definition (any sunlight, `sunFraction > 0`).
+It is therefore higher than the selection's **lit %** (`≥ 50`).
+
 ## Method
 
 | Step | File | What it does |
@@ -113,6 +154,58 @@ Other assumptions:
   (Mazarico et al. 2011, Icarus 211; Gläser et al. 2014), computed over different time
   spans and DEM resolutions.
 
+## Validation vs NASA statement
+
+NASA's 2022 release states that *"All 13 regions contain sites that provide continuous
+access to sunlight throughout a 6.5-day period – the planned duration of the Artemis III
+surface mission"*
+([nasa.gov](https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/)).
+The statement covers the 2022 list of 13 regions. Only **5 of our 9** are on that list.
+Mons Mouton, Mons Mouton Plateau, Peak near Cabeus B and Slater Plain were added in the
+October 2024 update. For those four the same 6.5-day test is **our planning criterion,
+not a NASA claim**.
+
+Test (`tests/test_site_selection.py`): for the selected site of each region, 2027–28 must
+contain at least one uninterrupted window of **≥ 156 h** with `sunFraction ≥ 50`.
+
+| Region | Selected site (lat, lon) | Lit % (≥ 50) | Earth % | Longest continuous light | ≥ 6.5 d | Basis |
+|---|---|---:|---:|---:|:---:|---|
+| Peak near Cabeus B | `PCB04` (-83.3691, -67.6646) | 53.0 | 70.2 | 412 h (17.2 d) | ✅ yes | our criterion (region added 2024) |
+| Haworth | `HW_K2023` (-86.9895, -24.2545) | 65.2 | 55.3 | 696 h (29.0 d) | ✅ yes | NASA 2022 statement |
+| Malapert Massif | `MMA_K2023` (-85.9919, 2.0564) | 78.2 | 67.4 | 4,061 h (169.2 d) | ✅ yes | NASA 2022 statement |
+| Mons Mouton Plateau | `MMP10` (-84.1383, 25.6422) | 41.5 | 73.9 | 358 h (14.9 d) | ✅ yes | our criterion (region added 2024) |
+| Mons Mouton | `MMO02` (-85.4810, 29.5494) | 75.2 | 70.8 | 1,403 h (58.5 d) | ✅ yes | our criterion (region added 2024) |
+| Nobile Rim 1 | `NR103` (-85.5456, 37.5572) | 78.9 | 62.4 | 3,883 h (161.8 d) | ✅ yes | NASA 2022 statement |
+| Nobile Rim 2 | `NR205` (-83.6185, 59.0568) | 52.2 | 60.6 | 427 h (17.8 d) | ✅ yes | NASA 2022 statement |
+| de Gerlache Rim 2 | `dGR2_K2023` (-88.4500, -67.8591) | 76.5 | 54.9 | 662 h (27.6 d) | ✅ yes | NASA 2022 statement |
+| Slater Plain | `SP09` (-87.1838, 133.3445) | 59.0 | 33.7 | 468 h (19.5 d) | ✅ yes | our criterion (region added 2024) |
+
+**All nine regions pass.** The weakest is Mons Mouton Plateau, at 14.9 days of continuous
+light: 2.3× the requirement.
+
+Caveats that could lower these numbers:
+
+* The DEM is 120 m/px. Small-scale relief such as boulders, small craters and local
+  ridges is smoothed out, which tends to overestimate sunlight.
+* The observer stands 2 m above the terrain (panel height). Lower would mean more
+  shadowing.
+* The time span is 2027–28, not a full 18.6-year nutation cycle.
+* The solar disk uses the linear approximation described above.
+
+### Consistency with Wueller et al. (2026)
+
+The source shapefile also carries the authors' own illumination counts per year
+(`SunDays27`, `SunDays28`). They are copied into `data/wueller2026_sites.csv`. Their
+values never exceed 32. That suggests the counts cover a fixed "midsummer" window,
+which matches the dataset description ("illumination conditions … for the midsummers"),
+so check the exact definition in the paper. Our number is the longest continuous light
+across the **whole** year, so we expect ours ≥ theirs.
+
+For the 9 selected sites × 2 years, this holds in **15 of 18** cases. The three
+exceptions differ by 0.5–2.3 days (HW_K2023 2027, SP09 2027, NR205 2028), which is
+plausible given their much finer DEMs. This is a consistency check, not a
+like-for-like validation.
+
 ## Output format
 
 `illumination/{siteId}.json` (one file per site):
@@ -136,6 +229,9 @@ Other assumptions:
 
 ## Data sources
 
+* Candidate landing sites: Wueller, L., Berger, L. M., Christopher, H., et al. (2026),
+  *JGR Planets* 131(3), e2025JE009434, doi:10.1029/2025JE009434. Data:
+  doi:10.5281/zenodo.17084058 (CC-BY-4.0).
 * LOLA gridded topography: Smith et al., LRO LOLA RDR/GDR, NASA PDS Geosciences Node.
 * Ephemeris and lunar orientation kernels: NASA/JPL NAIF generic kernels.
 * Skyfield: Rhodes, B., *Skyfield: High precision research-grade positions for planets

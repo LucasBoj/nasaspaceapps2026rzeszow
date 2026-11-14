@@ -1,0 +1,73 @@
+{
+ "regionId": "malapert_massif",
+ "method": "published",
+ "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434",
+ "maxSlopeDeg": 10.0,
+ "observerHeightM": 2.0,
+ "start": "2027-01-01T00:00:00Z",
+ "end": "2028-12-31T23:00:00Z",
+ "litThresholdPct": 50,
+ "best": "MMA_K2023",
+ "candidates": [
+  {
+   "candidateId": "MMA_K2023",
+   "lat": -85.99192,
+   "lon": 2.0564,
+   "slopeDeg": 2.24,
+   "sunPct": 78.2,
+   "earthPct": 67.4,
+   "longestDarkH": 341,
+   "longestLightH": 4061,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMA03",
+   "lat": -85.95772,
+   "lon": -3.27827,
+   "slopeDeg": 2.96,
+   "sunPct": 68.1,
+   "earthPct": 71.8,
+   "longestDarkH": 477,
+   "longestLightH": 696,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMA01",
+   "lat": -85.94247,
+   "lon": -0.94365,
+   "slopeDeg": 2.93,
+   "sunPct": 45.1,
+   "earthPct": 97.4,
+   "longestDarkH": 404,
+   "longestLightH": 339,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMA02",
+   "lat": -86.01532,
+   "lon": 3.38206,
+   "slopeDeg": 3.2,
+   "sunPct": 28.0,
+   "earthPct": 60.3,
+   "longestDarkH": 597,
+   "longestLightH": 279,
+   "rejected": false,
+   "reason": ""
+  },
+  {
+   "candidateId": "MMA04",
+   "lat": -86.30985,
+   "lon": -0.45928,
+   "slopeDeg": 3.91,
+   "sunPct": 16.1,
+   "earthPct": 0.0,
+   "longestDarkH": 2814,
+   "longestLightH": 242,
+   "rejected": false,
+   "reason": ""
+  }
+ ]
+}
