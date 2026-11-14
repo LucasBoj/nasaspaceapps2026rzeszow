@@ -56,8 +56,11 @@ public sealed class HeatmapResult
 /// <summary>Evaluates every (site, landing day at 00:00 UTC) combination of a window.</summary>
 public static class WindowOptimizer
 {
-    /// <summary>Days computed between UI yields.</summary>
-    public const int YieldEveryDays = 20;
+    /// <summary>
+    /// Longest stretch of work between UI yields (ms). WebAssembly runs on the browser's only thread,
+    /// so anything longer shows up as a dropped frame (camera flight, spinner, hover).
+    /// </summary>
+    public const double YieldBudgetMs = 8;
 
     /// <summary>
     /// Score 0–100.
@@ -139,9 +142,13 @@ public static class WindowOptimizer
         double bestScore = 0;
         var total = Math.Max(1, sites.Count * days);
         var done = 0;
+        var panelModel = lander.IdealTracking ? null : PanelModel.For(lander.Panels);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
         for (var s = 0; s < sites.Count; s++)
         {
+            // AUTO heading table for this site, built in frame-sized slices (else ~100 ms in one block).
+            if (lander.HeadingDeg is null) await SolarGeometry.WarmUpAsync(sites[s].Series, panelModel, YieldBudgetMs, ct);
             for (var d = 0; d < days; d++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -163,10 +170,11 @@ public static class WindowOptimizer
                 }
 
                 done++;
-                if (d % YieldEveryDays == YieldEveryDays - 1)
+                if (sw.Elapsed.TotalMilliseconds >= YieldBudgetMs)
                 {
                     progress?.Report((double)done / total);
                     await Task.Yield();
+                    sw.Restart();
                 }
             }
         }

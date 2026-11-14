@@ -169,30 +169,71 @@ public static class SolarGeometry
     /// <summary>prefix[k][t] = Σ_{j&lt;t} sunFraction_j/100 × raw incidence at heading k·10° (un-normalised, per step).</summary>
     private static float[][] PrefixTable(IlluminationSeries series, PanelModel model)
     {
+        if (TryGetTable(series, model) is { } cached) return cached;
+        var (cosEl, sinEl, cosAz, sinAz) = series.SunTrig();
+        var table = new float[HeadingCount][];
+        for (var k = 0; k < HeadingCount; k++) table[k] = PrefixRow(series, model, k, cosEl, sinEl, cosAz, sinAz);
+        return StoreTable(series, model, table);
+    }
+
+    /// <summary>
+    /// Build the AUTO-heading table for <paramref name="series"/> in slices, yielding to the caller's scheduler
+    /// between headings. On the single WebAssembly thread a one-shot build (~2 million incidence evaluations)
+    /// blocks rendering for ~100 ms per site; sliced, each slice stays within a frame. Results are identical
+    /// to the synchronous build; a no-op when the table already exists or the layout is not fixed.
+    /// </summary>
+    public static async Task WarmUpAsync(IlluminationSeries series, PanelModel? model, double budgetMs = 8,
+                                         CancellationToken ct = default)
+    {
+        if (model is null || !series.HasSunGeometry || TryGetTable(series, model) is not null) return;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var (cosEl, sinEl, cosAz, sinAz) = series.SunTrig();
+        var table = new float[HeadingCount][];
+        for (var k = 0; k < HeadingCount; k++)
+        {
+            if (sw.Elapsed.TotalMilliseconds >= budgetMs)
+            {
+                await Task.Yield();
+                ct.ThrowIfCancellationRequested();
+                sw.Restart();
+            }
+            table[k] = PrefixRow(series, model, k, cosEl, sinEl, cosAz, sinAz);
+        }
+        StoreTable(series, model, table);
+    }
+
+    private static float[][]? TryGetTable(IlluminationSeries series, PanelModel model)
+    {
         lock (Gate)
         {
             var perSeries = Tables.GetOrCreateValue(series);
-            if (perSeries.TryGetValue(model, out var cached) && cached[0].Length == series.Count + 1) return cached;
+            return perSeries.TryGetValue(model, out var cached) && cached[0].Length == series.Count + 1 ? cached : null;
+        }
+    }
 
-            var (cosEl, sinEl, cosAz, sinAz) = series.SunTrig();
-            var table = new float[HeadingCount][];
-            Span<double> cp = stackalloc double[model.FacetCount];
-            Span<double> sp = stackalloc double[model.FacetCount];
-            for (var k = 0; k < HeadingCount; k++)
-            {
-                model.FacetAzimuths(k * HeadingStepDeg, cp, sp);
-                var row = new float[series.Count + 1];
-                double acc = 0;
-                for (var t = 0; t < series.Count; t++)
-                {
-                    var sf = series.SunFraction[t];
-                    if (sf > 0) acc += sf / 100.0 * model.Raw(cosEl[t], sinEl[t], cosAz[t], sinAz[t], cp, sp);
-                    row[t + 1] = (float)acc;
-                }
-                table[k] = row;
-            }
-            perSeries[model] = table;
+    private static float[][] StoreTable(IlluminationSeries series, PanelModel model, float[][] table)
+    {
+        lock (Gate)
+        {
+            Tables.GetOrCreateValue(series)[model] = table;
             return table;
         }
+    }
+
+    private static float[] PrefixRow(IlluminationSeries series, PanelModel model, int k,
+                                     double[] cosEl, double[] sinEl, double[] cosAz, double[] sinAz)
+    {
+        Span<double> cp = stackalloc double[model.FacetCount];
+        Span<double> sp = stackalloc double[model.FacetCount];
+        model.FacetAzimuths(k * HeadingStepDeg, cp, sp);
+        var row = new float[series.Count + 1];
+        double acc = 0;
+        for (var t = 0; t < series.Count; t++)
+        {
+            var sf = series.SunFraction[t];
+            if (sf > 0) acc += sf / 100.0 * model.Raw(cosEl[t], sinEl[t], cosAz[t], sinAz[t], cp, sp);
+            row[t + 1] = (float)acc;
+        }
+        return row;
     }
 }
