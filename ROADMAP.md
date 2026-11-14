@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 16:30 CET
+**Ostatnia aktualizacja:** 2026-11-14 17:40 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -49,6 +49,7 @@
 - [x] Responsywność: bez `min-width`, układ kolumnowy < 1024 px, 1366×768 bez ucinania; sprawdzone w Chromium, Firefox i WebKit (23/23 w każdej) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
 - [x] Wydajność i deploy: brakujący `importmap` w `index.html` (bez niego aplikacja nie startowała na statycznym hostingu), Cesium `defer` + `preconnect`, `InvariantGlobalization`, token wykluczony z publikacji. Release + Brotli: wynik po 2,3 s (szybkie łącze) / 3,7 s (20 Mbit/s) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
 - [x] Animacja lądowania (P2 „Animacja lądowania”): osobny moduł `landingAnimation.js`, własny schematyczny model z prymitywów Cesium (CLPS / HLS), opadanie z 15 km z krzywą hamowania, kamera pościgowa i orbita, pierścień pyłu i błysk; HUD „SIMULATED DESCENT” z ALT, V/S, RANGE i fazami z tej samej krzywej; przycisk CONFIRM LANDING SITE i QUICK DEMO z analizą liczoną równolegle; pomijanie (klik, SKIP, Esc); flaga `features.landingAnimation` + przełącznik w HUD; tryb ograniczonego ruchu; wysokość z terenu 3D z fallbackiem na elipsoidę. Testy: Chromium 3D/2D, Firefox, WebKit — 22/22 — 2026-11-14 16:25 — `c726269` — AI: Claude Code
+- [x] Model 3D Nova-C (GLB, tylko dla `nova_c`): skalowanie do 4 m z bounding boxa, orientacja glTF Y-up → pion miejsca (nogi w dół, sprawdzone), ładowanie w tle i pula modeli, fallback na model z prymitywów; lądownik i znacznik podążają za faktycznie wyrenderowanym terenem; światło sceny = Słońce z efemeryd (az/el dla miejsca i chwili), miękkie cienie, światło wypełniające i otoczenia; atrybucja w stopce. Testy GLB 11/11 w Chromium (3D i 2D), Firefox, WebKit — 2026-11-14 17:35 — `345d6f8` — model: zespół (Meshy AI + Microsoft TRELLIS.2), integracja: AI: Claude Code
 
 ## 🔄 In progress
 
@@ -71,6 +72,10 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - Gotowe, gdy: wideo ≤ 30 s z angielskimi napisami jest podpięte do zgłoszenia.
 
 ### P1
+
+- [ ] **Optymalizacja `nova_c.glb` (13,3 MB → cel < 2 MB)** — gltf-transform: `meshopt` (lub `draco`), uproszczenie siatki (288 tys. trójkątów → ~30–50 tys.), tekstury WebP 1024 px; dodać dekoder meshopt do Cesium (obsługuje `EXT_meshopt_compression`) i sprawdzić, że skala/orientacja się nie zmieniły — A/C
+  - Gotowe, gdy: plik < 2 MB, test GLB przechodzi, a pierwsze lądowanie w Firefoksie mieści się w 6 s. Uwaga: publikacja Blazor nie kompresuje `.glb` (13,9 MB transferu).
+- [ ] **Licencja obrazu koncepcyjnego z Meshy** — potwierdzić plan konta (darmowy = CC BY 4.0, wymaga atrybucji — jest w stopce) i że obraz nie odwzorowuje grafik producenta — zespół
 
 - [ ] **⬆ Ocena optymalizatora się nasyca (pilne)** — dla lądowników o małym poborze (np. Nova-C) wiele okien ma 100/100, więc mapa ciepła słabo różnicuje opcje, a w COMPARE domyślnej trójki wszystkie mają 100, czyli zwycięzca wynika tylko z daty. Dodać składnik rozróżniający (np. zapas energii w Wh, liczba godzin poniżej progu, najdłuższa ciemność) — B
   - Gotowe, gdy: dla Nova-C i Blue Ghost najlepsze okna różnią się oceną, a wzór jest opisany w komentarzu i w teście.
@@ -110,6 +115,9 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — wybór lądownika tylko do odczytu (SPECS z pochodzeniem danych, LANDER IMPACT, what-if), weryfikacja dostępności linków źródłowych, testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
+- 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
+- 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — integracja modelu GLB (skala, orientacja, ładowanie w tle, fallback, podążanie za terenem), oświetlenie sceny z efemeryd, testy w 3 przeglądarkach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — animacja lądowania (moduł, HUD, integracja z analizą), diagnoza błędu renderowania Cesium (lot kamery vs `lookAt`), testy w 4 konfiguracjach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — pierwsze wrażenie i dopracowanie frontu: ekran startowy, QUICK DEMO, porównanie miejsc, róża Słońca/Ziemi, nakładka kandydatów, słowniczek, responsywność, metadane i `og.png`, poprawki wdrożeniowe, pomiary wydajności, testy w 3 przeglądarkach
 
@@ -136,5 +144,8 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Zgłaszane przesunięcie terenu Cesium Moon (~2,5 km względem LOLA, niepotwierdzone)** — pinezki są przypięte do terenu 3D, a horyzonty i wyniki liczone są z LOLA, więc wizualizacja może się minimalnie różnić od obliczeń.
 - **Animacja lądowania jest ilustracyjna** — telemetria (ALT, V/S, RANGE) wynika z krzywej animacji przeskalowanej do ~10 minut opadania, a nie z dynamiki lotu; model jest schematyczny i ~10× powiększony. Na pitchu mówić „simulated, illustrative” (tak jak plakietka).
 - **Teren Cesium Moon leży wysoko nad elipsoidą** — w Nobile Rim 1 próbkowanie daje +6,76 km. Lądownik siada na terenie 3D, ale obliczenia oświetlenia nadal pochodzą z LOLA (spójne z `pipeline/`).
+- **Firefox headless wolniejszy przy lądowaniu** — w testach całość 8 s (cel 5–6 s), tryb ograniczonego ruchu 3,2 s; Chromium/WebKit mieszczą się w czasie. Prawdopodobnie programowe WebGL w trybie headless; sprawdzić w prawdziwym Firefoksie (zadanie fps w P1).
+- **Teren Cesium Moon dociąga szczegóły z opóźnieniem** — powierzchnia w miejscu lądowania potrafi przeskoczyć o ~68 m ok. 2 s po przyziemieniu; znacznik podąża za nią przez 8 s (pętla „settle”).
+- **Oświetlenie bieguna jest ciemne z natury** — Słońce na kilku stopniach (często poniżej lokalnego poziomu) daje bardzo ukośne światło; dodane jednolite światło otoczenia (harmoniki sferyczne) jest uproszczeniem wizualnym, nie modelem fizycznym.
 - **`InvariantTimezone` wymaga workloadu `wasm-tools`** — nie włączone; opcjonalna dalsza oszczędność rozmiaru.
 - **GitHub Pages** — `<base href="/">` nie zadziała pod podścieżką repo.
