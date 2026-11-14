@@ -1,0 +1,212 @@
+# SELENE OPS — test, build and deploy the static site to Mikrus (nginx), see deploy/README.md.
+#
+#   push → main     preview  /var/www/selene/preview  (vars.PREVIEW_URL)
+#   push → stable   stable   /var/www/selene/stable   (vars.STABLE_URL — the jury link)
+#   Run workflow    target chosen by hand (re-deploy, or put the selected branch on preview/stable)
+#
+# Secrets:   MIKRUS_SSH_KEY, MIKRUS_HOST, MIKRUS_PORT, MIKRUS_USER (default root),
+#            optional CESIUM_ION_TOKEN (3D terrain), optional MIKRUS_KNOWN_HOSTS (pinned host key).
+# Variables: STABLE_URL, PREVIEW_URL (smoke test + og:image; the smoke test is skipped without them).
+# Without MIKRUS_SSH_KEY the run still tests and builds, but uploads nothing (warning on the run).
+name: Deploy
+
+run-name: "Deploy ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }} · ${{ github.ref_name }}"
+
+on:
+  push:
+    branches: [main, stable]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target site
+        type: choice
+        options: [preview, stable]
+        default: preview
+        required: true
+
+# One deploy per target at a time: a newer run cancels the older one instead of racing it.
+concurrency:
+  group: deploy-${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    name: "deploy → ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET: ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }}
+      STABLE_URL: ${{ vars.STABLE_URL }}
+      PREVIEW_URL: ${{ vars.PREVIEW_URL }}
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check deploy configuration
+        id: cfg
+        env:
+          HAS_SSH_KEY: ${{ secrets.MIKRUS_SSH_KEY != '' }}
+          HAS_TOKEN: ${{ secrets.CESIUM_ION_TOKEN != '' }}
+          MIKRUS_HOST: ${{ secrets.MIKRUS_HOST }}
+          MIKRUS_PORT: ${{ secrets.MIKRUS_PORT }}
+        run: |
+          deploy=false
+          if [[ "$HAS_SSH_KEY" != true ]]; then
+            echo "::warning title=Deploy skipped::Secret MIKRUS_SSH_KEY is not set: tests and build run, nothing is uploaded. Setup: deploy/README.md → Automatyczne wdrażanie."
+          else
+            [[ -n "$MIKRUS_HOST" ]] || { echo "::error title=Deploy config::MIKRUS_SSH_KEY is set, but secret MIKRUS_HOST is missing."; exit 1; }
+            [[ "$MIKRUS_PORT" =~ ^[0-9]+$ ]] || { echo "::error title=Deploy config::Secret MIKRUS_PORT must be the SSH port number (e.g. 10177)."; exit 1; }
+            deploy=true
+          fi
+          if [[ "$TARGET" == stable ]]; then url="$STABLE_URL"; var=STABLE_URL; else url="$PREVIEW_URL"; var=PREVIEW_URL; fi
+          [[ -n "$url" ]] || echo "::warning title=No site URL::Repository variable $var is not set: no smoke test, og:image uses the default address from deploy.sh."
+          [[ "$HAS_TOKEN" == true ]] || echo "::notice title=2D mode::Secret CESIUM_ION_TOKEN is not set: the site runs in 2D MOSAIC MODE (no 3D terrain)."
+          { echo "deploy=$deploy"; echo "site_url=$url"; echo "url_var=$var"; } >> "$GITHUB_OUTPUT"
+          echo "Target: $TARGET · upload: $deploy · URL: ${url:-not set}"
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Unit tests (a failure stops the deploy)
+        id: tests
+        if: hashFiles('SeleneFrontend.Tests/*.csproj') != ''
+        run: dotnet test SeleneFrontend.Tests -c Release
+
+      # deploy.sh injects CESIUM_ION_TOKEN (if set) into out/publish only — never into the repo.
+      # GitHub masks secrets in logs; the explicit add-mask in deploy.sh covers it as well.
+      - name: Build + Cesium token (deploy.sh --build-only)
+        id: build
+        env:
+          CESIUM_ION_TOKEN: ${{ secrets.CESIUM_ION_TOKEN }}
+        run: bash ./deploy/deploy.sh "$TARGET" --build-only
+
+      - name: SSH key and known_hosts
+        if: steps.cfg.outputs.deploy == 'true'
+        env:
+          MIKRUS_SSH_KEY: ${{ secrets.MIKRUS_SSH_KEY }}
+          MIKRUS_KNOWN_HOSTS: ${{ secrets.MIKRUS_KNOWN_HOSTS }}
+          MIKRUS_HOST: ${{ secrets.MIKRUS_HOST }}
+          MIKRUS_PORT: ${{ secrets.MIKRUS_PORT }}
+        run: |
+          install -d -m 700 ~/.ssh
+          # tr: a key pasted on Windows may carry CR line endings, which OpenSSH rejects.
+          printf '%s\n' "$MIKRUS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if ! ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 > /dev/null 2>&1; then
+            echo "::error title=MIKRUS_SSH_KEY::Not a private key without a passphrase. Paste the whole ~/.ssh/mikrus_deploy file, BEGIN/END lines included."
+            exit 1
+          fi
+          if [[ -n "$MIKRUS_KNOWN_HOSTS" ]]; then
+            printf '%s\n' "$MIKRUS_KNOWN_HOSTS" | tr -d '\r' >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -T 20 -p "$MIKRUS_PORT" "$MIKRUS_HOST" >> ~/.ssh/known_hosts 2> /dev/null || true
+          fi
+          chmod 600 ~/.ssh/known_hosts
+          if ! grep -q '^[^#]' ~/.ssh/known_hosts; then
+            echo "::error title=known_hosts::No SSH host key from the server (ssh-keyscan on MIKRUS_HOST:MIKRUS_PORT). Is the host/port right and the server up?"
+            exit 1
+          fi
+          command -v rsync > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq rsync; }
+
+      - name: rsync → /var/www/selene/${{ env.TARGET }}/
+        id: upload
+        if: steps.cfg.outputs.deploy == 'true'
+        env:
+          MIKRUS_HOST: ${{ secrets.MIKRUS_HOST }}
+          MIKRUS_PORT: ${{ secrets.MIKRUS_PORT }}
+          MIKRUS_USER: ${{ secrets.MIKRUS_USER || 'root' }}
+        run: bash ./deploy/deploy.sh "$TARGET" --upload-only
+
+      - name: Smoke test
+        id: smoke
+        if: steps.upload.outcome == 'success'
+        env:
+          SITE_URL: ${{ steps.cfg.outputs.site_url }}
+        run: |
+          if [[ -z "$SITE_URL" ]]; then
+            echo "::warning title=Smoke test skipped::Set the repository variable ${{ steps.cfg.outputs.url_var }} to check the deployed site."
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          bash ./deploy/smoke-test.sh "$SITE_URL" out/publish/wwwroot/index.html
+          echo "result=passed" >> "$GITHUB_OUTPUT"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
+
+      - name: Summary
+        if: always()
+        env:
+          CFG: ${{ steps.cfg.outcome }}
+          DEPLOY: ${{ steps.cfg.outputs.deploy }}
+          SITE_URL: ${{ steps.cfg.outputs.site_url }}
+          URL_VAR: ${{ steps.cfg.outputs.url_var }}
+          CANCELLED: ${{ cancelled() }}
+          TESTS: ${{ steps.tests.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          UPLOAD: ${{ steps.upload.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+          SMOKE_RESULT: ${{ steps.smoke.outputs.result }}
+          SIZE_TOTAL: ${{ steps.build.outputs.size_total }}
+          SIZE_RAW: ${{ steps.build.outputs.size_raw }}
+          FILES: ${{ steps.build.outputs.files }}
+          TOKEN: ${{ steps.build.outputs.token }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          SHA: ${{ github.sha }}
+          TRIGGER: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
+        run: |
+          if [[ "$UPLOAD" == success && "$SMOKE_RESULT" == passed ]]; then status="✅ Deployed and verified (smoke test passed)"
+          elif [[ "$UPLOAD" == success && "$SMOKE_RESULT" == skipped ]]; then status="✅ Deployed — ⚠️ smoke test skipped (no URL variable)"
+          elif [[ "$UPLOAD" == success && "$CANCELLED" != true ]]; then status="❌ Deployed, but the smoke test FAILED"
+          elif [[ "$CANCELLED" == true ]]; then status="⏹️ Cancelled (usually: a newer run for the same target took over)"
+          elif [[ "$UPLOAD" == failure ]]; then status="❌ Upload failed — with rsync --delay-updates the site most likely still serves the previous version; fix and re-run the job"
+          elif [[ "$CFG" == failure ]]; then status="❌ Deploy configuration incomplete (see the error annotation) — the site was not changed"
+          elif [[ "$DEPLOY" == false && "$BUILD" == success ]]; then status="⚠️ Not deployed: secret MIKRUS_SSH_KEY is not set (tests and build only)"
+          else status="❌ Failed before the upload (tests: ${TESTS:-not run}, build: ${BUILD:-not run}) — the site was not changed"
+          fi
+          case "$TOKEN" in
+            injected) mode="3D terrain (Cesium token injected into the published appsettings.json)" ;;
+            empty)    mode="2D mosaic (no CESIUM_ION_TOKEN)" ;;
+            *)        mode="—" ;;
+          esac
+          title="${COMMIT_MSG%%$'\n'*}"; title="${title//|/\\|}"
+          {
+            echo "## SELENE OPS → \`$TARGET\`"
+            echo
+            echo "**$status**"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Target | \`$TARGET\` → \`/var/www/selene/$TARGET/\` |"
+            echo "| Link | ${SITE_URL:-_not set (repository variable ${URL_VAR:-STABLE_URL / PREVIEW_URL})_} |"
+            echo "| Commit | [\`${SHA:0:7}\`]($COMMIT_URL)${title:+ $title} |"
+            echo "| Trigger | $TRIGGER on \`$REF\` |"
+            echo "| Package | ${SIZE_TOTAL:-—} in ${FILES:-—} files (${SIZE_RAW:-—} without .gz/.br) |"
+            echo "| Terrain | $mode |"
+            echo "| Steps | tests: ${TESTS:-skipped} · build: ${BUILD:-—} · upload: ${UPLOAD:-—} · smoke test: ${SMOKE_RESULT:-${SMOKE:-—}} |"
+          } >> "$GITHUB_STEP_SUMMARY"
