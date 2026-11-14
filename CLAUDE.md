@@ -10,7 +10,7 @@
 
 | Part | What | Where |
 |---|---|---|
-| Frontend | Blazor WebAssembly standalone, **.NET 10**. CesiumJS **1.120** via JS interop | `SeleneFrontend/` (`wwwroot/js/moonViewer.js`, `cardGrid.js`) |
+| Frontend | Blazor WebAssembly standalone, **.NET 10**. CesiumJS **1.120** (self-hosted in `wwwroot/lib/cesium-1.120`) via JS interop; IBM Plex self-hosted in `wwwroot/fonts` | `SeleneFrontend/` (`wwwroot/js/moonViewer.js`, `cardGrid.js`) |
 | Data | Python 3.11+ (Skyfield, rasterio, pyproj, numpy). A **one-off** precompute into JSON | `pipeline/` → `SeleneFrontend/wwwroot/data/illumination/` |
 | Runtime | **No backend.** Static files only | — |
 | Hosting | Static files on Mikrus (nginx): stable :80 (jury link) + preview :8080. Deployed by GitHub Actions: push `main` → preview, push `stable` → stable. GitHub Pages mirror planned | `deploy/` (README in Polish), `.github/workflows/deploy.yml` |
@@ -95,7 +95,7 @@ python validate_horizons.py [--refresh]   # Sun/Earth az/el vs JPL Horizons (off
 
 - `index.html` must load `_framework/blazor.webassembly#[.{fingerprint}].js`. `blazor.web.js` gives a black screen.
 - `Cesium.Ellipsoid.default` exists only from **Cesium 1.119**. On older versions the globe stays Earth-sized.
-- The Cesium script has to come from `…/releases/X/Build/Cesium/Cesium.js`. The path without `Build/Cesium` returns 404.
+- CesiumJS is self-hosted: `wwwroot/lib/cesium-1.120/` is `Build/Cesium` from the `cesium@1.120.0` npm package (byte-identical to the cesium.com CDN build) and must keep `Workers/`, `Assets/`, `ThirdParty/`, `Widgets/` next to `Cesium.js`. To upgrade, copy a new version into a new `lib/cesium-X.Y` folder (nginx caches that path as immutable) and change both links in `index.html`. Do not load anything from a CDN or Google Fonts: the demo must work offline. If a CDN is ever needed again, the path must be `…/releases/X/Build/Cesium/Cesium.js` (without `Build/Cesium` it is a 404).
 - C# models are PascalCase and the JSON is camelCase. Deserialize with `JsonSerializerDefaults.Web`.
 - `type=number` inputs: format and parse with `CultureInfo.InvariantCulture`. The browser runs with `pl` culture.
 - LOLA `float_img`: open the **`.lbl`**, not the `.img`. Heights are in **km**. The label `OFFSET` is the sphere radius, not a height offset.

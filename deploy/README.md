@@ -198,9 +198,9 @@ Postęp: zakładka **Actions** → przebieg „Deploy …”. Na stronie przebie
 
 ## Rozmiary (pomiar 2026-11-14)
 
-- `out/publish/wwwroot` na dysku: **39 MB** (z wariantami `.gz`/`.br`).
+- `out/publish/wwwroot` na dysku: **56 MB** (z wariantami `.gz`/`.br`), w tym lokalne CesiumJS (`lib/cesium-1.120`, 13 MB bez kompresji) od 2026-11-14 18:05.
 - Największe pliki: `models/nova_c.glb` 13,3 MB (8,6 MB po gzip), `dotnet.native.wasm` 2,9 MB (1,2 MB gzip), `System.Private.CoreLib.wasm` 1,5 MB (0,6 MB gzip).
-- Pierwsza wizyta przesyła ok. 3–4 MB. Model Nova-C (8,6 MB) pobiera się w tle dopiero po kilku sekundach.
+- Pierwsza wizyta przesyła ok. 3–4 MB (`Cesium.js` to 1,4 MB po gzip, tyle samo co wcześniej z CDN, ale z naszego serwera). Model Nova-C (8,6 MB) pobiera się w tle dopiero po kilku sekundach.
 
 ## Wycofanie wersji (ręcznie)
 

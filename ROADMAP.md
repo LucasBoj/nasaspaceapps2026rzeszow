@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 17:57 CET
+**Ostatnia aktualizacja:** 2026-11-14 18:10 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -59,6 +59,7 @@
 - [x] Oświetlenie sceny z efemeryd (P2 „Animacja cieni”) — było zrobione w `345d6f8` (`setSunLight`); usunięta martwa zaślepka `setSunDirection`, README frontendu poprawione; `CLAUDE.md`: sekcja o modelu energii i nowe pułapki — 2026-11-14 17:50 CET — commit z tym wpisem — AI: Claude Code
 - [x] CI: diagnoza nieużywalnego `MIKRUS_SSH_KEY` (klucz `.pub`, PuTTY, brak BEGIN/END, hasło; klucz nigdy nie trafia do logu, przy sukcesie widać odcisk), naprawa białych znaków po wklejeniu klucza (CRLF, wcięcia, złamane linie), adresy `PREVIEW_URL`/`STABLE_URL` bez `https://` uzupełniane z ostrzeżeniem (np. `selene.byst.re` dawało względny `og:image`), przycinanie sekretów host/port/user; README: pełne adresy, osobny adres na cel. Sprawdzone lokalnie na 8 wariantach klucza testowego i 4 wariantach adresu — 2026-11-14 17:40 — `db381a6` — AI: Claude Code
 - [x] Ocena bez remisów (P1 „ocena się nasyca”): nowy składnik zapasu nad horyzontem terenu, `15 × (½ m(min. zapas Słońca) + ½ m(min. zapas Ziemi))`, m(c) = 1 − e^(−c/2°). Mierzy odporność światła i łączności na błędy modelu terenu 120 m. Wagi: 35 SoC + 20 łączność + 10 światło + 20 nadwyżka + 15 zapas. Wcześniej przy IDEAL każdy region miał najlepszą ocenę dokładnie 86,667 (56–153 dni remisu), a Griffin mieścił się w 0,1 pkt. Teraz (7 d) każdy region ma jeden najlepszy dzień: Nova-C 71,2–83,2, Blue Ghost 50,5–81,4, IDEAL 78,9–86,5. Oceny z jednym miejscem po przecinku (COMPARE, najlepsze daty, tooltip), zapas nad terenem w kaflach. Testy 33/33, sprawdzone w przeglądarce — 2026-11-14 17:56 CET — `f64a3fa` — AI: Claude Code
+- [x] Cesium i czcionki lokalnie (P1 „Hostować Cesium u siebie”): CesiumJS 1.120 w `wwwroot/lib/cesium-1.120` (z pakietu npm `cesium@1.120.0`, Apache-2.0, `Cesium.js` i `widgets.css` bajt w bajt jak z CDN cesium.com), IBM Plex Sans/Mono 400/500/600 latin + latin-ext w `wwwroot/fonts` (SIL OFL 1.1) zamiast Google Fonts; nginx: niezmienny cache dla `/lib/cesium-<wersja>/`; smoke test sprawdza `Cesium.js` i `widgets.css`. Publikacja z Blazor kompresuje Cesium (`Cesium.js` 4,8 MB → 1,0 MB `.br` / 1,4 MB `.gz`). Sprawdzone na zbudowanej publikacji: wszystkie żądania lokalne poza kaflami Moon Trek, QUICK DEMO z animacją lądowania bez błędów, czcionki wczytane z `fonts/`. Ocena optymalizatora (P1) okazała się już poprawiona przez Marka (`4ccf12e`, `f64a3fa`), testy 33/33 — 2026-11-14 18:05 — `c6085d3` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -70,7 +71,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P0
 
-- [ ] **Demo działa offline** — C
+- [ ] **Demo działa offline** — C (Cesium i czcionki są już lokalne od `c6085d3`; zostały kafle Moon Trek)
   - Gotowe, gdy: aplikacja z laptopa bez internetu ładuje się z lokalnym Cesium (nie z CDN), lokalnymi czcionkami i podręcznym zestawem kafli Moon Trek dla bieguna (albo ma fallback bez zdjęć), co jest sprawdzone przy wyłączonym Wi-Fi.
 - [ ] **Uruchomić wdrożenie na Mikrusie** (skrypty i CI gotowe: `deploy/README.md` → „Automatyczne wdrażanie”) — C
   - Gotowe, gdy: `server-setup.sh` i `create-deploy-user.sh` uruchomione; port/subdomena z panelu wpisane w `nginx-selene.conf`; w GitHubie ustawione sekrety `MIKRUS_SSH_KEY`, `MIKRUS_HOST`, `MIKRUS_PORT`, `MIKRUS_USER=deploy` i zmienne `PREVIEW_URL`, `STABLE_URL`; przebieg „Deploy” dla preview ma zielony smoke test → `git push origin main:stable` → zielony smoke test stable; strona działa z telefonu po LTE; czasy ładowania zapisane.
@@ -97,7 +98,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - Gotowe, gdy: dla kilku punktów jest wykres lub tabela z różnicą i opisem źródeł. Walidacja liczbowa grzbietu jest już zrobiona.
 - [ ] **Pitch na lokalne jury**: slajdy, scenariusz demo offline, odpowiedzi na trudne pytania — wszyscy
   - Gotowe, gdy: jest próba generalna na czas z demo uruchomionym bez internetu.
-- [ ] **Hostować Cesium u siebie (z Brotli)** — dziś ~1,45 MB z CDN; potrzebne też do trybu offline i może zejść poniżej 3 s na łączu 20 Mbit/s — C
 - [ ] **Zmierzyć fps animacji lądowania na prawdziwym laptopie** (Chrome/Firefox/Safari, z GPU) — w testach headless z programowym WebGL było 11–44 fps i model się upraszczał; cel ≥ 30 fps bez uproszczeń — C
 - [ ] **Sprawdzić prawdziwego Firefoksa** — w headless Firefox (programowe WebGL) mapa ciepła po QUICK DEMO liczy się ~10 s; werdykt pojawia się od razu — C
 - [ ] **Alternatywy miejsca w sekcji 01** (`alternatives` z `sites.json`) do przełączania jednym kliknięciem — C
@@ -133,6 +133,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5, osobna sesja) — walidacja efemeryd z JPL Horizons (skrypt, snapshoty, test offline, ustalenie układu Mean-Earth)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — analiza remisów oceny na prawdziwych danych (Nova-C, Blue Ghost, Griffin; FIXED i IDEAL), składnik zapasu nad terenem, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — automatyczne wdrażanie: workflow GitHub Actions, przeróbka `deploy.sh` pod CI, smoke test, skrypt użytkownika `deploy`, instrukcja po polsku, lokalne testy skryptów (w tym wykrycie błędów: kodowanie Pythona na Windows, CRLF w skryptach, nazwa skryptu Blazor z importmapy)
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — przegląd P1, lokalne Cesium i czcionki (weryfikacja zgodności z CDN, test w przeglądarce bez zewnętrznych żądań), diagnoza klucza SSH w CI
 - 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
 - 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — integracja modelu GLB (skala, orientacja, ładowanie w tle, fallback, podążanie za terenem), oświetlenie sceny z efemeryd, testy w 3 przeglądarkach
@@ -157,7 +158,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Twierdzenie NASA o 6,5 dnia** pochodzi z komunikatu z 2022 (13 regionów) i dosłownie obejmuje tylko 5 z naszych 9 regionów. Na pitchu nie mówić „NASA potwierdza dla wszystkich 9”.
 - **Dane lądowników HLS to głównie założenia** — moc paneli, bateria i obciążenia Starship HLS i Blue Moon nie są publikowane (ASSUMPTION). Wyniki dla HLS trzeba na pitchu przedstawiać jako szacunek klasy, nie dane producenta.
 - **Dwa linki źródłowe nie odpowiadają automatom** (sprawdzone 2026-11-14 ~12:50): `nasaspaceflight.com` (Griffin, czas misji) zwraca 403 dla zapytań automatycznych, a cały `collectspace.com` (Blue Moon: czas misji, załoga, panele) zwracał 522 (awaria serwera). Sprawdzić ręcznie w przeglądarce przed zgłoszeniem; `nasaspaceflight.com/tag/viper/` to strona tagu, czyli słabe źródło, więc warto podmienić na konkretny artykuł.
-- **Demo zależy od internetu** — Cesium z CDN, Google Fonts i kafle Moon Trek są online. Łamie to zasadę „offline”. → P0.
+- **Demo zależy od internetu tylko przez kafle Moon Trek** — Cesium i czcionki są lokalne od `c6085d3`. Bez sieci globus powinien zostać bez zdjęć (szary kolor bazowy z `moonViewer.js`), a reszta aplikacji działać — nie sprawdzone przy wyłączonej sieci. → P0.
 - **Teren 3D tylko lokalnie** — asset Moon Terrain jest już na koncie i lokalnie działa „3D TERRAIN”. Token jest tylko w `appsettings.Development.json` (gitignored, wykluczony z publikacji), więc wdrożona wersja pokaże „2D MOSAIC MODE”, dopóki nie zostanie podjęta decyzja o tokenie z ograniczeniem do domeny.
 - **Przybliżenie liniowe tarczy Słońca** — maksymalny błąd to 5,8 pkt proc. przy częściowym zakryciu. Statystyka „jakiekolwiek światło” nie jest dotknięta.
 - **Uproszczenia modelu** — Księżyc jako sfera R = 1737,4 km, horyzont do 150 km, DEM 120 m/px, okres 2027–28 (nie pełny cykl 18,6 roku). „Ziemia widoczna” to nie to samo co kontakt ze stacją DSN.
