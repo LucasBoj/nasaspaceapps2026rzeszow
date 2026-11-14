@@ -12,10 +12,41 @@ public class WindowOptimizerTests
     public void Score_formula_on_hand_computed_mission()
     {
         // Same case as MissionSimulatorTests: min SoC 50 %, comms 50 %, lit 37.5 %
-        // score = 50 × 0.50 + 30 × 0.50 + 20 × 0.375 = 25 + 15 + 7.5 = 47.5
+        // energy: produced 3 h × 100 W = 300 Wh, used 3 × 40 + 5 × 20 = 220 Wh → surplus = 300/220 − 1 = 0.3636…
+        // score = 40 × 0.50 + 25 × 0.50 + 15 × 0.375 + 20 × 0.3636… = 20 + 12.5 + 5.625 + 7.2727… = 45.3977…
         var series = Fixtures.Series([100, 100, 100, 0, 0, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0, 0]);
         var r = MissionSimulator.Run(series, Lander, Fixtures.T0, 8.0 / 24, Thresholds);
-        Assert.Equal(47.5, WindowOptimizer.Score(r), 9);
+        Assert.Equal(300, r.EnergyProducedWh, 9);
+        Assert.Equal(220, r.EnergyLoadWh, 9);
+        Assert.Equal(20 + 12.5 + 5.625 + 20 * (300.0 / 220 - 1), WindowOptimizer.Score(r), 9);
+    }
+
+    [Fact]
+    public void Surplus_separates_missions_whose_battery_never_drops()
+    {
+        // Both stay at 100 % SoC with full comms and light — the old formula scored both 100.
+        var sunny = Fixtures.Series(Fixtures.Repeat([100], 24), Enumerable.Repeat(1, 24).ToArray());
+        var thin = MissionSimulator.Run(sunny, Lander with { DayLoadW = 90 }, Fixtures.T0, 1, Thresholds);   // 100 W vs 90 W
+        var rich = MissionSimulator.Run(sunny, Lander with { DayLoadW = 40 }, Fixtures.T0, 1, Thresholds);   // 100 W vs 40 W
+        Assert.Equal(100, thin.MinSocPct, 9);
+        Assert.Equal(100, rich.MinSocPct, 9);
+        Assert.Equal(80 + 20 * (100.0 / 90 - 1), WindowOptimizer.Score(thin), 9);
+        Assert.Equal(100, WindowOptimizer.Score(rich), 9);                 // surplus clamps at 1 (≥ 2× the need)
+        Assert.True(WindowOptimizer.Score(rich) > WindowOptimizer.Score(thin));
+    }
+
+    [Fact]
+    public async Task Heatmap_carries_per_cell_metrics()
+    {
+        var sunny = Fixtures.Series(Fixtures.Repeat([100], 48), Enumerable.Repeat(1, 48).ToArray());
+        var result = await WindowOptimizer.RunAsync([new("s", "S", sunny)], Lander, Fixtures.T0, Fixtures.T0.AddDays(5), 1, Thresholds);
+        Assert.Equal(2, result.Days);
+        Assert.Equal(100, result.SunPct[0, 0], 9);
+        Assert.Equal(100, result.CommsPct[0, 0], 9);
+        Assert.Equal(2.5, result.EnergyRatio[0, 0], 9);                    // 100 W produced / 40 W used
+        Assert.Equal(100, result.MinSocPct[0, 0], 9);
+        Assert.True(double.IsNaN(result.HeadingDeg[0, 0]));                 // ideal tracking: no heading
+        Assert.Equal(1, result.PanelEfficiency[0, 0], 9);
     }
 
     [Fact]

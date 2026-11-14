@@ -13,6 +13,14 @@ public sealed class HeatmapResult
     public required int Days { get; init; }
     public required double[,] Scores { get; init; }      // [site, day], 0 = not feasible
     public required Verdict[,] Verdicts { get; init; }
+
+    // Per-cell metrics for the heatmap modes and the tooltip ([site, day]).
+    public required double[,] SunPct { get; init; }          // lit hours (sunFraction ≥ 50) / all, %
+    public required double[,] CommsPct { get; init; }        // Earth-visible hours / all, %
+    public required double[,] EnergyRatio { get; init; }     // solar energy produced / energy used
+    public required double[,] MinSocPct { get; init; }
+    public required double[,] HeadingDeg { get; init; }      // NaN for ideal tracking
+    public required double[,] PanelEfficiency { get; init; } // produced / ideal-tracking, NaN when never lit
     public int BestSite { get; init; } = -1;
     public int BestDay { get; init; } = -1;
 
@@ -40,21 +48,30 @@ public static class WindowOptimizer
     /// Score 0–100.
     /// <code>
     ///   NOT FEASIBLE (battery depleted)          → 0
-    ///   otherwise  50 × socMargin + 30 × comms + 20 × light
+    ///   otherwise  40 × socMargin + 25 × comms + 15 × light + 20 × surplus
     ///     socMargin = minSoC% / 100              (0..1, how much battery is left at the worst hour)
     ///     comms     = Earth-visible hours / all  (0..1)
     ///     light     = lit hours (sunFraction ≥ 50) / all (0..1)
+    ///     surplus   = clamp(produced / used − 1, 0, 1)   (solar energy beyond the mission's needs;
+    ///                 1 = at least twice what the mission uses)
     /// </code>
+    /// The surplus term separates missions whose battery never drops (min SoC 100 % for low-draw
+    /// landers), which the other terms alone scored identically.
     /// A surviving mission always scores at least 1, so it is distinguishable from "not feasible".
     /// </summary>
     public static double Score(SimulationResult r)
     {
         if (r.Verdict == Verdict.NotFeasible) return 0;
-        var score = 50 * Math.Clamp(r.MinSocPct / 100, 0, 1)
-                  + 30 * Math.Clamp(r.CommsPct / 100, 0, 1)
-                  + 20 * Math.Clamp(r.SunPct / 100, 0, 1);
+        var score = 40 * Math.Clamp(r.MinSocPct / 100, 0, 1)
+                  + 25 * Math.Clamp(r.CommsPct / 100, 0, 1)
+                  + 15 * Math.Clamp(r.SunPct / 100, 0, 1)
+                  + 20 * Surplus(r);
         return Math.Clamp(score, 1, 100);
     }
+
+    /// <summary>clamp(produced / used − 1, 0, 1); 0 when nothing is used.</summary>
+    public static double Surplus(SimulationResult r) =>
+        r.EnergyLoadWh > 0 ? Math.Clamp(r.EnergyProducedWh / r.EnergyLoadWh - 1, 0, 1) : 0;
 
     /// <summary>
     /// Landing days in [<paramref name="firstDayUtc"/>, <paramref name="lastDayUtc"/>] whose whole mission fits in the data.
@@ -80,6 +97,12 @@ public static class WindowOptimizer
 
         var scores = new double[sites.Count, days];
         var verdicts = new Verdict[sites.Count, days];
+        var sunPct = new double[sites.Count, days];
+        var commsPct = new double[sites.Count, days];
+        var energyRatio = new double[sites.Count, days];
+        var minSoc = new double[sites.Count, days];
+        var heading = new double[sites.Count, days];
+        var efficiency = new double[sites.Count, days];
         int bestSite = -1, bestDay = -1;
         double bestScore = 0;
         var total = Math.Max(1, sites.Count * days);
@@ -94,6 +117,12 @@ public static class WindowOptimizer
                 var score = Score(r);
                 scores[s, d] = score;
                 verdicts[s, d] = r.Verdict;
+                sunPct[s, d] = r.SunPct;
+                commsPct[s, d] = r.CommsPct;
+                energyRatio[s, d] = r.EnergyLoadWh > 0 ? r.EnergyProducedWh / r.EnergyLoadWh : 0;
+                minSoc[s, d] = r.MinSocPct;
+                heading[s, d] = r.HeadingDeg ?? double.NaN;
+                efficiency[s, d] = r.PanelEfficiency;
                 // Ties go to the earliest landing day (the soonest opportunity), not to list order.
                 if (score > bestScore || (score > 0 && score == bestScore && d < bestDay))
                 {
@@ -114,6 +143,8 @@ public static class WindowOptimizer
         {
             Sites = sites, FirstDayUtc = first, Days = days,
             Scores = scores, Verdicts = verdicts, BestSite = bestSite, BestDay = bestDay,
+            SunPct = sunPct, CommsPct = commsPct, EnergyRatio = energyRatio, MinSocPct = minSoc,
+            HeadingDeg = heading, PanelEfficiency = efficiency,
         };
     }
 }
