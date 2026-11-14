@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 18:30 CET
+**Ostatnia aktualizacja:** 2026-11-14 17:35 CET (wpisy 18:25–18:30 mają czas z innego komputera)
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -51,6 +51,7 @@
 - [x] Animacja lądowania (P2 „Animacja lądowania”): osobny moduł `landingAnimation.js`, własny schematyczny model z prymitywów Cesium (CLPS / HLS), opadanie z 15 km z krzywą hamowania, kamera pościgowa i orbita, pierścień pyłu i błysk; HUD „SIMULATED DESCENT” z ALT, V/S, RANGE i fazami z tej samej krzywej; przycisk CONFIRM LANDING SITE i QUICK DEMO z analizą liczoną równolegle; pomijanie (klik, SKIP, Esc); flaga `features.landingAnimation` + przełącznik w HUD; tryb ograniczonego ruchu; wysokość z terenu 3D z fallbackiem na elipsoidę. Testy: Chromium 3D/2D, Firefox, WebKit — 22/22 — 2026-11-14 16:25 — `c726269` — AI: Claude Code
 - [x] Model 3D Nova-C (GLB, tylko dla `nova_c`): skalowanie do 4 m z bounding boxa, orientacja glTF Y-up → pion miejsca (nogi w dół, sprawdzone), ładowanie w tle i pula modeli, fallback na model z prymitywów; lądownik i znacznik podążają za faktycznie wyrenderowanym terenem; światło sceny = Słońce z efemeryd (az/el dla miejsca i chwili), miękkie cienie, światło wypełniające i otoczenia; atrybucja w stopce. Testy GLB 11/11 w Chromium (3D i 2D), Firefox, WebKit — 2026-11-14 17:35 — `345d6f8` — model: zespół (Meshy AI + Microsoft TRELLIS.2), integracja: AI: Claude Code
 - [x] Przygotowanie wdrożenia na Mikrus: `deploy/nginx-selene.conf` (stable :80 + preview :8080, MIME, gzip_static, cache, nagłówki bezpieczeństwa), `deploy/server-setup.sh` (idempotentny), `deploy/deploy.sh` (publish, kontrole, opcjonalny token z ENV, absolutny `og:image`, kompresja GLB, rsync, curl; tryb `--build-only`), `deploy/README.md`; kompresja i trimming włączone jawnie i sprawdzone. Lokalnie: build Release 39 MB, testy na serwerze zachowującym się jak nginx 23/23 + 11/11 — 2026-11-14 18:25 — `83a84bc` — AI: Claude Code (rsync/ssh nie były uruchamiane)
+- [x] Stałe panele i kąt padania Słońca (cosinus Lamberta): geometria paneli w `landers.json → panels` (opis od zespołu, ASSUMPTION), `SolarGeometry` z normalizacją K (opublikowana moc = moc przy najlepszym kierunku Słońca), kurs lądowania AUTO (maksimum energii misji) + what-if kurs ręczny i idealne śledzenie; nowe metryki (energia wyprodukowana / idealna / zużyta, sprawność geometryczna, zakres elewacji Słońca i Ziemi, najdłuższy okres światła, najdłuższa przerwa w łączności), maksymalna wykonalna długość pobytu, powód werdyktu wskazujący geometrię paneli. Na prawdziwych danych: stałe panele utrzymują misję CLPS na biegunie ~7–8 dni (Nobile Rim 1, Nova-C: 7 d → 133/239 dni lądowania FEASIBLE, 10 d → 0), więc QUICK DEMO używa 7 dni. Testy xUnit 28/28 — 2026-11-14 17:34 CET — `94e1d28` — AI: Claude Code (UI w kolejnym kroku)
 
 ## 🔄 In progress
 
@@ -119,6 +120,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — przygotowanie wdrożenia (nginx, skrypty setup/deploy, README), weryfikacja buildu Release z trimmingiem na serwerze zachowującym się jak nginx
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — model stałych paneli z kątem padania (Lambert), kurs AUTO, metryki mocy i łączności, maksymalna długość pobytu, testy xUnit, analiza wykonalności na prawdziwych danych
 - 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
 - 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — integracja modelu GLB (skala, orientacja, ładowanie w tle, fallback, podążanie za terenem), oświetlenie sceny z efemeryd, testy w 3 przeglądarkach
@@ -128,7 +130,10 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 ## ⚠️ Known issues / ryzyka
 
 - ~~Przybliżone współrzędne miejsc~~ — rozwiązane w `7578ae8` (miejsca z Wueller et al. 2026).
-- **Optymistyczny model produkcji energii** — produkcja = moc nominalna paneli × ułamek widocznej tarczy Słońca. Nie uwzględnia orientacji paneli względem nisko stojącego Słońca, temperatury, sprawności ładowania i rozładowania ani degradacji. Wyniki traktować jako górną granicę; na pitchu mówić o tym wprost.
+- **Model produkcji energii** — od `94e1d28` uwzględnia kąt padania Słońca na stałe panele (Lambert) i kurs lądowania. Nadal nie uwzględnia temperatury, sprawności ładowania i rozładowania, degradacji ani nachylenia terenu (panel liczony względem lokalnej poziomicy; kandydaci mają ≤ 4°). Geometria paneli to opis zespołu z założeniami (które ściany, podział mocy, nachylenie panelu Griffina) — potrzebne źródła. HLS liczone jako idealne śledzenie (górna granica).
+- **Normalizacja mocy paneli (interpretacja)** — `solarArrayW` traktujemy jako moc przy najlepszym kierunku Słońca dla danej geometrii (el 0–10°), a nie sumę mocy znamionowych ścian. Gdyby to była suma znamionowa, wyniki byłyby jeszcze gorsze (Nova-C ×0,63, Blue Ghost ×0,39).
+- **Blue Ghost: moc paneli** — zespół podał „nominalnie ~450 W, szczytowo 650 W”, w `landers.json` jest 400 W (SOURCED, fireflyspace.com). Nie zmienione bez `sourceUrl`.
+- **Obciążenia dzienne CLPS to założenia (ASSUMPTION, 70–75% mocy szczytowej)** — przy stałych panelach decydują o wykonalności; warto znaleźć źródła.
 - **Lądowanie zawsze o 00:00 UTC** — optymalizator sprawdza jedną godzinę lądowania na dzień i nie modeluje ograniczeń trajektorii ani startu.
 - **Okno w sekcji 03 to daty lądowania** — misja musi zmieścić się w danych, więc ostatni możliwy dzień lądowania to koniec danych minus długość misji.
 - **Mapa ciepła to canvas** — czytnik ekranu dostaje tylko opis; obsługa z klawiatury przez przyciski „najlepsza data” pod mapą.
