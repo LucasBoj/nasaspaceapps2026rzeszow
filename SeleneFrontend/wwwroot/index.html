@@ -20,11 +20,12 @@
     <script type="importmap"></script>
     <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="css/app.css" />
-    <link rel="preconnect" href="https://cesium.com" crossorigin />
     <link rel="preconnect" href="https://trek.nasa.gov" crossorigin />
-    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Widgets/widgets.css" />
+    <!-- CesiumJS 1.120 is self-hosted (lib/cesium-1.120, byte-identical to the cesium.com build) so the demo
+         works offline. Cesium finds its Workers/Assets next to this script. The folder name carries the version. -->
+    <link rel="stylesheet" href="lib/cesium-1.120/Widgets/widgets.css" />
     <!-- defer: download in parallel with the .NET runtime instead of blocking it; the viewer waits for window.Cesium. -->
-    <script defer src="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Cesium.js"></script>
+    <script defer src="lib/cesium-1.120/Cesium.js"></script>
 </head>
 <body>
     <div id="app"></div>
