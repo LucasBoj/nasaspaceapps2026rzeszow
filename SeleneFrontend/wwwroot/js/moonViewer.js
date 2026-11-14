@@ -54,6 +54,37 @@ let hoveredId = null;
 let pendingHoverPos = null;
 let hoverFrame = 0;
 
+// ---- Frame rate: every frame only while something moves ----
+// Cesium redraws the whole globe on every animation frame by default. The startup profile (2026-11-14,
+// tools/startup-profile) showed Scene.render taking about half of the main thread with a still camera — the
+// same thread the .NET analysis runs on. A still scene (selection pulse, hover, streaming tiles) is drawn at
+// IDLE_FPS; camera moves, the landing animation and its post-touchdown terrain settling get every frame.
+// Nothing is frozen: unlike requestRenderMode, the idle loop still draws everything, only less often.
+const IDLE_FPS = 24;
+const LANDING_SETTLE_MS = 9000;   // landingAnimation follows refining terrain tiles for ~8 s after touchdown
+let cameraMoving = false;
+let wasLanding = false;
+let fullRateUntil = 0;
+let frameRateTimer = 0;
+
+/** Full frame rate for at least the next <ms> (e.g. a marker turn that is not a camera move). */
+function fullRate(ms) {
+  fullRateUntil = Math.max(fullRateUntil, performance.now() + ms);
+  updateFrameRate();
+}
+
+function updateFrameRate() {
+  if (!viewer || viewer.isDestroyed()) return;
+  const landing = landingModule?.isAnimating?.() ?? false;
+  if (wasLanding && !landing) fullRateUntil = Math.max(fullRateUntil, performance.now() + LANDING_SETTLE_MS);
+  wasLanding = landing;
+  const target = cameraMoving || landing || performance.now() < fullRateUntil ? undefined : IDLE_FPS;
+  if (viewer.targetFrameRate !== target) viewer.targetFrameRate = target;
+}
+
+// Test hook: the current target frame rate (undefined = every animation frame).
+window.__seleneFrameRate = () => (viewer && !viewer.isDestroyed() ? viewer.targetFrameRate ?? "full" : null);
+
 export async function initViewer(elementId, token, dotNetReference) {
   dotNetRef = dotNetReference;
   const hasToken = typeof token === "string" && token.trim().length > 0;
@@ -154,6 +185,12 @@ function setupCameraControls() {
   // for seconds at start-up (1 fps, measured 2026-11-14). guardCamera() keeps the clearance instead.
   scene.preRender.addEventListener(guardCamera);
   document.addEventListener("keydown", onKeyDown);
+
+  viewer.camera.moveStart.addEventListener(() => { cameraMoving = true; updateFrameRate(); });
+  viewer.camera.moveEnd.addEventListener(() => { cameraMoving = false; fullRate(300); });
+  if (frameRateTimer) clearInterval(frameRateTimer);
+  frameRateTimer = setInterval(updateFrameRate, 200);
+  fullRate(1500);   // first tiles and the intro flight
 }
 
 function onKeyDown(e) {
@@ -652,6 +689,7 @@ export function flyToSite(siteId) {
 /** Play the landing animation; resolves with { status, fps, simplified }. */
 export async function playLanding(options, hudHost) {
   if (!viewer) return { status: "unavailable" };
+  fullRate(2000);   // until the module reports isAnimating()
   const m = await landing();
   return m.play(viewer, { ...options, hudHost, sunAzDeg: lastSunAzDeg });
 }
@@ -671,6 +709,7 @@ async function landing() {
  */
 export function setLanderHeading(headingDeg, auto, reducedMotion) {
   if (!viewer || !landingModule) return;
+  fullRate(3000);   // the landed marker turns to the new heading (its own animation frames)
   landingModule.setHeading(viewer, headingDeg, auto, reducedMotion);
 }
 
@@ -763,6 +802,8 @@ export function clearLandingMarker() {
 }
 
 export function dispose() {
+  if (frameRateTimer) clearInterval(frameRateTimer);
+  frameRateTimer = 0;
   clearLandingMarker();
   document.removeEventListener("keydown", onKeyDown);
   if (clickTimer) clearTimeout(clickTimer);

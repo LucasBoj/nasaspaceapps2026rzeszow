@@ -35,6 +35,14 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     public int HighlightBestToken { get; private set; }
 
     private string? _signature;
+
+    // The all-regions heatmap depends on the inputs (Signature), not on the selected site. It is computed once per
+    // signature and shared: QUICK DEMO or "Land & analyze" right after the startup run, or a click on another site,
+    // reuse it (or join the computation still in flight) instead of recomputing ~6,000 missions while the landing
+    // animation plays on the same single WebAssembly thread.
+    private string? _heatmapKey;
+    private Task<HeatmapResult>? _heatmapTask;
+    private CancellationTokenSource? _heatmapCts;
     private CancellationTokenSource? _cts;
     private Task? _current;
 
@@ -104,11 +112,13 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         var lander = BuildLanderInputs();
         if (lander is null) { Error = "selected lander has incomplete power data"; Notify(); return; }
 
+        var key = Signature();
+        var heatmapReusable = key == _heatmapKey && _heatmapTask is { IsFaulted: false, IsCanceled: false };
         IsRunning = true;
-        HeatmapPending = true;
+        HeatmapPending = !(heatmapReusable && _heatmapTask!.IsCompletedSuccessfully);
         Progress = 0;
         Error = null;
-        Heatmap = null;
+        if (!heatmapReusable) Heatmap = null;
         Notify();
         try
         {
@@ -116,42 +126,39 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             var duration = state.MissionDurationDays;
 
             // ---- Phase 1: selected site only → verdict + timeline in well under a second ----
-            var selectedSite = new OptimizerSite(selected.Id, selected.Name, await repo.GetSeries(selected.Id));
-            var quick = await WindowOptimizer.RunAsync([selectedSite], lander, state.WindowStart, state.WindowEnd, duration, Thresholds, ct: ct);
+            // With this signature's heatmap already computed, its row for the site is the same answer: no recompute.
+            var cached = heatmapReusable && _heatmapTask!.IsCompletedSuccessfully ? _heatmapTask.Result : null;
+            var cachedRow = cached?.Sites.ToList().FindIndex(x => x.Id == selected.Id) ?? -1;
+            var quick = cachedRow >= 0 ? cached! : await WindowOptimizer.RunAsync(
+                [new OptimizerSite(selected.Id, selected.Name, await repo.GetSeries(selected.Id))],
+                lander, state.WindowStart, state.WindowEnd, duration, Thresholds, ct: ct);
+            var row = Math.Max(0, cachedRow);
+            var selectedSite = quick.Sites[row];
             if (quick.Days == 0)
             {
                 Error = $"no landing day in the window leaves room for a {duration:0.#}-day mission ({state.DataRangeText})";
                 return;
             }
             // Nothing feasible: show the landing that lasts longest, not simply the first day of the window.
-            var quickDay = quick.BestDayFor(0);
-            if (quickDay < 0) quickDay = Math.Max(0, quick.LongestSurvivalDayFor(0));
+            var quickDay = quick.BestDayFor(row);
+            if (quickDay < 0) quickDay = Math.Max(0, quick.LongestSurvivalDayFor(row));
             SimulateSite(selectedSite, quick.DayUtc(quickDay), lander);
-            _signature = Signature();
+            _signature = key;
             Progress = 0.15;
             if (expand) ExpandToken++;
             Notify();
             await Task.Yield();
 
-            // ---- Phase 2: every region → heatmap ----
-            var sites = new List<OptimizerSite>();
-            foreach (var s in state.AvailableSites)
+            // ---- Phase 2: every region → heatmap (shared per signature, see _heatmapTask) ----
+            if (!heatmapReusable)
             {
-                ct.ThrowIfCancellationRequested();
-                sites.Add(s.Id == selectedSite.Id ? selectedSite : new OptimizerSite(s.Id, s.Name, await repo.GetSeries(s.Id)));
-                Progress = 0.15 + 0.15 * sites.Count / state.AvailableSites.Count;
-                Notify();
+                _heatmapCts?.Cancel();
+                _heatmapCts = new CancellationTokenSource();
+                _heatmapKey = key;
+                _heatmapTask = ComputeHeatmapAsync(selectedSite, lander, duration, _heatmapCts.Token);
             }
-
-            // Re-render at most ~50 times per run: every notification re-renders the panels.
-            var lastBucket = -1;
-            var progress = new ActionProgress(p =>
-            {
-                Progress = 0.3 + 0.7 * p;
-                var bucket = (int)(Progress * 50);
-                if (bucket != lastBucket) { lastBucket = bucket; Notify(); }
-            });
-            Heatmap = await WindowOptimizer.RunAsync(sites, lander, state.WindowStart, state.WindowEnd, duration, Thresholds, progress, ct);
+            // A newer run cancels only this wait; the computation goes on if that run has the same inputs.
+            Heatmap = await _heatmapTask!.WaitAsync(ct);
             if (highlightBest) HighlightBestToken++;
         }
         catch (OperationCanceledException)
@@ -175,6 +182,28 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             Progress = 1;
             Notify();
         }
+    }
+
+    private async Task<HeatmapResult> ComputeHeatmapAsync(OptimizerSite selectedSite, LanderInputs lander, double duration, CancellationToken ct)
+    {
+        var sites = new List<OptimizerSite>();
+        foreach (var s in state.AvailableSites)
+        {
+            ct.ThrowIfCancellationRequested();
+            sites.Add(s.Id == selectedSite.Id ? selectedSite : new OptimizerSite(s.Id, s.Name, await repo.GetSeries(s.Id)));
+            Progress = 0.15 + 0.15 * sites.Count / state.AvailableSites.Count;
+            Notify();
+        }
+
+        // Re-render at most ~50 times per run: every notification re-renders the panels.
+        var lastBucket = -1;
+        var progress = new ActionProgress(p =>
+        {
+            Progress = 0.3 + 0.7 * p;
+            var bucket = (int)(Progress * 50);
+            if (bucket != lastBucket) { lastBucket = bucket; Notify(); }
+        });
+        return await WindowOptimizer.RunAsync(sites, lander, state.WindowStart, state.WindowEnd, duration, Thresholds, progress, ct);
     }
 
     /// <summary>Heatmap click: select that site (camera flies there) and simulate that landing day.</summary>
