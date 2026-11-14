@@ -26,6 +26,7 @@
                     aria-describedby="@(Ui.ReducedMotion ? "replay-reason" : null)">↻ Replay</button>
             <button type="button" class="btn-secondary small" @onclick="Ui.ShowHeatmapAsync">Try another date</button>
             <button type="button" class="btn-secondary small" @onclick="Ui.NewLanding">New landing</button>
+            <button type="button" class="link-btn full-analysis-hint" @onclick="FullAnalysis">See the full analysis →</button>
             <button type="button" class="link-btn" @onclick="Ui.CloseReplay">Close</button>
         </div>
         @if (Ui.ReducedMotion)
@@ -49,6 +50,12 @@
         "complete-hls" => "MISSION COMPLETE · lift-off from the surface",
         _ => "MISSION COMPLETE · end of operations",
     };
+
+    private async Task FullAnalysis()
+    {
+        Ui.CloseReplay();
+        await Ui.ShowFullAnalysisAsync();
+    }
 
     protected override void OnInitialized() { Ui.OnChanged += Refresh; Analysis.OnChanged += Refresh; }
     private void Refresh() => InvokeAsync(StateHasChanged);

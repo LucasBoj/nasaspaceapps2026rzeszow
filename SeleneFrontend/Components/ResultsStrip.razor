@@ -8,8 +8,8 @@
 
 <div class="results-strip @(expanded ? "expanded" : "")" id="results-strip">
     @* Drag (or arrow keys) to trade Moon height for analysis height; the page scrolls when both do not fit. *@
-    <div class="results-resize" role="separator" aria-orientation="horizontal" aria-label="Resize the analysis panel (arrow keys)"
-         tabindex="0" @ref="handle"></div>
+    <div class="results-resize" role="separator" aria-orientation="horizontal" aria-label="Moon view height (arrow keys resize the analysis panel)"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0" @ref="handle"></div>
     <div class="results-head-row">
     <button type="button" class="results-header" aria-expanded="@(expanded ? "true" : "false")" aria-controls="results-content"
             @onclick="ToggleAsync">

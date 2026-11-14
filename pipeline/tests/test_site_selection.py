@@ -1,7 +1,7 @@
 """Tests for landing-site selection and the NASA 6.5-day sunlight statement.
 
 The NASA check reads the generated frontend data (``sites.json`` and
-``illumination/{siteId}.json``); it is skipped if the data has not been built.
+``illumination/{siteId}/{year}.json``); it is skipped if the data has not been built.
 """
 
 from __future__ import annotations

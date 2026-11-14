@@ -25,7 +25,7 @@ point and map). The samples are stored in ``data/nasa_illumination/samples.csv``
 so everything else, including the tests, runs offline.
 
 Our side, for the 9 landing sites in ``sites.json``: the stored 360° horizon mask
-(``illumination/{siteId}.json -> horizonDeg``, observer 2 m above the 120 m LOLA DEM)
+(``illumination/{siteId}/{year}.json -> horizonDeg``, observer 2 m above the 120 m LOLA DEM)
 combined with fresh Sun/Earth positions from ``ephemeris.MoonSky``:
 
 * ``ours18`` - share of hours with **any** part of the solar disc above the horizon

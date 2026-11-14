@@ -24,14 +24,14 @@
 - **3D terrain (optional):** Cesium Moon Terrain, ion asset `2684829` (already added to the team's ion account; works locally with the dev token).
 - **Cesium ion token:** only in `SeleneFrontend/wwwroot/appsettings.Development.json`, which is **gitignored**. **The repo is public — never commit the token.** `appsettings.json` keeps an empty value. Without a token the app falls back to 2D mosaic mode.
 
-## Data contract — `illumination/{siteId}.json` (single source of truth)
+## Data contract — `illumination/{siteId}/{year}.json` (single source of truth)
 
 Change it only deliberately: describe the change here, then update both the pipeline and the frontend.
 
 ```jsonc
 {
   "siteId": "malapert_massif", "lat": -85.8, "lon": -3.5, "observerHeightM": 2,
-  "start": "2027-01-01T00:00:00Z", "stepHours": 1, "count": 17544,
+  "start": "2027-01-01T00:00:00Z", "stepHours": 1, "count": 8760,   // per calendar year (2026 starts 2026-11-01)
   "sunFraction": [0..100],        // int, % of the solar disk above the local horizon
   "sunElevCentiDeg": [int],       // Sun elevation × 100
   "sunAzCentiDeg": [int],         // Sun azimuth × 100, clockwise from lunar north
@@ -43,11 +43,11 @@ Change it only deliberately: describe the change here, then update both the pipe
 }
 ```
 
-`illumination/index.json` holds `{start, end, stepHours, observerHeightM, dem, method, generatedAt, sites: [{siteId, name, lat, lon, file, pctSunlit, pctComms, longestDarkHours, horizonCoveragePct}]}`.
+`illumination/index.json` holds `{start, end, stepHours, years, observerHeightM, dem, method, generatedAt, sites: [{siteId, name, lat, lon, files: {"2027": "site/2027.json", …}, pctSunlit, pctComms, longestDarkHours, horizonCoveragePct, byYear: {"2027": {pctSunlit, pctComms, longestDarkHours}, …}}]}`. Range 2026-11-01 … 2035-12-31 (DE421 and `moon_pa_de421_1900-2050` cover it). The frontend (`IlluminationRepository`) loads only the years of the landing window (+62 days for the mission and the max-stay cap) and joins them (`IlluminationSeries.Concat`); the window is limited to 24 months and starts no earlier than today.
 
 Time for sample `i` is `start + i × stepHours`.
 
-**Contract changelog:** 2026-11-14 added `earthAzCentiDeg` (additive; readers must tolerate missing fields in older files).
+**Contract changelog:** 2026-11-14 added `earthAzCentiDeg` (additive; readers must tolerate missing fields in older files). 2026-11-15 **one file per site and calendar year** (`{siteId}/{year}.json`, same fields, own `start`/`count`), range 2026-11 … 2035; `index.json` gains `years`, `files`, `byYear` and drops `file`; the single `{siteId}.json` files are removed (`build.py` deletes them).
 
 ## Energy model (fixed panels, Lambert incidence)
 

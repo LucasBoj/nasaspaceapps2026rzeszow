@@ -280,6 +280,9 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         await ApplyRecommendedScenarioAsync(fly: false);   // the landing (or its fallback fly-to) moves the camera
         ResultsTab = "mission";
         Notify();
+        // Clicked right after opening the page: wait for the 3D view (≤ 15 s) so the demo shows the landing
+        // and the mission replay instead of the fly-to fallback.
+        if (LandingAnimationEnabled && !ViewerReady) await Task.WhenAny(_viewerReady.Task, Task.Delay(15000));
         await ConfirmLandingAsync(highlightBest: true);
         if (!AnalystMode && VerdictRequested) { FullAnalysisHint = true; Notify(); }
         // The demo ends with the mission played back (can be skipped from its HUD).

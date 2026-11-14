@@ -104,7 +104,9 @@ export function attachResultsResize(handle) {
     const a = app(); if (!a) return;
     const max = window.innerHeight - px(".top-bar") - 48;
     a.dataset.userSized = "1";
-    a.style.setProperty("--moon-h", `${Math.round(Math.min(max, Math.max(MIN_MOON_PX - 80, h)))}px`);
+    const v = Math.round(Math.min(max, Math.max(MIN_MOON_PX - 80, h)));
+    a.style.setProperty("--moon-h", `${v}px`);
+    handle.setAttribute("aria-valuenow", String(Math.round((100 * v) / window.innerHeight)));
   };
   handle.addEventListener("pointerdown", (e) => {
     e.preventDefault();
