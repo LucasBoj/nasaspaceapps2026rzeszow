@@ -18,6 +18,7 @@
 ## Data sources
 
 - **Terrain:** NASA LRO/LOLA, `ldem_75s_120m_float` (PDS Geosciences Node, polar stereographic, 120 m/px).
+- **Landing sites:** Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434, Table A1 via Zenodo doi:10.5281/zenodo.17084058 (CC-BY-4.0, attribution required).
 - **Ephemerides:** JPL DE421 plus lunar orientation kernels (NAIF), computed via Skyfield.
 - **Imagery:** NASA/JPL Moon Trek, LRO WAC mosaic (tiles `trek.nasa.gov`, no token needed).
 - **3D terrain (optional):** Cesium Moon Terrain, ion asset `2684829`. It has to be added to the account in Cesium ion with "Add to my assets".
@@ -76,4 +77,5 @@ python -m pytest -q
 - `type=number` inputs: format and parse with `CultureInfo.InvariantCulture`. The browser runs with `pl` culture.
 - LOLA `float_img`: open the **`.lbl`**, not the `.img`. Heights are in **km**. The label `OFFSET` is the sphere radius, not a height offset.
 - A running `dotnet watch` locks `obj/`. For a second, test instance use `dotnet run --no-build --urls …`.
-- `sites.json` coordinates are approximate and land on slopes and crater floors, so the illumination results for those points are misleading. See ROADMAP → Known issues.
+- `sites.json` is **generated** by `pipeline/select_sites.py` from Wueller et al. (2026) candidates (Zenodo, CC-BY-4.0). Do not edit coordinates by hand; re-run the pipeline. Their shapefile projection has true scale at −70°, unlike the DEM (−90°), so always reproject with the shipped `.prj`.
+- "Lit" has two definitions: `index.json → pctSunlit` uses `sunFraction > 0`, while site selection and the 6.5-day test use `≥ 50`.

@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 13:05 CET
+**Ostatnia aktualizacja:** 2026-11-14 13:40 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -32,6 +32,9 @@
 - [x] Parametry lądowników ze źródłami: każda wartość w `landers.json` ma `{value, unit, kind, note, sourceUrl}` (dane od zespołu); usunięte presety CUSTOM — 2026-11-14 13:00 — `f04be25` — dane: zespół, implementacja: AI: Claude Code
 - [x] Wybór lądownika tylko do odczytu: tabela SPECS z plakietkami SOURCED/DERIVED/ASSUMPTION, popover ⓘ z notatką i linkiem (obsługa klawiatury), plakietka „DATA: …” na karcie, panel LANDER IMPACT liczony na żywo, zwinięty panel „What-if” z suwakami i „Reset to data”, wybór lądownika ustawia długość misji — 2026-11-14 13:00 — `f04be25` — AI: Claude Code
 - [x] Pola liczbowe i daty w sekcjach 03/04 niezależne od kultury przeglądarki (wcześniej 6,5 dnia dawało puste pole) — 2026-11-14 13:00 — `f04be25` — AI: Claude Code
+- [x] Prawdziwe miejsca lądowania: 130 kandydatów z Wueller et al. (2026, JGR Planets, doi:10.1029/2025JE009434; dane Zenodo 10.5281/zenodo.17084058, CC-BY-4.0) → `pipeline/data/wueller2026_sites.csv`; wszystkie 9 regionów pokryte (78 kandydatów, fallback siatki niepotrzebny) — 2026-11-14 13:35 — `7578ae8` — AI: Claude Code
+- [x] Wybór najlepszego miejsca w każdym regionie (`select_sites.py`): filtr nachylenia z DEM, ocena 2027–28, ranking; `sites.json` z `source`, `candidateId`, `regionCenter`, `alternatives`; `illumination/candidates/*.json` do nakładki; przeliczone `illumination/*.json` — 2026-11-14 13:35 — `7578ae8` — AI: Claude Code. Wyniki np. Malapert 41,5% → 81,9% czasu w świetle, Nobile Rim 2: 0% → 53,8%.
+- [x] Walidacja z twierdzeniem NASA o 6,5 dnia ciągłego światła: 9/9 regionów spełnia (test + tabela w `pipeline/README.md`). Uwaga: twierdzenie NASA z 2022 dotyczy dosłownie 5 z 9 regionów; dla 4 dodanych w 2024 to nasze kryterium. Dodatkowo kontrola spójności z wyliczeniami autorów (`SunDays`): 15/18 zgodnych — 2026-11-14 13:35 — `7578ae8` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -43,9 +46,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P0
 
-- [ ] **Weryfikacja współrzędnych 9 regionów Artemis III ze źródła NASA i uzupełnienie pola `source`** — A
-  - Gotowe, gdy: każde miejsce w `sites.json` ma współrzędne ze źródłem NASA (URL) i `approximate` zgodne z prawdą, a pipeline jest przeliczony ponownie.
-  - Uwaga: obecne punkty leżą na zboczach i w kraterach. Opcja: w każdym regionie automatycznie wybierać najlepiej oświetlony punkt i opisać to jako metodę.
 - [ ] **Model energii i łączności w C#**: bilans baterii godzina po godzinie z `illumination/{siteId}.json` i parametrów lądownika — B
   - Gotowe, gdy: serwis liczy dla wybranego okna serię stanu baterii (SoC) i łączności, zwraca werdykt (wykonalne/niewykonalne + powód) oraz ma testy jednostkowe z ręcznie policzonym przypadkiem.
   - Uwaga: frontend nie czyta jeszcze plików `illumination/*.json`. Parametry lądownika brać przez `MissionConfigState.Effective(...)` (uwzględnia what-if), a `dayLoadW` i `missionDurationDays` z presetu. Werdykt powinien pokazywać najsłabszy rodzaj danych wejściowych (np. „based on ASSUMPTION”).
@@ -65,6 +65,10 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - Gotowe, gdy: wideo ≤ 30 s z angielskimi napisami jest podpięte do zgłoszenia.
 
 ### P1
+
+- [ ] **Nakładka kandydatów na mapie**: pinezki/kropki z `illumination/candidates/{regionId}.json` (kolor wg lit %, odrzucone wyszarzone) i alternatywy z `sites.json` w panelu sekcji 01 — C
+  - Gotowe, gdy: po wybraniu regionu widać wszystkich ocenionych kandydatów z wartościami w tooltipie, a kliknięcie alternatywy przełącza miejsce.
+- [ ] **Pokazanie źródła miejsca w UI** (`source`, `candidateId`, „best of N”) w sekcji 01, z linkiem do DOI — C
 
 - [ ] **Wykres „nasze vs NASA”**: porównanie naszego oświetlenia z opublikowanymi mapami oświetlenia LOLA (PGDA / LROC) — A
   - Gotowe, gdy: dla kilku punktów jest wykres lub tabela z różnicą i opisem źródeł. Walidacja liczbowa grzbietu jest już zrobiona.
@@ -98,10 +102,14 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — pipeline Python (horyzont LOLA, efemerydy Skyfield), testy, walidacja z literaturą
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — `CLAUDE.md` i `ROADMAP.md` na podstawie przeglądu kodu
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — wybór lądownika tylko do odczytu (SPECS z pochodzeniem danych, LANDER IMPACT, what-if), weryfikacja dostępności linków źródłowych, testy w przeglądarce
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
 
 ## ⚠️ Known issues / ryzyka
 
-- **Przybliżone współrzędne miejsc** — wszystkie 9 punktów w `sites.json` ma `approximate: true` i `source: "TODO"`. Punkty leżą na zboczach i w kraterach (średni horyzont 6–12°), więc wyniki są mylące, np. Nobile Rim 2 ma 0% światła, a Slater Plain 0% łączności. → P0 „Weryfikacja współrzędnych”.
+- ~~Przybliżone współrzędne miejsc~~ — rozwiązane w `7578ae8` (miejsca z Wueller et al. 2026).
+- **Dwie definicje „światła”** — `index.json → pctSunlit` liczy każde światło (`sunFraction > 0`), a wybór miejsc i walidacja używają `sunFraction ≥ 50` (`sunPct` w `candidates/*.json`). W UI i na pitchu zawsze podawać, którą liczbę pokazujemy.
+- **Optymizm DEM 120 m** — rozdzielczość 120 m wygładza drobną rzeźbę, co zawyża oświetlenie i zaniża nachylenia (wszyscy kandydaci ≤ 4°). Opcja P2: przeliczyć wybrane miejsca na DEM 20–60 m.
+- **Twierdzenie NASA o 6,5 dnia** pochodzi z komunikatu z 2022 (13 regionów) i dosłownie obejmuje tylko 5 z naszych 9 regionów. Na pitchu nie mówić „NASA potwierdza dla wszystkich 9”.
 - **Dane lądowników HLS to głównie założenia** — moc paneli, bateria i obciążenia Starship HLS i Blue Moon nie są publikowane (ASSUMPTION). Wyniki dla HLS trzeba na pitchu przedstawiać jako szacunek klasy, nie dane producenta.
 - **Dwa linki źródłowe nie odpowiadają automatom** (sprawdzone 2026-11-14 ~12:50): `nasaspaceflight.com` (Griffin, czas misji) zwraca 403 dla zapytań automatycznych, a cały `collectspace.com` (Blue Moon: czas misji, załoga, panele) zwracał 522 (awaria serwera). Sprawdzić ręcznie w przeglądarce przed zgłoszeniem; `nasaspaceflight.com/tag/viper/` to strona tagu, czyli słabe źródło, więc warto podmienić na konkretny artykuł.
 - **Demo zależy od internetu** — Cesium z CDN, Google Fonts i kafle Moon Trek są online. Łamie to zasadę „offline”. → P0.
