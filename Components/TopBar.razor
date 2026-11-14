@@ -1,0 +1,62 @@
+@using System.Globalization
+@implements IAsyncDisposable
+
+<header class="top-bar">
+    <div class="top-bar-left">
+        <div class="app-title">
+            <h1>SELENE OPS</h1>
+            <p>Lunar Landing Window Planner</p>
+        </div>
+    </div>
+    
+    <div class="top-bar-right">
+        <div class="utc-clock">
+            <span class="utc-time">@utcTime</span>
+        </div>
+        <div class="status-indicators">
+            <div class="status-item" title="Ephemeris data status">
+                <span class="status-dot" style="background: #ffb020;"></span>
+                <span>EPHEMERIS: NOT LOADED</span>
+            </div>
+            <div class="status-item" title="Terrain data source">
+                <span class="status-dot" style="background: #4fc3f7;"></span>
+                <span>TERRAIN: LOLA</span>
+            </div>
+            <div class="status-item" title="Data connectivity">
+                <span class="status-dot" style="background: #ff4d4f;"></span>
+                <span>DATA: OFFLINE</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+@code {
+    private string utcTime = "";
+    private PeriodicTimer? timer;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            UpdateTime();
+            timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            
+            while (await timer.WaitForNextTickAsync())
+            {
+                UpdateTime();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private void UpdateTime()
+    {
+        var utcNow = DateTime.UtcNow;
+        utcTime = utcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        timer?.Dispose();
+    }
+}

@@ -1,0 +1,93 @@
+[
+  {
+    "id": "nova_c",
+    "name": "Intuitive Machines Nova-C",
+    "class": "clps",
+    "defaultPowerW": null,
+    "defaultBatteryWh": null,
+    "defaultLoadW": null,
+    "defaultMaxDarknessH": null,
+    "power": 0,
+    "battery": 0,
+    "load": 0,
+    "maxDarkness": 0
+  },
+  {
+    "id": "blue_ghost",
+    "name": "Firefly Blue Ghost",
+    "class": "clps",
+    "defaultPowerW": null,
+    "defaultBatteryWh": null,
+    "defaultLoadW": null,
+    "defaultMaxDarknessH": null,
+    "power": 0,
+    "battery": 0,
+    "load": 0,
+    "maxDarkness": 0
+  },
+  {
+    "id": "griffin",
+    "name": "Astrobotic Griffin",
+    "class": "clps",
+    "defaultPowerW": null,
+    "defaultBatteryWh": null,
+    "defaultLoadW": null,
+    "defaultMaxDarknessH": null,
+    "power": 0,
+    "battery": 0,
+    "load": 0,
+    "maxDarkness": 0
+  },
+  {
+    "id": "custom_clps",
+    "name": "Custom",
+    "class": "clps",
+    "defaultPowerW": null,
+    "defaultBatteryWh": null,
+    "defaultLoadW": null,
+    "defaultMaxDarknessH": null,
+    "power": 0,
+    "battery": 0,
+    "load": 0,
+    "maxDarkness": 0
+  },
+  {
+    "id": "starship_hls",
+    "name": "SpaceX Starship HLS",
+    "class": "hls",
+    "defaultPowerW": null,
+    "defaultBatteryWh": null,
+    "defaultLoadW": null,
+    "defaultMaxDarknessH": null,
+    "power": 0,
+    "battery": 0,
+    "load": 0,
+    "maxDarkness": 0
+  },
+  {
+    "id": "blue_moon_mk2",
+    "name": "Blue Origin Blue Moon Mk2",
+    "class": "hls",
+    "defaultPowerW": null,
+    "defaultBatteryWh": null,
+    "defaultLoadW": null,
+    "defaultMaxDarknessH": null,
+    "power": 0,
+    "battery": 0,
+    "load": 0,
+    "maxDarkness": 0
+  },
+  {
+    "id": "custom_hls",
+    "name": "Custom",
+    "class": "hls",
+    "defaultPowerW": null,
+    "defaultBatteryWh": null,
+    "defaultLoadW": null,
+    "defaultMaxDarknessH": null,
+    "power": 0,
+    "battery": 0,
+    "load": 0,
+    "maxDarkness": 0
+  }
+]

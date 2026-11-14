@@ -1,0 +1,37 @@
+@page "/"
+@using SeleneFrontend.Components
+@using SeleneFrontend.Services
+
+<PageTitle>SELENE OPS · Lunar Landing Window Planner</PageTitle>
+
+<CascadingValue Value="missionState">
+    <div class="app-container">
+        <TopBar />
+        <div class="main-content">
+            <div class="moon-panel">
+                <MoonPanel @ref="moonPanel" />
+            </div>
+            <div class="splitter" @onmousedown="@(e => StartSplitterDrag(e))" title="Drag to resize"></div>
+            <div class="config-panel">
+                <ConfigPanel />
+            </div>
+        </div>
+        <ResultsStrip />
+    </div>
+</CascadingValue>
+
+@code {
+    [Inject]
+    private MissionConfigState missionState { get; set; } = null!;
+
+    private MoonPanel? moonPanel;
+    private bool draggingSplitter = false;
+    private double startX = 0;
+    private double startLeftWidth = 0;
+
+    private void StartSplitterDrag(MouseEventArgs e)
+    {
+        draggingSplitter = true;
+        startX = e.ClientX;
+    }
+}
