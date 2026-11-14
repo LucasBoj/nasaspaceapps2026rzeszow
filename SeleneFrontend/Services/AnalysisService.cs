@@ -190,12 +190,16 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     /// <summary>Longest stay the selected landing survives (each length with its own AUTO heading).</summary>
     public double? MaxSurvivableDays { get; private set; }
 
+    /// <summary>Verdict at loads ±20% and the break-even load for the shown mission (null before the first run).</summary>
+    public LoadSensitivity? LoadSensitivity { get; private set; }
+
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
     {
         Mission = MissionSimulator.Run(site.Series, lander, landingUtc, state.MissionDurationDays, Thresholds);
         // Same heading as the shown mission, so "max stay" and the verdict describe the same landing.
         MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
             landingUtc, Thresholds, MaxSurvivableCapDays);
+        LoadSensitivity = SensitivityAnalysis.ForLoad(site.Series, lander, Mission, Thresholds);
         MissionSiteId = site.Id;
         MissionSiteName = site.Name;
         ThresholdBatteryPct = state.MinBatteryPercent;

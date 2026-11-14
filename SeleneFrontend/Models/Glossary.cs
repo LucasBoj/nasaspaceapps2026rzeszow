@@ -20,6 +20,8 @@ public static class Glossary
         ("sunel", "Sun elevation", "Height of the Sun's centre above the local horizontal plane. Near the south pole it stays within a few degrees of the horizon, so terrain blocks it easily and vertical panels catch it best."),
         ("commsgap", "Comms gap", "Longest continuous stretch with Earth below the terrain horizon — no direct radio contact without a relay."),
         ("maxstay", "Max stay", "How long the battery would last if this landing (same date and heading) stayed on the surface longer than planned, capped at 30 days."),
+        ("loadsens", "Load sensitivity", "The same landing re-simulated with every power load 20% lower and 20% higher (day and survival loads together; panels, battery and heading unchanged). CLPS day loads are team assumptions, so a verdict that flips within ±20% should not be trusted on its own. The break-even figure is the largest load increase that still keeps the mission FEASIBLE."),
+        ("pointspread", "Landing accuracy", "Sunlit time on NASA's LOLA illumination map (Mazarico et al. 2011, 120 m) at this point and at its 8 neighbouring pixels, i.e. up to 120 m away. Landers touch down inside an ellipse hundreds of metres wide, and near the pole a single pixel can sit in the shadow of a ridge. POINT-SENSITIVE means a 120 m miss can cost 10 or more percentage points of sunlight."),
         ("verdict", "Verdict", "FEASIBLE: the battery never runs out and stays above your limits. MARGINAL: it survives but dips below the battery limit or misses the Earth-contact target. NOT FEASIBLE: the battery runs empty."),
     ];
 

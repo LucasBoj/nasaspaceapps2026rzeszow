@@ -928,6 +928,33 @@ html, body {
     margin: 0.15rem 0 0.75rem;
 }
 
+/* ---- Verdict robustness (load ±20%, landing ±120 m) ---- */
+.robustness {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0 0 0.75rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    background: var(--bg-raised);
+    font-size: 0.78rem;
+}
+.robustness:empty { display: none; }
+.robust-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; }
+.robust-label { font-family: 'IBM Plex Mono', monospace; color: var(--text-secondary); min-width: 9.5rem; }
+.robust-label .term-btn { font-size: 0.72rem; }
+.robust-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0 0.35rem;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+}
+.robust-badge.ok { color: var(--status-ok); }
+.robust-badge.warn { color: var(--status-warn); }
+.robust-detail { color: var(--text-primary); }
+
 .results-grid {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
