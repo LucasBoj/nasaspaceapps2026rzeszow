@@ -50,7 +50,16 @@
                     var open = openInfo == row.Key;
                     <tr>
                         <th scope="row">@row.Label</th>
-                        <td class="spec-value">@row.Display</td>
+                        <td class="spec-value">
+                            @if (row.Param is PanelLayout { IsFixed: true } layout)
+                            {
+                                <span class="spec-value-flex"><PanelDiagram Layout="layout" />@row.Display</span>
+                            }
+                            else
+                            {
+                                @row.Display
+                            }
+                        </td>
                         <td class="spec-kind"><KindBadge Kind="@row.Param.Kind" /></td>
                         <td class="spec-info">
                             <button type="button" class="info-btn" aria-label="@($"Source and note for {row.Label}")"
@@ -114,6 +123,43 @@
                                @oninput="e => OnSlider(slider.Key, e)" />
                     </div>
                 }
+                @if (MissionState.HasFixedPanels)
+                {
+                    var ideal = MissionState.IdealTracking;
+                    <div class="whatif-row">
+                        <span class="whatif-label" id="whatif-panels-label"><Term Key="incidence">Panels</Term></span>
+                        <span class="whatif-value">@(ideal ? "IDEAL TRACKING" : "FIXED")</span>
+                        @if (ideal)
+                        {
+                            <span class="kind-badge whatif">WHAT-IF</span>
+                        }
+                        <div class="segmented whatif-segmented" role="group" aria-labelledby="whatif-panels-label">
+                            <button type="button" class="segmented-option @(!ideal ? "active" : "")" aria-pressed="@(!ideal ? "true" : "false")"
+                                    @onclick="() => MissionState.ClearWhatIf(MissionConfigState.WhatIfIdealTracking)">FIXED (data)</button>
+                            <button type="button" class="segmented-option @(ideal ? "active" : "")" aria-pressed="@(ideal ? "true" : "false")"
+                                    @onclick="() => MissionState.SetWhatIf(MissionConfigState.WhatIfIdealTracking, 1)">IDEAL (upper bound)</button>
+                        </div>
+                    </div>
+                    @if (!ideal)
+                    {
+                        var manual = MissionState.HeadingOverrideDeg;
+                        <div class="whatif-row">
+                            <span class="whatif-label"><label for="whatif-heading">Landing heading</label> <Term Key="heading" AriaLabel="About the landing heading">?</Term></span>
+                            <span class="whatif-value">@(manual is { } hd ? $"{Fmt(hd)}°" : "AUTO")</span>
+                            @if (manual is not null)
+                            {
+                                <button type="button" class="hud-btn small" @onclick="() => MissionState.ClearWhatIf(MissionConfigState.WhatIfHeadingDeg)">AUTO</button>
+                            }
+                            else
+                            {
+                                <span class="whatif-hint">best for each landing</span>
+                            }
+                            <input id="whatif-heading" type="range" min="0" max="355" step="5" value="@Fmt(manual ?? 0, raw: true)"
+                                   aria-valuetext="@(manual is { } v ? $"{Fmt(v)} degrees" : "AUTO")"
+                                   @oninput="e => OnSlider(MissionConfigState.WhatIfHeadingDeg, e)" />
+                        </div>
+                    }
+                }
                 <button type="button" class="btn-secondary whatif-reset" disabled="@(!MissionState.HasWhatIf)"
                         @onclick="MissionState.ResetWhatIf">Reset to data</button>
             </div>
@@ -159,6 +205,7 @@
     {
         static string Num(NumberParam p) => $"{Fmt(p.Value)} {p.Unit}".Trim();
         if (l.SolarArrayW is { } a) yield return new("solar", "Solar array", a, Num(a));
+        if (l.Panels is { } pl) yield return new("panels", "Panels", pl, PanelsText(pl));
         if (l.BatteryWh is { } b) yield return new("battery", "Battery", b, Num(b));
         if (l.DayLoadW is { } d) yield return new("dayload", "Day load", d, Num(d));
         if (l.SurvivalLoadW is { } s) yield return new("survival", "Survival load", s, Num(s));
@@ -166,6 +213,17 @@
         if (l.DesignedForNight is { } n) yield return new("night", "Night survival", n, n.Value ? "DESIGNED" : "NOT DESIGNED");
         if (l.Crew is { } c) yield return new("crew", "Crew", c, Num(c));
         if (l.PayloadKg is { } p) yield return new("payload", "Payload", p, Num(p));
+    }
+
+    private static string PanelsText(PanelLayout p)
+    {
+        if (!p.IsFixed) return "IDEAL TRACKING";
+        var walls = p.Facets.Count(f => f.Share > 0 && f.NormalElevDeg < 60);
+        var decks = p.Facets.Count(f => f.Share > 0 && f.NormalElevDeg >= 60);
+        var parts = new List<string>();
+        if (walls > 0) parts.Add($"{walls} wall");
+        if (decks > 0) parts.Add($"{decks} deck");
+        return "FIXED · " + string.Join(" + ", parts);
     }
 
     private static string NoteText(LanderParam p) =>
@@ -194,6 +252,15 @@
             yield return new("Daylight margin", $"≈ {(margin >= 0 ? "+" : "−")}{Fmt(Math.Abs(margin))} W",
                 Weakest(l.SolarArrayW, l.DayLoadW), MissionState.IsWhatIf(MissionConfigState.WhatIfSolarArrayW),
                 margin < 0 ? "negative" : "");
+        }
+
+        // How much a fixed array loses when the low polar Sun (≈ 3° high) is 90° off the lander's front.
+        if (solar is not null && PanelModel.For(l.Panels) is { } model && !MissionState.IdealTracking)
+        {
+            var sideOn = solar.Value * SolarGeometry.Factor(model, 3, 90, 0);
+            var tone = l.DayLoadW is { } dl && sideOn < dl.Value ? "warn" : "";
+            yield return new("Sun 90° off the front", $"≈ {Fmt(Math.Round(sideOn))} W",
+                Weakest(l.SolarArrayW, l.Panels), MissionState.IsWhatIf(MissionConfigState.WhatIfSolarArrayW), tone);
         }
 
         if (l.MissionDurationDays is { } m)

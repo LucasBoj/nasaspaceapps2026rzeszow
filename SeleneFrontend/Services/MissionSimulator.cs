@@ -32,6 +32,8 @@ public sealed record SimulationResult
     // ---- Panels and energy ----
     /// <summary>True when fixed body-mounted panels were simulated (Lambert incidence), false for ideal tracking.</summary>
     public bool FixedPanels { get; init; }
+    /// <summary>Array output with the Sun at the layout's best direction (= solarArrayW); scale of <see cref="PowerW"/>.</summary>
+    public double PeakPowerW { get; init; }
     /// <summary>Lander heading at touchdown used for the panels (null for ideal tracking).</summary>
     public double? HeadingDeg { get; init; }
     public bool HeadingAuto { get; init; }
@@ -202,6 +204,7 @@ public static class MissionSimulator
             PowerW = power,
             SunElevDeg = sunElev,
             FixedPanels = model is not null,
+            PeakPowerW = lander.SolarArrayW,
             HeadingDeg = heading,
             HeadingAuto = model is not null && lander.HeadingDeg is null,
             EnergyProducedWh = energyProduced,
@@ -231,10 +234,10 @@ public static class MissionSimulator
     }
 
     /// <summary>
-    /// Longest surface stay (days, one-step resolution) from <paramref name="landingUtc"/> that the battery survives.
-    /// Every candidate length is simulated on its own, with its own AUTO heading (or the manual heading), so this
-    /// answers "how long could this landing last". Capped at <paramref name="capDays"/> and at the end of the data.
-    /// Binary search: survival is treated as monotonic in mission length.
+    /// How long (days, one-step resolution) the battery lasts from <paramref name="landingUtc"/> if the stay is extended:
+    /// one simulation up to <paramref name="capDays"/> (or the end of the data) with the lander's heading.
+    /// Pass the shown mission's heading in <see cref="LanderInputs.HeadingDeg"/> so the answer matches that mission;
+    /// with a null heading the AUTO heading is chosen for the whole capped stay.
     /// </summary>
     public static double MaxSurvivableDays(IlluminationSeries series, LanderInputs lander, DateTime landingUtc,
                                            MissionThresholds thresholds, double capDays = 30)
@@ -243,18 +246,9 @@ public static class MissionSimulator
         if (start < 0) return 0;
         var dt = series.StepHours;
         var capSteps = Math.Min((int)Math.Floor(capDays * 24 / dt + 1e-9), series.Count - start);
-        var landing = series.TimeAt(start);
-        bool Survives(int n) => Run(series, lander, landing, n * dt / 24.0, thresholds, recordSeries: false).Survived;
-
-        if (capSteps <= 0 || !Survives(1)) return 0;
-        if (Survives(capSteps)) return capSteps * dt / 24.0;
-        int lo = 1, hi = capSteps;   // lo survives, hi does not
-        while (hi - lo > 1)
-        {
-            var mid = (lo + hi) / 2;
-            if (Survives(mid)) lo = mid; else hi = mid;
-        }
-        return lo * dt / 24.0;
+        if (capSteps <= 0) return 0;
+        var r = Run(series, lander, series.TimeAt(start), capSteps * dt / 24.0, thresholds, recordSeries: false);
+        return (r.DepletedAtStep ?? capSteps) * dt / 24.0;
     }
 
     /// <summary>Below this share of the ideal output, a daytime depletion is blamed on the panel geometry.</summary>

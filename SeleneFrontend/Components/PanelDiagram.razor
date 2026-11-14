@@ -1,0 +1,46 @@
+@using System.Globalization
+@using SeleneFrontend.Models
+
+@* Top view of a lander's fixed solar panels (own schematic, not a manufacturer drawing): walls as thick
+   segments with dashed normals, deck panels as a filled centre, the lander's front (heading) as a dot. *@
+<svg class="panel-diagram" viewBox="-15 -15 30 30" role="img" aria-label="@Aria">
+    <circle r="9" class="pd-body" />
+    @foreach (var f in Layout.Facets.Where(f => f.Share > 0))
+    {
+        if (f.NormalElevDeg >= 60)
+        {
+            <rect x="-4" y="-4" width="8" height="8" class="pd-deck" />
+        }
+        else
+        {
+            var a = (f.AzOffsetDeg + HeadingDeg) * Math.PI / 180;
+            var (nx, ny) = (Math.Sin(a), -Math.Cos(a));          // normal direction (screen: north up)
+            var (tx, ty) = (-ny, nx);                             // along the wall
+            var (cx, cy) = (nx * 9, ny * 9);
+            <line x1="@F(cx - tx * 4)" y1="@F(cy - ty * 4)" x2="@F(cx + tx * 4)" y2="@F(cy + ty * 4)" class="pd-wall" />
+            <line x1="@F(cx)" y1="@F(cy)" x2="@F(nx * 14)" y2="@F(ny * 14)" class="pd-normal" />
+        }
+    }
+    @{ var h = HeadingDeg * Math.PI / 180; }
+    <circle cx="@F(Math.Sin(h) * 5.5)" cy="@F(-Math.Cos(h) * 5.5)" r="1.4" class="pd-front" />
+</svg>
+
+@code {
+    [Parameter, EditorRequired] public PanelLayout Layout { get; set; } = null!;
+
+    /// <summary>Lander heading (0 = panels drawn relative to the lander's front, pointing up).</summary>
+    [Parameter] public double HeadingDeg { get; set; }
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private string Aria
+    {
+        get
+        {
+            var walls = Layout.Facets.Count(f => f.Share > 0 && f.NormalElevDeg < 60);
+            var decks = Layout.Facets.Count(f => f.Share > 0 && f.NormalElevDeg >= 60);
+            return $"Panel layout, top view: {walls} wall panel{(walls == 1 ? "" : "s")}" +
+                   (decks > 0 ? $" and {decks} top-deck panel{(decks == 1 ? "" : "s")}" : "") + ".";
+        }
+    }
+}

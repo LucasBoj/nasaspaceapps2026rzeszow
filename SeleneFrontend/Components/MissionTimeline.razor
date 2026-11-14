@@ -22,9 +22,19 @@
                     var sf = Result.Sun[i];
                     if (sf > 0)
                     {
+                        // Faint bar: sunlight available (disk fraction). Solid bar: what the panels actually deliver.
                         var h = sf * 0.28;
-                        <rect class="tl-sun @(sf >= 50 ? "" : "partial")" x="@F(i)" y="@F(30 - h)" width="1.02" height="@F(h)" />
+                        var p = PowerHeight(i);
+                        if (Result.FixedPanels)
+                        {
+                            <rect class="tl-sun-avail" x="@F(i)" y="@F(30 - h)" width="1.02" height="@F(h)" />
+                        }
+                        <rect class="tl-sun @(sf >= 50 ? "" : "partial")" x="@F(i)" y="@F(30 - p)" width="1.02" height="@F(p)" />
                     }
+                }
+                @if (HasSunElev)
+                {
+                    <polyline class="tl-sunel" points="@SunElPoints()" vector-effect="non-scaling-stroke" />
                 }
 
                 @foreach (var (from, len) in EarthRuns())
@@ -63,8 +73,20 @@
         </div>
     </div>
     <div class="timeline-legend" aria-hidden="true">
-        <span><i class="lg-sun"></i>sunlight (≥ 50 % disk)</span>
-        <span><i class="lg-sun partial"></i>partial</span>
+        @if (Result.FixedPanels)
+        {
+            <span><i class="lg-sun"></i>panel output (fixed panels)</span>
+            <span><i class="lg-sun-avail"></i>sunlight available</span>
+        }
+        else
+        {
+            <span><i class="lg-sun"></i>sunlight (≥ 50 % disk)</span>
+            <span><i class="lg-sun partial"></i>partial</span>
+        }
+        @if (HasSunElev)
+        {
+            <span><i class="lg-sunel"></i>Sun elevation (@F(SunElMin)…@F(SunElMax)°)</span>
+        }
         <span><i class="lg-earth"></i>Earth visible</span>
         <span><i class="lg-soc"></i>battery</span>
         <span><i class="lg-threshold"></i>min battery @F(ThresholdPct)%</span>
@@ -111,6 +133,20 @@
     private string SocPoints() =>
         string.Join(' ', Enumerable.Range(0, N).Select(i => $"{F(i + 0.5)},{F(SocY(Result.SocPct[i]))}"));
 
+    // ---- Panel output and Sun elevation (LIGHT track, y 0..30) ----
+    private const double SunElMin = -2, SunElMax = 10;   // fixed scale of the Sun-elevation line
+    private bool HasSunElev => Result.SunElevDeg.Length == N && N > 0;
+
+    private double PowerHeight(int i) =>
+        Result.PowerW.Length == N && Result.PeakPowerW > 0
+            ? Math.Clamp(Result.PowerW[i] / Result.PeakPowerW, 0, 1) * 28
+            : Result.Sun[i] * 0.28;
+
+    private static double SunElY(double el) => 30 - (Math.Clamp(el, SunElMin, SunElMax) - SunElMin) / (SunElMax - SunElMin) * 29;
+
+    private string SunElPoints() =>
+        string.Join(' ', Enumerable.Range(0, N).Select(i => $"{F(i + 0.5)},{F(SunElY(Result.SunElevDeg[i]))}"));
+
     private IEnumerable<(int From, int Len)> EarthRuns()
     {
         int start = -1;
@@ -133,8 +169,10 @@
     }
 
     private string Describe(int i) =>
-        $"{Result.TimeAt(i):yyyy-MM-dd HH:mm} UTC · day {Result.MissionDay(i)} · Sun {Result.Sun[i]}% · " +
-        $"Earth {(Result.Earth[i] == 1 ? "visible" : "hidden")} · battery {Result.SocPct[i]:0}%";
+        $"{Result.TimeAt(i):yyyy-MM-dd HH:mm} UTC · day {Result.MissionDay(i)} · Sun {Result.Sun[i]}%" +
+        (HasSunElev ? $" el {Result.SunElevDeg[i].ToString("0.0", CultureInfo.InvariantCulture)}°" : "") +
+        (Result.PowerW.Length == N ? $" · panels {Result.PowerW[i]:0} W" : "") +
+        $" · Earth {(Result.Earth[i] == 1 ? "visible" : "hidden")} · battery {Result.SocPct[i]:0}%";
 
     private string Readout => hover >= 0 && hover < N
         ? Describe(hover)

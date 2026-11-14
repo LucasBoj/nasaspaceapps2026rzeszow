@@ -27,6 +27,17 @@
             <text x="53" y="3" class="compass-cardinal">E</text>
             <text x="0" y="57" class="compass-cardinal">S</text>
             <text x="-53" y="3" class="compass-cardinal">W</text>
+            @if (PanelState() is { } ps)
+            {
+                @* Fixed panels: wall normals from the lander (centre) out to the horizon ring; lander front as a dot. *@
+                @foreach (var f in ps.Layout.Facets.Where(f => f.Share > 0 && f.NormalElevDeg < 60))
+                {
+                    var (px, py) = Polar(ps.Heading + f.AzOffsetDeg, 0);
+                    <line x1="0" y1="0" x2="@F(px)" y2="@F(py)" class="compass-panel" />
+                }
+                var (hx, hy) = Polar(ps.Heading, 9);
+                <circle cx="@F(hx)" cy="@F(hy)" r="2" class="compass-heading" />
+            }
             @if (earthAz is { } eaz)
             {
                 var (ex, ey) = Polar(eaz, earthEl);
@@ -39,6 +50,11 @@
             <div class="compass-time">@moment.ToString("yyyy-MM-dd HH:mm") UTC</div>
             <div><span class="dot sun"></span>SUN az @F0(sunAz)° · el @F1(sunEl)° · horizon @F1(HorizonAt(sunAz))° → @sunPct% disk</div>
             <div><span class="dot earth"></span>EARTH @(earthAz is { } a ? $"az {F0(a)}° · " : "")el @F1(earthEl)° · @(earthOn ? "in view" : "hidden")</div>
+            @if (PanelState() is { } p)
+            {
+                var output = SolarGeometry.Factor(p.Model, sunEl, sunAz, p.Heading) * sunPct;
+                <div><span class="dot panel"></span>PANELS hdg @F0(p.Heading)°@(p.Auto ? " (AUTO)" : "") → @F0(output)% of peak</div>
+            }
         </div>
     </div>
 }
@@ -82,6 +98,21 @@
         var d = "M" + string.Join("L", pts.Select(p => $"{F(p.X)},{F(p.Y)}")) + "Z";
         d += "M" + string.Join("L", outer.Select(p => $"{F(p.X)},{F(p.Y)}")) + "Z";
         return d;
+    }
+
+    private sealed record PanelInfo(PanelLayout Layout, PanelModel Model, double Heading, bool Auto);
+
+    /// <summary>
+    /// Fixed panels of the selected lander and their heading: the simulated mission's heading at this site
+    /// (AUTO or manual), else the manual what-if heading; null for ideal tracking or before any heading is known.
+    /// </summary>
+    private PanelInfo? PanelState()
+    {
+        var layout = MissionState.SelectedLander?.Panels;
+        if (MissionState.IdealTracking || PanelModel.For(layout) is not { } model) return null;
+        var mission = Analysis.MissionSiteId == MissionState.SelectedSite?.Id ? Analysis.Mission : null;
+        if (mission is { FixedPanels: true, HeadingDeg: { } h }) return new(layout!, model, h, mission.HeadingAuto);
+        return MissionState.HeadingOverrideDeg is { } manual ? new(layout!, model, manual, false) : null;
     }
 
     private static string AriaText(double sunAz, double sunEl, int sunPct, double? earthAz, double earthEl, bool earthOn) =>

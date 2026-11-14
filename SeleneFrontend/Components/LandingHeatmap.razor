@@ -3,15 +3,37 @@
 @inject IJSRuntime JS
 
 <div class="heatmap">
+    <div class="segmented heatmap-modes" role="group" aria-label="Heatmap colouring">
+        @foreach (var (key, label) in Modes)
+        {
+            var active = mode == key;
+            <button type="button" class="segmented-option @(active ? "active" : "")" aria-pressed="@(active ? "true" : "false")"
+                    @onclick="() => SetModeAsync(key)">@label</button>
+        }
+    </div>
     <div class="heatmap-canvas-wrap">
-        <canvas @ref="canvas" class="heatmap-canvas" role="img"
-                aria-label="Heatmap of landing feasibility score per region and landing day; use the best-date buttons below to select with the keyboard."></canvas>
+        <canvas @ref="canvas" class="heatmap-canvas" role="img" aria-label="@AriaLabel"></canvas>
         <div @ref="tooltip" class="heatmap-tooltip" hidden></div>
     </div>
     <div class="heatmap-legend" aria-hidden="true">
-        <span class="legend-swatch nogo"></span><span>not feasible</span>
-        <span class="legend-scale"></span><span>score 1 → 100</span>
-        <span class="legend-best"></span><span>best window</span>
+        @switch (mode)
+        {
+            case "light":
+                <span class="legend-scale light"></span><span>lit hours 0 → 100 % (≥ 50 % of the solar disk)</span>
+                break;
+            case "energy":
+                <span class="legend-scale energy-deficit"></span><span>deficit 0 → 1×</span>
+                <span class="legend-scale energy-surplus"></span><span>surplus 1 → 2× (solar produced / used)</span>
+                break;
+            case "earth":
+                <span class="legend-scale"></span><span>Earth in view 0 → 100 % of hours</span>
+                break;
+            default:
+                <span class="legend-swatch nogo"></span><span>not feasible</span>
+                <span class="legend-scale"></span><span>score 1 → 100</span>
+                break;
+        }
+        <span class="legend-best"></span><span>best window (by score)</span>
     </div>
 </div>
 
@@ -22,6 +44,33 @@
 
     /// <summary>Change to make the BEST WINDOW cell pulse once (QUICK DEMO).</summary>
     [Parameter] public int Pulse { get; set; }
+
+    private static readonly (string Key, string Label)[] Modes =
+    [
+        ("score", "SCORE"),
+        ("light", "LIGHT"),
+        ("energy", "ENERGY"),
+        ("earth", "EARTH"),
+    ];
+
+    private string mode = "score";
+
+    private string AriaLabel => mode switch
+    {
+        "light" => "Heatmap of the share of sunlit hours per region and landing day",
+        "energy" => "Heatmap of solar energy produced versus used per region and landing day",
+        "earth" => "Heatmap of the share of hours with Earth in view per region and landing day",
+        _ => "Heatmap of landing feasibility score per region and landing day",
+    } + "; use the best-date buttons below to select with the keyboard.";
+
+    private async Task SetModeAsync(string key)
+    {
+        if (mode == key) return;
+        mode = key;
+        if (module is null) return;
+        try { await module.InvokeVoidAsync("setMode", canvas, mode); }
+        catch (JSDisconnectedException) { }
+    }
 
     private ElementReference canvas;
     private ElementReference tooltip;
@@ -52,14 +101,30 @@
     private object Payload()
     {
         var sites = Result.Sites.Count;
-        var scores = new double[sites * Result.Days];
-        var verdicts = new int[sites * Result.Days];
+        var n = sites * Result.Days;
+        var scores = new double[n];
+        var verdicts = new int[n];
+        var sunPct = new double[n];
+        var commsPct = new double[n];
+        var energyRatio = new double[n];
+        var minSoc = new double[n];
+        var heading = new double[n];
+        var efficiency = new double[n];
+        // JSON has no NaN: −1 marks "not applicable" (ideal tracking, never lit).
+        static double Num(double v, int digits) => double.IsFinite(v) ? Math.Round(v, digits) : -1;
         for (var s = 0; s < sites; s++)
         {
             for (var d = 0; d < Result.Days; d++)
             {
-                scores[s * Result.Days + d] = Math.Round(Result.Scores[s, d], 1);
-                verdicts[s * Result.Days + d] = (int)Result.Verdicts[s, d];
+                var i = s * Result.Days + d;
+                scores[i] = Math.Round(Result.Scores[s, d], 1);
+                verdicts[i] = (int)Result.Verdicts[s, d];
+                sunPct[i] = Num(Result.SunPct[s, d], 1);
+                commsPct[i] = Num(Result.CommsPct[s, d], 1);
+                energyRatio[i] = Num(Result.EnergyRatio[s, d], 3);
+                minSoc[i] = Num(Result.MinSocPct[s, d], 1);
+                heading[i] = Num(Result.HeadingDeg[s, d], 0);
+                efficiency[i] = Num(Result.PanelEfficiency[s, d], 3);
             }
         }
         return new
@@ -69,6 +134,13 @@
             firstDay = Result.FirstDayUtc.ToString("yyyy-MM-dd"),
             scores,
             verdicts,
+            sunPct,
+            commsPct,
+            energyRatio,
+            minSoc,
+            heading,
+            efficiency,
+            mode,
             best = new[] { Result.BestSite, Result.BestDay },
             selected = new[] { Selected.Site, Selected.Day },
             pulse = Pulse != drawnPulse ? Pulse : 0,

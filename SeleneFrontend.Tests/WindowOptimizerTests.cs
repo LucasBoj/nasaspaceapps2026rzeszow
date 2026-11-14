@@ -47,6 +47,21 @@ public class WindowOptimizerTests
         Assert.Equal(100, result.MinSocPct[0, 0], 9);
         Assert.True(double.IsNaN(result.HeadingDeg[0, 0]));                 // ideal tracking: no heading
         Assert.Equal(1, result.PanelEfficiency[0, 0], 9);
+        Assert.Equal(24, result.SurvivedHours[0, 0], 9);
+    }
+
+    [Fact]
+    public async Task Longest_survival_day_when_nothing_is_feasible()
+    {
+        // Darkness except 3 sunny hours at the start of day 2 → landing on day 2 lasts longest
+        // (battery 50 Wh, survival 20 W): day 0/1/3 die after 2 h, day 2 after 2 h of darkness following 3 sunny hours.
+        var sun = new int[24 * 5];
+        for (var i = 48; i < 51; i++) sun[i] = 100;
+        var series = Fixtures.Series(sun, new int[sun.Length]);
+        var result = await WindowOptimizer.RunAsync([new("s", "S", series)], Lander with { BatteryWh = 50 }, Fixtures.T0, Fixtures.T0.AddDays(10), 1, Thresholds);
+        Assert.Equal(-1, result.BestDayFor(0));
+        Assert.Equal(2, result.LongestSurvivalDayFor(0));
+        Assert.True(result.SurvivedHours[0, 2] > result.SurvivedHours[0, 0]);
     }
 
     [Fact]

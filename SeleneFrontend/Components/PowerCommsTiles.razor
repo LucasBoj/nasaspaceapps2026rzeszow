@@ -1,0 +1,81 @@
+@using System.Globalization
+@using SeleneFrontend.Services
+
+@* Key power and communication metrics of the simulated mission (challenge: Sun elevation, sunlight duration, comms). *@
+<div class="metric-tiles" role="list" aria-label="Power and communication metrics">
+    <div class="metric-tile" role="listitem">
+        <span class="metric-label"><Term Key="sunel">SUN ELEVATION</Term></span>
+        @if (double.IsNaN(M.SunElevMinDeg))
+        {
+            <span class="metric-value">—</span>
+        }
+        else
+        {
+            <span class="metric-value">@D1(M.SunElevMinDeg)° … @D1(M.SunElevMaxDeg)°</span>
+            <span class="metric-sub">mean @D1(M.SunElevMeanDeg)° above the horizontal</span>
+        }
+    </div>
+
+    <div class="metric-tile" role="listitem">
+        <span class="metric-label"><Term Key="lit">SUNLIGHT</Term></span>
+        <span class="metric-value">@D0(M.SunPct)% of hours</span>
+        <span class="metric-sub">longest light @Hours(M.LongestLitH) · longest dark @Hours(M.LongestDarkH)</span>
+    </div>
+
+    <div class="metric-tile @EfficiencyTone" role="listitem">
+        @if (M.FixedPanels)
+        {
+            <span class="metric-label"><Term Key="paneleff">PANELS · FIXED</Term></span>
+            <span class="metric-value">@(double.IsNaN(M.PanelEfficiency) ? "—" : $"{D0(M.PanelEfficiency * 100)}% of ideal")</span>
+            <span class="metric-sub"><Term Key="heading">heading</Term> @D0(M.HeadingDeg ?? 0)° @(M.HeadingAuto ? "(AUTO)" : "(manual)")</span>
+        }
+        else
+        {
+            <span class="metric-label"><Term Key="incidence">PANELS · IDEAL</Term></span>
+            <span class="metric-value">always facing the Sun</span>
+            <span class="metric-sub">upper bound — no incidence loss</span>
+        }
+    </div>
+
+    <div class="metric-tile @EnergyTone" role="listitem">
+        <span class="metric-label">SOLAR ENERGY</span>
+        <span class="metric-value">@Energy(M.EnergyProducedWh) / @Energy(M.EnergyLoadWh)</span>
+        <span class="metric-sub">produced / used · @(M.EnergyLoadWh > 0 ? $"{D2(M.EnergyProducedWh / M.EnergyLoadWh)}×" : "—")</span>
+    </div>
+
+    <div class="metric-tile" role="listitem">
+        <span class="metric-label"><Term Key="earth">EARTH COMMS</Term></span>
+        <span class="metric-value">@D0(M.CommsPct)% in view</span>
+        <span class="metric-sub">
+            <Term Key="commsgap">longest gap</Term> @Hours(M.LongestCommsGapH)@(double.IsNaN(M.EarthElevMinDeg) ? "" : $" · el {D1(M.EarthElevMinDeg)}…{D1(M.EarthElevMaxDeg)}°")
+        </span>
+    </div>
+
+    @if (MaxStayDays is { } stay)
+    {
+        <div class="metric-tile @(stay + 1e-6 >= M.DurationDays ? "good" : "bad")" role="listitem">
+            <span class="metric-label"><Term Key="maxstay">MAX STAY</Term></span>
+            <span class="metric-value">@(stay >= CapDays - 1e-6 ? $"≥ {D0(CapDays)} d" : $"{D1(stay)} d")</span>
+            <span class="metric-sub">from this landing · planned @D1(M.DurationDays) d</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public SimulationResult M { get; set; } = null!;
+    [Parameter] public double? MaxStayDays { get; set; }
+    [Parameter] public double CapDays { get; set; } = AnalysisService.MaxSurvivableCapDays;
+
+    private static string D0(double v) => v.ToString("0", CultureInfo.InvariantCulture);
+    private static string D1(double v) => v.ToString("0.0", CultureInfo.InvariantCulture);
+    private static string D2(double v) => v.ToString("0.00", CultureInfo.InvariantCulture);
+    private static string Hours(double h) => h >= 48 ? $"{D1(h / 24)} d" : $"{D0(h)} h";
+
+    private static string Energy(double wh) =>
+        wh >= 1_000_000 ? $"{D1(wh / 1_000_000)} MWh" : wh >= 1000 ? $"{D1(wh / 1000)} kWh" : $"{D0(wh)} Wh";
+
+    private string EfficiencyTone => !M.FixedPanels || double.IsNaN(M.PanelEfficiency) ? ""
+        : M.PanelEfficiency >= 0.85 ? "good" : M.PanelEfficiency >= 0.6 ? "" : "warn";
+
+    private string EnergyTone => M.EnergyLoadWh <= 0 ? "" : M.EnergyProducedWh >= M.EnergyLoadWh ? "good" : "bad";
+}

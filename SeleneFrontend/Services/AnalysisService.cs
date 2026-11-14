@@ -119,8 +119,10 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
                 Error = $"no landing day in the window leaves room for a {duration:0.#}-day mission ({state.DataRangeText})";
                 return;
             }
+            // Nothing feasible: show the landing that lasts longest, not simply the first day of the window.
             var quickDay = quick.BestDayFor(0);
-            SimulateSite(selectedSite, quick.DayUtc(quickDay < 0 ? 0 : quickDay), lander);
+            if (quickDay < 0) quickDay = Math.Max(0, quick.LongestSurvivalDayFor(0));
+            SimulateSite(selectedSite, quick.DayUtc(quickDay), lander);
             _signature = Signature();
             Progress = 0.15;
             if (expand) ExpandToken++;
@@ -191,7 +193,9 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
     {
         Mission = MissionSimulator.Run(site.Series, lander, landingUtc, state.MissionDurationDays, Thresholds);
-        MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander, landingUtc, Thresholds, MaxSurvivableCapDays);
+        // Same heading as the shown mission, so "max stay" and the verdict describe the same landing.
+        MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
+            landingUtc, Thresholds, MaxSurvivableCapDays);
         MissionSiteId = site.Id;
         MissionSiteName = site.Name;
         ThresholdBatteryPct = state.MinBatteryPercent;

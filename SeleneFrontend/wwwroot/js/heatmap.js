@@ -10,11 +10,66 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const states = new WeakMap();
 
-function cellColor(score) {
-  if (!(score > 0)) return NO_GO;
-  const t = Math.pow(Math.min(score, 100) / 100, 0.85);
-  const c = LOW.map((lo, k) => Math.round(lo + (HIGH[k] - lo) * t));
-  return `rgb(${c[0]},${c[1]},${c[2]})`;
+// Palette from app.css tokens (fallbacks = the same values), read once.
+let palette = null;
+function tokens() {
+  if (palette) return palette;
+  const css = (name, fallback) => {
+    try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; } catch { return fallback; }
+  };
+  const rgb = (hex) => { const h = hex.replace("#", ""); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+  palette = {
+    cyan: rgb(css("--accent-cyan", "#4fc3f7")),
+    ok: rgb(css("--status-ok", "#3ddc84")),
+    warn: rgb(css("--status-warn", "#ffb020")),
+    error: rgb(css("--status-error", "#ff4d4f")),
+  };
+  return palette;
+}
+
+const mix = (a, b, t) => a.map((v, k) => Math.round(v + (b[k] - v) * t));
+const css = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+const DARK_AMBER = [52, 38, 12];
+const DARK_RED = [58, 22, 24];
+const DARK_GREEN = [14, 48, 32];
+
+/**
+ * Colour of one cell for the active mode:
+ *   score  — 0 = not feasible (grey), 1..100 dark → cyan
+ *   light  — lit hours (sunFraction ≥ 50 %) 0..100 % dark → amber
+ *   energy — produced / used: < 1 deficit (red ramp), ≥ 1 surplus (green ramp, full at 2×)
+ *   earth  — Earth-visible hours 0..100 % dark → cyan
+ */
+function cellColor(data, i) {
+  const p = tokens();
+  switch (data.mode) {
+    case "light": return css(mix(DARK_AMBER, p.warn, Math.min(data.sunPct[i], 100) / 100));
+    case "earth": return css(mix(LOW, p.cyan, Math.min(data.commsPct[i], 100) / 100));
+    case "energy": {
+      const r = data.energyRatio[i];
+      return r < 1 ? css(mix(p.error, DARK_RED, Math.max(0, r))) : css(mix(DARK_GREEN, p.ok, Math.min(r - 1, 1)));
+    }
+    default: {
+      const score = data.scores[i];
+      if (!(score > 0)) return NO_GO;
+      const t = Math.pow(Math.min(score, 100) / 100, 0.85);
+      return css(mix(LOW, HIGH, t));
+    }
+  }
+}
+
+function describe(dd, s, d) {
+  const i = s * dd.days + d;
+  const score = dd.scores[i];
+  const parts = [`${dd.sites[s]} · land ${dayDate(dd, d).toISOString().slice(0, 10)}`,
+    score > 0 ? `score ${Math.round(score)} · ${VERDICTS[dd.verdicts[i]]}` : "NOT FEASIBLE",
+    `lit ${Math.round(dd.sunPct[i])}%`, `Earth ${Math.round(dd.commsPct[i])}%`,
+    `energy ${dd.energyRatio[i].toFixed(2)}×`, `min battery ${Math.round(dd.minSoc[i])}%`];
+  const h = dd.heading[i];
+  if (h !== null && h !== undefined && h >= 0) parts.push(`heading ${Math.round(h)}°`);
+  const e = dd.efficiency[i];
+  if (e !== null && e !== undefined && e >= 0) parts.push(`panels ${Math.round(e * 100)}% of ideal`);
+  return parts.join(" · ");
 }
 
 function geometry(canvas, data) {
@@ -47,9 +102,9 @@ function draw(canvas, pulse = 0) {
   // Cells (merge runs of identical colour per row for speed and crisp edges).
   for (let s = 0; s < data.sites.length; s++) {
     const y = MARGIN.top + s * g.rh;
-    let runStart = 0, runColor = cellColor(data.scores[s * data.days]);
+    let runStart = 0, runColor = cellColor(data, s * data.days);
     for (let d = 1; d <= data.days; d++) {
-      const color = d < data.days ? cellColor(data.scores[s * data.days + d]) : null;
+      const color = d < data.days ? cellColor(data, s * data.days + d) : null;
       if (color !== runColor) {
         ctx.fillStyle = runColor;
         ctx.fillRect(MARGIN.left + runStart * g.cw, y + 1, (d - runStart) * g.cw + 0.5, g.rh - 2);
@@ -131,10 +186,7 @@ export function render(canvas, tooltip, data, dotNetRef) {
     canvas.addEventListener("mousemove", (e) => {
       const c = cellAt(canvas, e);
       if (!c) { tooltip.hidden = true; canvas.style.cursor = ""; return; }
-      const dd = st.data, i = c.s * dd.days + c.d;
-      const score = dd.scores[i];
-      tooltip.textContent = `${dd.sites[c.s]} · land ${dayDate(dd, c.d).toISOString().slice(0, 10)} · ` +
-        (score > 0 ? `score ${Math.round(score)} · ${VERDICTS[dd.verdicts[i]]}` : "NOT FEASIBLE");
+      tooltip.textContent = describe(st.data, c.s, c.d);
       tooltip.hidden = false;
       const left = Math.min(c.x + 12, canvas.clientWidth - tooltip.offsetWidth - 4);
       tooltip.style.left = `${Math.max(0, left)}px`;
@@ -152,7 +204,19 @@ export function render(canvas, tooltip, data, dotNetRef) {
   st.data = data;
   st.dotNetRef = dotNetRef;
   draw(canvas);
+  startPulse(canvas, st, data);
+}
 
+/** Switch the colouring mode without resending the data. */
+export function setMode(canvas, mode) {
+  const st = states.get(canvas);
+  if (!st || !st.data) return;
+  st.data.mode = mode;
+  draw(canvas);
+}
+
+/** Attention pulse on the BEST WINDOW cell (QUICK DEMO); skipped with prefers-reduced-motion. */
+function startPulse(canvas, st, data) {
   const reduced = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } })();
   if (data.pulse && data.pulse !== st.lastPulse) {
     st.lastPulse = data.pulse;

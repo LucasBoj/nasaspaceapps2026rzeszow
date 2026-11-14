@@ -735,6 +735,10 @@ html, body {
     flex: none;
 }
 
+.whatif-label { color: var(--text-secondary); }
+.whatif-hint { font-size: 0.65rem; color: var(--text-secondary); }
+.whatif-segmented { grid-column: 1 / -1; }
+
 @media (prefers-reduced-motion: reduce) {
     .lander-card,
     .lander-silhouette,
@@ -1027,6 +1031,64 @@ html, body {
 .lg-soc { height: 2px !important; background: var(--status-ok); }
 .lg-threshold { height: 0 !important; border-top: 1px dashed var(--text-secondary); }
 
+/* Fixed panels: available sunlight (faint) behind the delivered output; Sun elevation line. */
+.tl-sun-avail { fill: rgba(255, 176, 32, 0.16); }
+.tl-sunel { fill: none; stroke: var(--text-primary); stroke-width: 1; stroke-opacity: 0.75; stroke-dasharray: 3 2; }
+.lg-sun-avail { background: rgba(255, 176, 32, 0.25); }
+.lg-sunel { height: 0 !important; border-top: 1px dashed var(--text-primary); }
+
+/* ---- Power & comms metric tiles (results, mission tab) ---- */
+.metric-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+    margin: 0 0 0.75rem;
+}
+
+.metric-tile {
+    min-width: 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    padding: 0.45rem 0.6rem;
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+.metric-tile .metric-label {
+    display: block;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    margin-bottom: 0.2rem;
+}
+
+.metric-tile .metric-value {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.metric-tile .metric-sub {
+    display: block;
+    font-size: 0.66rem;
+    color: var(--text-secondary);
+    margin-top: 0.1rem;
+}
+
+.metric-tile.good .metric-value { color: var(--status-ok); }
+.metric-tile.warn .metric-value { color: var(--status-warn); }
+.metric-tile.bad .metric-value { color: var(--status-error); }
+
+/* ---- Panel layout diagram (specs) ---- */
+.panel-diagram { width: 30px; height: 30px; vertical-align: middle; margin-right: 0.35rem; flex: none; }
+.panel-diagram .pd-body { fill: none; stroke: var(--text-secondary); stroke-width: 1; }
+.panel-diagram .pd-deck { fill: rgba(255, 176, 32, 0.25); stroke: var(--status-warn); stroke-width: 0.8; }
+.panel-diagram .pd-wall { stroke: var(--status-warn); stroke-width: 2.4; stroke-linecap: butt; }
+.panel-diagram .pd-normal { stroke: var(--status-warn); stroke-width: 0.8; stroke-dasharray: 1.5 1; }
+.panel-diagram .pd-front { fill: var(--accent-cyan); }
+.spec-value-flex { display: inline-flex; align-items: center; }
+
 /* ---- Landing heatmap ---- */
 .heatmap-canvas-wrap {
     position: relative;
@@ -1062,6 +1124,19 @@ html, body {
 .legend-swatch.nogo { width: 12px; background: #2a2f36; }
 .legend-scale { width: 80px; background: linear-gradient(90deg, rgb(16, 44, 58), var(--accent-cyan)); }
 .legend-best { width: 12px; border: 2px solid var(--status-warn); }
+.legend-scale.light { background: linear-gradient(90deg, rgb(52, 38, 12), var(--status-warn)); }
+.legend-scale.energy-deficit { width: 50px; background: linear-gradient(90deg, var(--status-error), rgb(58, 22, 24)); }
+.legend-scale.energy-surplus { width: 50px; background: linear-gradient(90deg, rgb(14, 48, 32), var(--status-ok)); }
+.heatmap-modes {
+    display: inline-grid;
+    grid-template-columns: repeat(4, auto);
+    margin-bottom: 0.4rem;
+}
+
+.heatmap-modes .segmented-option {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.64rem;
+}
 
 .best-dates {
     display: flex;
@@ -1623,6 +1698,9 @@ a { color: var(--accent-cyan); }
 .compass-text .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
 .compass-text .dot.sun { background: var(--status-warn); }
 .compass-text .dot.earth { background: var(--accent-cyan); }
+.compass-text .dot.panel { background: var(--text-primary); border-radius: 0; height: 3px; vertical-align: 2px; }
+.compass-panel { stroke: var(--text-primary); stroke-width: 2; stroke-opacity: 0.85; }
+.compass-heading { fill: var(--text-primary); }
 
 /* ---- Loading / skeletons ---- */
 .skeleton-block,

@@ -21,6 +21,21 @@ public sealed class HeatmapResult
     public required double[,] MinSocPct { get; init; }
     public required double[,] HeadingDeg { get; init; }      // NaN for ideal tracking
     public required double[,] PanelEfficiency { get; init; } // produced / ideal-tracking, NaN when never lit
+    public required double[,] SurvivedHours { get; init; }   // hours until the battery ran empty (full mission if it survived)
+
+    /// <summary>
+    /// Landing day for one site to show when nothing is feasible: the one that survives longest
+    /// (ties: the earliest). −1 when the site has no days.
+    /// </summary>
+    public int LongestSurvivalDayFor(int site)
+    {
+        int best = -1;
+        for (var d = 0; d < Days; d++)
+        {
+            if (best < 0 || SurvivedHours[site, d] > SurvivedHours[site, best]) best = d;
+        }
+        return best;
+    }
     public int BestSite { get; init; } = -1;
     public int BestDay { get; init; } = -1;
 
@@ -103,6 +118,7 @@ public static class WindowOptimizer
         var minSoc = new double[sites.Count, days];
         var heading = new double[sites.Count, days];
         var efficiency = new double[sites.Count, days];
+        var survived = new double[sites.Count, days];
         int bestSite = -1, bestDay = -1;
         double bestScore = 0;
         var total = Math.Max(1, sites.Count * days);
@@ -123,6 +139,7 @@ public static class WindowOptimizer
                 minSoc[s, d] = r.MinSocPct;
                 heading[s, d] = r.HeadingDeg ?? double.NaN;
                 efficiency[s, d] = r.PanelEfficiency;
+                survived[s, d] = (r.DepletedAtStep ?? r.Steps) * r.StepHours;
                 // Ties go to the earliest landing day (the soonest opportunity), not to list order.
                 if (score > bestScore || (score > 0 && score == bestScore && d < bestDay))
                 {
@@ -144,7 +161,7 @@ public static class WindowOptimizer
             Sites = sites, FirstDayUtc = first, Days = days,
             Scores = scores, Verdicts = verdicts, BestSite = bestSite, BestDay = bestDay,
             SunPct = sunPct, CommsPct = commsPct, EnergyRatio = energyRatio, MinSocPct = minSoc,
-            HeadingDeg = heading, PanelEfficiency = efficiency,
+            HeadingDeg = heading, PanelEfficiency = efficiency, SurvivedHours = survived,
         };
     }
 }
