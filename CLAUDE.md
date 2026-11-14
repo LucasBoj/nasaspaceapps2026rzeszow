@@ -13,7 +13,7 @@
 | Frontend | Blazor WebAssembly standalone, **.NET 10**. CesiumJS **1.120** (self-hosted in `wwwroot/lib/cesium-1.120`) via JS interop; IBM Plex self-hosted in `wwwroot/fonts` | `SeleneFrontend/` (`wwwroot/js/moonViewer.js`, `cardGrid.js`) |
 | Data | Python 3.11+ (Skyfield, rasterio, pyproj, numpy). A **one-off** precompute into JSON | `pipeline/` → `SeleneFrontend/wwwroot/data/illumination/` |
 | Runtime | **No backend.** Static files only | — |
-| Hosting | Static files on Mikrus (nginx): stable :80 (jury link) + preview :8080. Deployed by GitHub Actions: push `main` → preview, push `stable` → stable. GitHub Pages mirror planned | `deploy/` (README in Polish), `.github/workflows/deploy.yml` |
+| Hosting | Static files on Mikrus (nginx), single public domain **https://selene.byst.re/** (= stable root). GitHub Actions: push `main` → stable (live). **Deploy and Cesium are finished and verified (`85d36e0`): do not change the workflow, `deploy/*`, secrets or the token.** Preview :8080 is unused (no public address) | `deploy/` (README in Polish), `.github/workflows/deploy.yml` |
 
 ## Data sources
 
@@ -69,8 +69,7 @@ dotnet build                      # must build with 0 warnings
 dotnet test ../SeleneFrontend.Tests  # simulator + optimizer unit tests (links the logic sources)
 
 # Deploy (from repo root, see deploy/README.md)
-git push origin main                      # CI → preview (tests gate it; secrets MIKRUS_* in GitHub)
-git push origin main:stable               # CI → stable (jury link); rollback: git push -f origin <good>:stable
+git push origin main                      # CI → tests → https://selene.byst.re/ (live!); rollback: git revert <c> && push
 ./deploy/deploy.sh preview --build-only   # local build + checks, no upload (works in Git Bash)
 ./deploy/deploy.sh preview                # manual deploy (needs rsync; not in Git Bash), then: … stable
 CESIUM_ION_TOKEN='<URL-restricted token>' ./deploy/deploy.sh stable   # optional 3D, never commit the token
