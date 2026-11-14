@@ -222,6 +222,7 @@ git checkout main
 | Smoke test nie dostaje odpowiedzi | Port lub subdomena (krok 3); test na serwerze: `curl -I http://localhost/`. |
 | 401 z `api.cesium.com` | Adres strony nie jest w Allowed URLs tokena albo token jest zły. Strona działa wtedy dalej w 2D. |
 | Actions: ostrzeżenie „Deploy skipped” | Brak sekretu `MIKRUS_SSH_KEY` (krok 3). Testy i build przeszły, nic nie wysłano. |
+| Sekrety dodane, a kroki SSH/rsync dalej „skipped” | Przebieg wystartował przed dodaniem sekretów; samo dodanie sekretu nie uruchamia workflow. **Actions → Deploy → Run workflow** albo kolejny push. |
 | Actions: `MIKRUS_SSH_KEY … not a private key` / `Load key: invalid format` | Wklejono `.pub` albo niepełny plik. Wklej całe `~/.ssh/mikrus_deploy`, z liniami `BEGIN`/`END`. |
 | Actions: `No SSH host key from the server` | Zły `MIKRUS_HOST`/`MIKRUS_PORT` albo serwer nie odpowiada; z laptopa: `ssh-keyscan -p 10177 kamil177.mikrus.xyz`. |
 | Actions: `Host key verification failed` | Zmienił się klucz hosta (np. reinstalacja serwera). Zaktualizuj `MIKRUS_KNOWN_HOSTS` albo usuń ten sekret. |
