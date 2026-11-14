@@ -19,6 +19,7 @@ public sealed class IlluminationSeries
     public int[] SunAzCentiDeg { get; set; } = [];
     public int[] EarthVisible { get; set; } = [];       // 0 / 1
     public int[] EarthElevCentiDeg { get; set; } = [];
+    public int[] EarthAzCentiDeg { get; set; } = [];   // added 2026-11-14; empty in older files
     public double[] HorizonDeg { get; set; } = [];
 
     /// <summary>Exclusive end of the data (time just after the last sample).</summary>

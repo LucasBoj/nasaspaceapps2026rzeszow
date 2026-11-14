@@ -37,6 +37,7 @@ Change it only deliberately: describe the change here, then update both the pipe
   "sunAzCentiDeg": [int],         // Sun azimuth × 100, clockwise from lunar north
   "earthVisible": [0|1],          // Earth centre > horizon + 0.5°
   "earthElevCentiDeg": [int],
+  "earthAzCentiDeg": [int],       // Earth azimuth × 100 — ADDED 2026-11-14 (additive, for the HUD Sun/Earth compass)
   "horizonDeg": [360 floats],     // horizon at azimuths 0..359°
   "generatedWith": { "dem": "...", "kernels": [...], "method": "linear-disk-approx" }
 }
@@ -45,6 +46,8 @@ Change it only deliberately: describe the change here, then update both the pipe
 `illumination/index.json` holds `{start, end, stepHours, observerHeightM, dem, method, generatedAt, sites: [{siteId, name, lat, lon, file, pctSunlit, pctComms, longestDarkHours, horizonCoveragePct}]}`.
 
 Time for sample `i` is `start + i × stepHours`.
+
+**Contract changelog:** 2026-11-14 added `earthAzCentiDeg` (additive; readers must tolerate missing fields in older files).
 
 ## Commands
 

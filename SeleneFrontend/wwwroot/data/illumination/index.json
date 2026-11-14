@@ -5,7 +5,7 @@
   "observerHeightM": 2.0,
   "dem": "ldem_75s_120m_float.lbl",
   "method": "linear-disk-approx",
-  "generatedAt": "2026-11-14T12:06:33Z",
+  "generatedAt": "2026-11-14T12:26:50Z",
   "sites": [
     {
       "siteId": "cabeus_b",

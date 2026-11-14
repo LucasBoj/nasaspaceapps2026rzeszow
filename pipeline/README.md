@@ -219,6 +219,7 @@ like-for-like validation.
   "sunAzCentiDeg": [int],             // Sun azimuth × 100, clockwise from north
   "earthVisible": [0|1],
   "earthElevCentiDeg": [int],
+  "earthAzCentiDeg": [int],           // Earth azimuth × 100 (added 2026-11-14)
   "horizonDeg": [360 floats],         // horizon elevation at azimuth 0..359°
   "generatedWith": { "dem": "...", "kernels": [...], "method": "linear-disk-approx" }
 }

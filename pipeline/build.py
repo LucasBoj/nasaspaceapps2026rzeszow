@@ -84,6 +84,7 @@ def build_site(site: dict, dem: horizon.Dem, sky: ephemeris.MoonSky, times, star
         "sunAzCentiDeg": centi(sun_az),
         "earthVisible": earth_vis.astype(int).tolist(),
         "earthElevCentiDeg": centi(earth_alt),
+        "earthAzCentiDeg": centi(s["earth_az"]),          # added 2026-11-14 (additive; HUD compass)
         "horizonDeg": [round(float(v), 2) for v in mask],
         "generatedWith": {
             "dem": dem.name,
