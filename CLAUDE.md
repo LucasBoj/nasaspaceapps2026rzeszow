@@ -21,7 +21,7 @@
 - **Landing sites:** Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434, Table A1 via Zenodo doi:10.5281/zenodo.17084058 (CC-BY-4.0, attribution required).
 - **Ephemerides:** JPL DE421 plus lunar orientation kernels (NAIF), computed via Skyfield.
 - **Imagery:** NASA/JPL Moon Trek, LRO WAC mosaic (tiles `trek.nasa.gov`, no token needed).
-- **3D terrain (optional):** Cesium Moon Terrain, ion asset `2684829`. It has to be added to the account in Cesium ion with "Add to my assets".
+- **3D terrain (optional):** Cesium Moon Terrain, ion asset `2684829` (already added to the team's ion account; works locally with the dev token).
 - **Cesium ion token:** only in `SeleneFrontend/wwwroot/appsettings.Development.json`, which is **gitignored**. **The repo is public — never commit the token.** `appsettings.json` keeps an empty value. Without a token the app falls back to 2D mosaic mode.
 
 ## Data contract — `illumination/{siteId}.json` (single source of truth)
@@ -83,5 +83,10 @@ python -m pytest -q
 - Analysis logic (`MissionSimulator`, `WindowOptimizer`, `IlluminationSeries`, `LanderPreset`) must stay UI-free: `SeleneFrontend.Tests` compiles these files directly.
 - Dates in WASM: the runtime uses the browser's time zone. Treat unspecified `DateTime`s as UTC (`TimeUtil.AsUtc`), never call `ToUniversalTime()` on them.
 - Anything rendered per hour or per day (timeline, heatmap) must not re-render on every progress tick. Use `ShouldRender` or the canvas heatmap.
+- `index.html` must keep `<script type="importmap"></script>`: .NET 10 fills it with fingerprinted file names. Without it the app works on the dev server but **not** on nginx or GitHub Pages.
+- `wwwroot/appsettings.Development.json` (token) is excluded from publish in the csproj. Keep it that way: published files are public.
+- CesiumJS is loaded with `defer`. Code touching `Cesium` must wait for `UiService.WhenCesiumReadyAsync()` (MoonPanel does).
+- Editing anything in `wwwroot` makes a running `dotnet watch` rebuild. A second `dotnet run --no-build` instance then serves a stale manifest (MIME errors), so restart it.
+- UI state that many components share (boot, welcome, help, compare, compass time) lives in `UiService`. Timeline hover uses its own `HoverTimeChanged` event so the whole UI does not re-render on mouse move.
 - `sites.json` is **generated** by `pipeline/select_sites.py` from Wueller et al. (2026) candidates (Zenodo, CC-BY-4.0). Do not edit coordinates by hand; re-run the pipeline. Their shapefile projection has true scale at −70°, unlike the DEM (−90°), so always reproject with the shipped `.prj`.
 - "Lit" has two definitions: `index.json → pctSunlit` uses `sunFraction > 0`, while site selection and the 6.5-day test use `≥ 50`.

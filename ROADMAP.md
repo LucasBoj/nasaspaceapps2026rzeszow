@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 14:30 CET
+**Ostatnia aktualizacja:** 2026-11-14 15:20 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -40,6 +40,14 @@
 - [x] Panel wyników: przycisk RUN ANALYSIS, linia werdyktu, oś czasu SVG (światło / Ziemia / bateria + próg, odczyt pod kursorem), mapa ciepła na canvas (etykiety miesięcy, legenda, BEST WINDOW, klik → miejsce + data + przelot kamery), przyciski „najlepsza data” dla klawiatury, plakietka RESULTS OUTDATED; naprawiona składnia `[class.expanded]`; okno dat przycinane do zakresu danych z komunikatem — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
 - [x] Testy xUnit `SeleneFrontend.Tests` (14): ręcznie policzony przypadek SoC, wyczerpanie baterii w ciemności i w dzień, reguły MARGINAL, wzór oceny, rozstrzyganie remisów — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
 - [x] Usunięte zagnieżdżone `SeleneFrontend/.git` (historia była już scalona w `747f5bf`) — 2026-11-14 14:25 — `1e7a604` — AI: Claude Code
+- [x] Kontrakt danych: nowe pole `earthAzCentiDeg` w `illumination/{siteId}.json` (addytywne, opisane w CLAUDE.md), dane przeliczone — 2026-11-14 14:40 — `a428241` — AI: Claude Code
+- [x] Pierwsze wrażenie: ekran startowy (pierwsza wizyta, ≤ 2,5 s, pomijalny, linie zależne od prawdziwych pobrań), przelot kamery z kosmosu nad biegun, scenariusz polecany (Nobile Rim 1 + Nova-C) liczony za ekranem startowym, karta powitalna, 3-krokowy stepper — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
+- [x] QUICK DEMO (górny pasek + karta powitalna): scenariusz → analiza → przelot → pulsowanie BEST WINDOW; analizę można przerwać i uruchomić ponownie (wcześniej klik w trakcie analizy był ignorowany) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
+- [x] Porównanie do 3 regionów (zakładka COMPARE): werdykt, mini oś czasu, metryki, zwycięzca — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
+- [x] Róża Słońca i Ziemi w HUD (horyzont LOLA, azymuty i wysokości z danych, śledzi kursor na osi czasu); nakładka kandydatów CANDIDATES; pulsujący pierścień i linia do etykiety; pinezki przypięte do terenu 3D; słowniczek pojęć i ściąga „?” — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
+- [x] Dopracowanie i odporność: tokeny odstępów i ruchu, stany hover/active/focus, animowane liczby, skeletony, neutralna plakietka „2D MOSAIC MODE”, statusy na żywo, baner błędu ładowania, stopka z atrybucją i zastrzeżeniem „Not affiliated…”, favicon, meta + Open Graph + `og.png`; źródło miejsca w sekcji 01; zsynchronizowana lista miejsc; usunięte pole „Time Step” — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
+- [x] Responsywność: bez `min-width`, układ kolumnowy < 1024 px, 1366×768 bez ucinania; sprawdzone w Chromium, Firefox i WebKit (23/23 w każdej) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
+- [x] Wydajność i deploy: brakujący `importmap` w `index.html` (bez niego aplikacja nie startowała na statycznym hostingu), Cesium `defer` + `preconnect`, `InvariantGlobalization`, token wykluczony z publikacji. Release + Brotli: wynik po 2,3 s (szybkie łącze) / 3,7 s (20 Mbit/s) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -53,10 +61,9 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 - [ ] **Demo działa offline** — C
   - Gotowe, gdy: aplikacja z laptopa bez internetu ładuje się z lokalnym Cesium (nie z CDN), lokalnymi czcionkami i podręcznym zestawem kafli Moon Trek dla bieguna (albo ma fallback bez zdjęć), co jest sprawdzone przy wyłączonym Wi-Fi.
-- [ ] **Atrybucja danych w stopce** (NASA/JPL Moon Trek, LRO LOLA, Cesium ion, NAIF) — C
-  - Gotowe, gdy: stopka pokazuje źródła. Teraz `creditContainer` Cesium jest ukryty, a stopki nie ma; wymagają tego zasady Cesium ion i dobre praktyki NASA.
 - [ ] **Deploy na Mikrus + lustro GitHub Pages**, sprawdzone po IPv4 z telefonu — C
-  - Gotowe, gdy: oba adresy działają z telefonu na danych komórkowych. Na GitHub Pages trzeba zmienić `<base href>` na podścieżkę repo i zdecydować o tokenie (wersja produkcyjna go nie ma).
+  - Gotowe, gdy: oba adresy działają z telefonu na danych komórkowych. Na GitHub Pages trzeba zmienić `<base href>` na podścieżkę repo. W `og:image` wpisać pełny adres URL `og.png` (teraz jest względny). nginx: `brotli_static on` i typ `application/wasm`.
+  - Token: wersja produkcyjna celowo go nie ma (tryb 2D). Jeśli ma być 3D na demo, utworzyć w Cesium ion osobny token z ograniczeniem do domeny i wstrzyknąć go przy deployu, nigdy do repo.
 - [ ] **Strona projektu na spaceappschallenge.org**: opis odhaczający cele wyzwania, lista danych z linkami, deklaracja użycia AI (z sekcji poniżej), link do repo i demo — wszyscy (prowadzi C)
   - Gotowe, gdy: projekt jest wysłany przed terminem, a wszystkie pola są po angielsku.
 - [ ] **30-sekundowe wideo demo** (albo maksymalnie 7 slajdów) — C
@@ -64,21 +71,18 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P1
 
-- [ ] **Ocena optymalizatora się nasyca** — dla lądowników o małym poborze (np. Nova-C) wiele okien ma 100/100, więc mapa ciepła słabo różnicuje opcje. Dodać składnik rozróżniający (np. zapas energii w Wh, liczba godzin poniżej progu, najdłuższa ciemność) — B
+- [ ] **⬆ Ocena optymalizatora się nasyca (pilne)** — dla lądowników o małym poborze (np. Nova-C) wiele okien ma 100/100, więc mapa ciepła słabo różnicuje opcje, a w COMPARE domyślnej trójki wszystkie mają 100, czyli zwycięzca wynika tylko z daty. Dodać składnik rozróżniający (np. zapas energii w Wh, liczba godzin poniżej progu, najdłuższa ciemność) — B
   - Gotowe, gdy: dla Nova-C i Blue Ghost najlepsze okna różnią się oceną, a wzór jest opisany w komentarzu i w teście.
-- [ ] **Pole „Time Step [h]” w sekcji 03 nic nie robi** — dane mają krok 1 h. Usunąć je albo zablokować z opisem „data step: 1 h” — C
-- [ ] **Nakładka kandydatów na mapie**: pinezki/kropki z `illumination/candidates/{regionId}.json` (kolor wg lit %, odrzucone wyszarzone) i alternatywy z `sites.json` w panelu sekcji 01 — C
-  - Gotowe, gdy: po wybraniu regionu widać wszystkich ocenionych kandydatów z wartościami w tooltipie, a kliknięcie alternatywy przełącza miejsce.
-- [ ] **Pokazanie źródła miejsca w UI** (`source`, `candidateId`, „best of N”) w sekcji 01, z linkiem do DOI — C
 
 - [ ] **Wykres „nasze vs NASA”**: porównanie naszego oświetlenia z opublikowanymi mapami oświetlenia LOLA (PGDA / LROC) — A
   - Gotowe, gdy: dla kilku punktów jest wykres lub tabela z różnicą i opisem źródeł. Walidacja liczbowa grzbietu jest już zrobiona.
 - [ ] **Pitch na lokalne jury**: slajdy, scenariusz demo offline, odpowiedzi na trudne pytania — wszyscy
   - Gotowe, gdy: jest próba generalna na czas z demo uruchomionym bez internetu.
+- [ ] **Hostować Cesium u siebie (z Brotli)** — dziś ~1,45 MB z CDN; potrzebne też do trybu offline i może zejść poniżej 3 s na łączu 20 Mbit/s — C
+- [ ] **Sprawdzić prawdziwego Firefoksa** — w headless Firefox (programowe WebGL) mapa ciepła po QUICK DEMO liczy się ~10 s; werdykt pojawia się od razu — C
+- [ ] **Alternatywy miejsca w sekcji 01** (`alternatives` z `sites.json`) do przełączania jednym kliknięciem — C
 - [ ] **Warstwa Moon Trek w odwzorowaniu polarnym** (South Polar Stereographic) zamiast mozaiki walcowej, która przy biegunie jest rozmazana — C
   - Gotowe, gdy: zbliżenie na miejsca przy -85…-89° jest ostre.
-- [ ] **Synchronizacja listy „Choose site”** z wybranym miejscem (teraz po kliknięciu pinezki pokazuje „-- Select a site --”) — C
-- [ ] **Statusy w górnym pasku** (EPHEMERIS / TERRAIN / DATA) liczone na żywo, a nie wpisane na sztywno — C
 
 ### P2
 
@@ -105,6 +109,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — wybór lądownika tylko do odczytu (SPECS z pochodzeniem danych, LANDER IMPACT, what-if), weryfikacja dostępności linków źródłowych, testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — pierwsze wrażenie i dopracowanie frontu: ekran startowy, QUICK DEMO, porównanie miejsc, róża Słońca/Ziemi, nakładka kandydatów, słowniczek, responsywność, metadane i `og.png`, poprawki wdrożeniowe, pomiary wydajności, testy w 3 przeglądarkach
 
 ## ⚠️ Known issues / ryzyka
 
@@ -119,10 +124,13 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Dane lądowników HLS to głównie założenia** — moc paneli, bateria i obciążenia Starship HLS i Blue Moon nie są publikowane (ASSUMPTION). Wyniki dla HLS trzeba na pitchu przedstawiać jako szacunek klasy, nie dane producenta.
 - **Dwa linki źródłowe nie odpowiadają automatom** (sprawdzone 2026-11-14 ~12:50): `nasaspaceflight.com` (Griffin, czas misji) zwraca 403 dla zapytań automatycznych, a cały `collectspace.com` (Blue Moon: czas misji, załoga, panele) zwracał 522 (awaria serwera). Sprawdzić ręcznie w przeglądarce przed zgłoszeniem; `nasaspaceflight.com/tag/viper/` to strona tagu, czyli słabe źródło, więc warto podmienić na konkretny artykuł.
 - **Demo zależy od internetu** — Cesium z CDN, Google Fonts i kafle Moon Trek są online. Łamie to zasadę „offline”. → P0.
-- **Brak tokena lub terenu 3D** — bez tokena działa tylko tryb 2D. Token jest tylko lokalnie (gitignored). Asset Moon Terrain `2684829` nie jest jeszcze dodany do konta Cesium ion, więc aplikacja pokazuje „3D TERRAIN UNAVAILABLE”.
+- **Teren 3D tylko lokalnie** — asset Moon Terrain jest już na koncie i lokalnie działa „3D TERRAIN”. Token jest tylko w `appsettings.Development.json` (gitignored, wykluczony z publikacji), więc wdrożona wersja pokaże „2D MOSAIC MODE”, dopóki nie zostanie podjęta decyzja o tokenie z ograniczeniem do domeny.
 - **Przybliżenie liniowe tarczy Słońca** — maksymalny błąd to 5,8 pkt proc. przy częściowym zakryciu. Statystyka „jakiekolwiek światło” nie jest dotknięta.
 - **Uproszczenia modelu** — Księżyc jako sfera R = 1737,4 km, horyzont do 150 km, DEM 120 m/px, okres 2027–28 (nie pełny cykl 18,6 roku). „Ziemia widoczna” to nie to samo co kontakt ze stacją DSN.
 - ~~Zagnieżdżone `SeleneFrontend/.git`~~ — usunięte w `1e7a604`.
-- **Atrybucja ukryta** — kredyty Cesium są schowane, a stopki ze źródłami nie ma. → P0.
-- **Drobne błędy UI** — lista miejsc nie synchronizuje się z wyborem; brak `favicon.ico` (404 w konsoli); statusy w górnym pasku są wpisane na sztywno. (`[class.expanded]` naprawione w `1e7a604`.)
+- ~~Atrybucja ukryta~~ — stopka ze źródłami i zastrzeżeniem dodana w `2885f11`.
+- ~~Drobne błędy UI~~ — lista miejsc, favicon i statusy naprawione w `2885f11`; `[class.expanded]` w `1e7a604`.
+- **Czas ładowania** — wynik po 3,7 s na łączu 20 Mbit/s (cel ≤ 3 s spełniony tylko na szybkim łączu); ograniczeniem jest transfer runtime'u .NET (~2 MB) i Cesium (~1,45 MB).
+- **Zgłaszane przesunięcie terenu Cesium Moon (~2,5 km względem LOLA, niepotwierdzone)** — pinezki są przypięte do terenu 3D, a horyzonty i wyniki liczone są z LOLA, więc wizualizacja może się minimalnie różnić od obliczeń.
+- **`InvariantTimezone` wymaga workloadu `wasm-tools`** — nie włączone; opcjonalna dalsza oszczędność rozmiaru.
 - **GitHub Pages** — `<base href="/">` nie zadziała pod podścieżką repo.
