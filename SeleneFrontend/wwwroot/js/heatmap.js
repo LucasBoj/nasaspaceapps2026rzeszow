@@ -10,6 +10,22 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const states = new WeakMap();
 
+// Windows longer than a year are drawn one column per week (readability and speed): each column
+// shows the best landing day of that week for the site (highest score, earliest on ties).
+const WEEKLY_AFTER_DAYS = 366;
+const bucketOf = (data) => (data.days > WEEKLY_AFTER_DAYS ? 7 : 1);
+const colsOf = (data) => Math.ceil(data.days / bucketOf(data));
+
+/** Day index shown by column c for site s (the best day of that week, or the day itself). */
+function colDay(data, s, c) {
+  const b = bucketOf(data);
+  if (b === 1) return c;
+  const first = c * b, last = Math.min(data.days, first + b);
+  let best = first;
+  for (let d = first + 1; d < last; d++) if (data.scores[s * data.days + d] > data.scores[s * data.days + best]) best = d;
+  return best;
+}
+
 // Palette from app.css tokens (fallbacks = the same values), read once.
 let palette = null;
 function tokens() {
@@ -61,7 +77,12 @@ function cellColor(data, i) {
 function describe(dd, s, d) {
   const i = s * dd.days + d;
   const score = dd.scores[i];
-  const parts = [`${dd.sites[s]} · land ${dayDate(dd, d).toISOString().slice(0, 10)}`,
+  const b = bucketOf(dd);
+  const week = b > 1
+    ? (() => { const c = Math.floor(d / b); const a = dayDate(dd, c * b), z = dayDate(dd, Math.min(dd.days, c * b + b) - 1);
+               return `week ${a.toISOString().slice(5, 10)}…${z.toISOString().slice(5, 10)} · best day `; })()
+    : "";
+  const parts = [`${dd.sites[s]} · ${week}land ${dayDate(dd, d).toISOString().slice(0, 10)}`,
     score > 0 ? `score ${score.toFixed(1)} · ${VERDICTS[dd.verdicts[i]]}` : "NOT FEASIBLE",
     `lit ${Math.round(dd.sunPct[i])}%`, `Earth ${Math.round(dd.commsPct[i])}%`,
     `energy ${dd.energyRatio[i].toFixed(2)}×`, `min battery ${Math.round(dd.minSoc[i])}%`];
@@ -76,7 +97,7 @@ function geometry(canvas, data) {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   const plotW = Math.max(1, w - MARGIN.left - MARGIN.right);
   const plotH = Math.max(1, h - MARGIN.top - MARGIN.bottom);
-  return { w, h, plotW, plotH, cw: plotW / data.days, rh: plotH / data.sites.length };
+  return { w, h, plotW, plotH, cw: plotW / colsOf(data), rh: plotH / data.sites.length };
 }
 
 function dayDate(data, d) {
@@ -100,11 +121,12 @@ function draw(canvas, pulse = 0) {
   ctx.textBaseline = "middle";
 
   // Cells (merge runs of identical colour per row for speed and crisp edges).
+  const cols = colsOf(data);
   for (let s = 0; s < data.sites.length; s++) {
     const y = MARGIN.top + s * g.rh;
-    let runStart = 0, runColor = cellColor(data, s * data.days);
-    for (let d = 1; d <= data.days; d++) {
-      const color = d < data.days ? cellColor(data, s * data.days + d) : null;
+    let runStart = 0, runColor = cellColor(data, s * data.days + colDay(data, s, 0));
+    for (let d = 1; d <= cols; d++) {
+      const color = d < cols ? cellColor(data, s * data.days + colDay(data, s, d)) : null;
       if (color !== runColor) {
         ctx.fillStyle = runColor;
         ctx.fillRect(MARGIN.left + runStart * g.cw, y + 1, (d - runStart) * g.cw + 0.5, g.rh - 2);
@@ -118,21 +140,28 @@ function draw(canvas, pulse = 0) {
 
   // Month labels and separators.
   ctx.textAlign = "left";
-  for (let d = 0; d < data.days; d++) {
-    const date = dayDate(data, d);
-    if (d === 0 || date.getUTCDate() === 1) {
+  const bucket = bucketOf(data);
+  let prevMonth = -1;
+  let labelEnd = -Infinity;   // right edge of the last month label (labels never overlap)
+  for (let d = 0; d < cols; d++) {
+    const date = dayDate(data, d * bucket);
+    const monthStart = bucket === 1 ? date.getUTCDate() === 1 : date.getUTCMonth() !== prevMonth;
+    prevMonth = date.getUTCMonth();
+    if (d === 0 || monthStart) {
       const x = MARGIN.left + d * g.cw;
       ctx.fillStyle = "rgba(127,147,166,0.35)";
       ctx.fillRect(x, MARGIN.top, 1, g.plotH);
       ctx.fillStyle = "#7f93a6";
       const label = MONTHS[date.getUTCMonth()] + (date.getUTCMonth() === 0 || d === 0 ? " " + String(date.getUTCFullYear()).slice(2) : "");
-      if (g.cw * 28 > 30 || date.getUTCMonth() % 3 === 0 || d === 0) ctx.fillText(label, x + 2, MARGIN.top / 2);
+      const wide = g.cw * 28 / bucket > 30 || date.getUTCMonth() % 3 === 0 || d === 0;
+      if (wide && x + 2 >= labelEnd + 4) { ctx.fillText(label, x + 2, MARGIN.top / 2); labelEnd = x + 2 + ctx.measureText(label).width; }
     }
   }
 
   // Selected cell (thin light outline) and best cell (amber + label).
-  const outline = (s, d, color, width) => {
-    if (s < 0 || d < 0) return;
+  const outline = (s, day, color, width) => {
+    if (s < 0 || day < 0) return;
+    const d = Math.floor(day / bucket);   // the week column that contains this day
     const minW = 5;
     const cx = MARGIN.left + d * g.cw + g.cw / 2;
     const wpx = Math.max(minW, g.cw);
@@ -155,8 +184,9 @@ function draw(canvas, pulse = 0) {
     const label = "BEST WINDOW";
     ctx.font = '600 10px "IBM Plex Mono", monospace';
     const tw = ctx.measureText(label).width + 8;
-    let lx = MARGIN.left + bd * g.cw + Math.max(5, g.cw) / 2 + 6;
-    if (lx + tw > g.w - MARGIN.right) lx = MARGIN.left + bd * g.cw - tw - 6;
+    const bc = Math.floor(bd / bucket);
+    let lx = MARGIN.left + bc * g.cw + Math.max(5, g.cw) / 2 + 6;
+    if (lx + tw > g.w - MARGIN.right) lx = MARGIN.left + bc * g.cw - tw - 6;
     const ly = MARGIN.top + bs * g.rh + g.rh / 2;
     ctx.fillStyle = "rgba(10,14,19,0.9)";
     ctx.fillRect(lx, ly - 8, tw, 16);
@@ -175,7 +205,8 @@ function cellAt(canvas, evt) {
   const x = evt.clientX - rect.left - MARGIN.left;
   const y = evt.clientY - rect.top - MARGIN.top;
   if (x < 0 || y < 0 || x >= g.plotW || y >= g.plotH) return null;
-  return { s: Math.floor(y / g.rh), d: Math.floor(x / g.cw), x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+  const s = Math.floor(y / g.rh);
+  return { s, d: colDay(st.data, s, Math.floor(x / g.cw)), x: evt.clientX - rect.left, y: evt.clientY - rect.top };
 }
 
 export function render(canvas, tooltip, data, dotNetRef) {

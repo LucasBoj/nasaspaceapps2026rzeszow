@@ -58,13 +58,13 @@
                 based on @BasisText(m.BasedOn) lander values
             </span>
             <span class="verdict-actions">
-                @if (Ui.FullAnalysisHint)
+                @if (Inline)
                 {
-                    <button type="button" class="link-btn full-analysis-hint" @onclick="Ui.ShowFullAnalysisAsync">See the full analysis →</button>
+                    <button type="button" class="link-btn" @onclick="Ui.ShowFullAnalysisAsync">Jump to the timeline ↓</button>
                 }
                 else
                 {
-                    <button type="button" class="btn-secondary small" @onclick="Ui.ShowFullAnalysisAsync">Show on timeline</button>
+                    <button type="button" class="link-btn full-analysis-hint" @onclick="Ui.ShowFullAnalysisAsync">See the full analysis →</button>
                 }
                 <button type="button" class="btn-secondary small new-landing" @onclick="Ui.NewLanding">New landing</button>
             </span>

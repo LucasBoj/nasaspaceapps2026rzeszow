@@ -2539,3 +2539,72 @@ body { font-size: var(--fs-m); line-height: 1.45; }
 }
 .verdict-outdated .btn-secondary { flex: none; }
 .verdict-card.outdated .verdict-big, .verdict-card.outdated .verdict-numbers, .verdict-card.outdated .verdict-sentence { opacity: 0.8; }
+
+/* ---- Polish 2026-11-14: Analyst mode button, step 3 subtitle ---- */
+.analyst-btn {
+    display: inline-flex; align-items: center; gap: var(--s2);
+    padding: 6px 10px;
+    font: inherit; font-size: var(--fs-s); font-weight: 600;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.analyst-btn:hover { border-color: var(--accent-cyan); }
+.analyst-btn:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+.analyst-icon { width: 14px; height: 14px; fill: currentColor; }
+.analyst-state { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 1px 5px; border-radius: 2px; background: var(--bg-raised); color: var(--text-dim); }
+.analyst-btn.on { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #000; }
+.analyst-btn.on .analyst-state { background: rgba(0, 0, 0, 0.25); color: #000; }
+.step-title small.step-sub { display: block; font-size: var(--fs-s); font-weight: 400; color: var(--text-dim); }
+@media (max-width: 1023px) { .analyst-btn > span:not(.analyst-state) { display: none; } }
+
+/* ---- Analyst mode: the analysis panel takes the height it needs, the page scrolls if needed ---- */
+html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: auto; }
+.mode-analyst.app-container { height: auto; min-height: 100dvh; }
+.mode-analyst > .main-content { flex: none; height: var(--moon-h, calc(100dvh - 56px - 56px - 30px)); min-height: 240px; transition: height var(--t) var(--ease); }
+.mode-analyst .results-strip.expanded { height: auto; }
+.mode-analyst .results-strip.expanded .results-content { overflow: visible; flex: none; }
+.results-head-row { display: flex; align-items: center; gap: var(--s2); padding-right: var(--s4); }
+.results-head-row .results-header { flex: 1; min-width: 0; }
+.results-size-btns { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.results-resize {
+    height: 8px; margin-top: -4px; cursor: row-resize; flex: none;
+    background: linear-gradient(var(--border-color), var(--border-color)) center / 48px 2px no-repeat;
+}
+.results-resize:hover, .results-resize:focus-visible { background-color: rgba(79, 195, 247, 0.15); outline: none; }
+@media (prefers-reduced-motion: reduce) { .mode-analyst > .main-content { transition: none; } }
+@media (max-width: 1023px) { .mode-analyst > .main-content { height: auto; } .results-resize { display: none; } }
+
+/* ---- Date picker limited to the data range ---- */
+.date-field { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.date-field > label { font-size: var(--fs-s); color: var(--text-dim); }
+.date-value {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; font: inherit; font-size: var(--fs-m);
+    color: var(--text-primary); background: var(--bg-panel);
+    border: 1px solid var(--border-color); border-radius: 2px; cursor: pointer; text-align: left;
+}
+.date-value:hover { border-color: var(--accent-cyan); }
+.date-value:focus-visible, .date-day:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 1px; }
+.date-pop {
+    position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 280px;
+    padding: var(--s3); background: var(--bg-raised); border: 1px solid var(--border-color); border-radius: 2px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5); display: grid; gap: var(--s2);
+}
+.date-pop-head { display: flex; gap: 6px; align-items: center; }
+.date-pop-head select { flex: 1; min-width: 0; padding: 4px; background: var(--bg-panel); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 2px; font: inherit; font-size: var(--fs-s); }
+.date-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.date-grid th { font-size: 11px; font-weight: 500; color: var(--text-dim); padding: 2px 0; }
+.date-grid td { padding: 1px; }
+.date-day {
+    width: 100%; aspect-ratio: 1; font: inherit; font-size: var(--fs-s);
+    color: var(--text-primary); background: none; border: 1px solid transparent; border-radius: 2px; cursor: pointer;
+}
+.date-day:hover:not(:disabled) { border-color: var(--accent-cyan); }
+.date-day.selected { background: var(--accent-cyan); color: #000; font-weight: 600; }
+.date-day.cursor:not(.selected) { border-color: var(--border-color); }
+.date-day:disabled { color: #4a5866; cursor: not-allowed; }
+.date-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; }

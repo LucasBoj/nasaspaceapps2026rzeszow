@@ -233,7 +233,8 @@ def compare(sky: ephemeris.MoonSky | None = None) -> dict:
     sites = []
     for site in json.loads(build.DEFAULT_SITES.read_text(encoding="utf-8")):
         sid = site["id"]
-        doc = json.loads((ILLUMINATION_DIR / by_site[sid]["file"]).read_text(encoding="utf-8"))
+        any_year = next(iter(by_site[sid]["files"].values()))   # horizonDeg is the same in every yearly file
+        doc = json.loads((ILLUMINATION_DIR / any_year).read_text(encoding="utf-8"))
         horizon_deg = np.asarray(doc["horizonDeg"], dtype=np.float64)
         ours18 = our_visibility(sky, horizon_deg, site["lat"], site["lon"], PERIOD_START, PERIOD_DAYS)
         ours27 = our_visibility(sky, horizon_deg, site["lat"], site["lon"],

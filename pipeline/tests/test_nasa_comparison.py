@@ -99,7 +99,9 @@ def test_recomputed_2027_28_matches_the_app_data(result):
     # Same horizon + fresh ephemeris over 2027-28 must reproduce index.json -> pctSunlit,
     # i.e. the comparison uses exactly the model the app uses.
     index = json.loads((cmp.ILLUMINATION_DIR / "index.json").read_text(encoding="utf-8"))
-    app = {s["siteId"]: s["pctSunlit"] for s in index["sites"]}
+    # index.json covers 2026-11 … 2035 now; 2027–28 = the two yearly figures weighted by their hours.
+    app = {s["siteId"]: (s["byYear"]["2027"]["pctSunlit"] * 8760 + s["byYear"]["2028"]["pctSunlit"] * 8784) / 17544
+           for s in index["sites"]}
     for s in result["sites"]:
         assert s["oursSunPct2027"] == pytest.approx(app[s["siteId"]], abs=0.2), s["siteId"]
 

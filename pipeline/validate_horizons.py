@@ -76,9 +76,9 @@ API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
 
 BODIES = {"sun": "10", "earth": "399"}
 
-# Four dates spread over 2027–2028 (different seasons and libration phases),
-# six hourly samples each → 24 epochs per site and body.
-DATES = ("2027-02-01", "2027-08-15", "2028-03-20", "2028-10-05")
+# Seven dates spread over the shipped range 2026-11 … 2035 (different seasons and libration phases),
+# six hourly samples each → 42 epochs per site and body.
+DATES = ("2026-11-20", "2027-02-01", "2027-08-15", "2028-03-20", "2028-10-05", "2031-06-15", "2035-12-15")
 HOURS = range(6)
 
 # Above this elevation azimuth becomes ill-conditioned (it is undefined at the
@@ -217,7 +217,7 @@ def compare(sky: ephemeris.MoonSky, sites: list[dict], body: str,
 
 def compare_shipped(sites: list[dict], body: str, tables: dict[str, HorizonsTable],
                     times: list[datetime], illum_dir: Path = ILLUMINATION_DIR) -> Residuals | None:
-    """Shipped ``illumination/{siteId}.json`` (centi-degrees) minus Horizons.
+    """Shipped ``illumination/{siteId}/{year}.json`` (centi-degrees) minus Horizons.
 
     Returns None when a file is missing or was generated for other coordinates
     than the current ``sites.json`` (then it cannot be compared like-for-like).
@@ -225,16 +225,21 @@ def compare_shipped(sites: list[dict], body: str, tables: dict[str, HorizonsTabl
     el_key, az_key = JSON_FIELDS[body]
     ids, el_p, d_el, d_az = [], [], [], []
     for site in sites:
-        path = illum_dir / f"{site['id']}.json"
-        if not path.exists():
-            return None
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if abs(data["lat"] - site["lat"]) > 1e-6 or abs(data["lon"] - site["lon"]) > 1e-6 or az_key not in data:
-            return None
-        start = ephemeris.parse_utc(data["start"])
-        idx = [round((t - start).total_seconds() / 3600.0 / data["stepHours"]) for t in times]
-        el = np.array([data[el_key][i] for i in idx]) / 100.0
-        az = np.array([data[az_key][i] for i in idx]) / 100.0
+        years: dict[int, dict] = {}
+        el, az = [], []
+        for t in times:                                   # one file per calendar year (contract 2026-11-14)
+            if t.year not in years:
+                path = illum_dir / site["id"] / f"{t.year}.json"
+                if not path.exists():
+                    return None
+                years[t.year] = json.loads(path.read_text(encoding="utf-8"))
+            data = years[t.year]
+            if abs(data["lat"] - site["lat"]) > 1e-6 or abs(data["lon"] - site["lon"]) > 1e-6 or az_key not in data:
+                return None
+            i = round((t - ephemeris.parse_utc(data["start"])).total_seconds() / 3600.0 / data["stepHours"])
+            el.append(data[el_key][i] / 100.0)
+            az.append(data[az_key][i] / 100.0)
+        el, az = np.array(el), np.array(az)
         ref = tables[site["id"]]
         ids += [site["id"]] * len(times)
         el_p.append(el)

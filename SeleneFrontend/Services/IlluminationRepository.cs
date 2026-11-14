@@ -4,36 +4,81 @@ using SeleneFrontend.Models;
 
 namespace SeleneFrontend.Services;
 
-/// <summary>Lazy, cached access to the precomputed illumination data in <c>wwwroot/data/illumination/</c>.</summary>
+/// <summary>
+/// Lazy, cached access to the precomputed illumination data in <c>wwwroot/data/illumination/</c>.
+/// The data is split into one file per site and calendar year (2026-11 … 2035); only the years
+/// covering the current analysis window are downloaded, then joined into one series per site.
+/// </summary>
 public sealed class IlluminationRepository(HttpClient http)
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
-    private readonly Dictionary<string, Task<IlluminationSeries>> _series = [];
-    private Task<IlluminationIndex>? _index;
+    /// <summary>Days after the window end that must be covered too: the mission and the 30-day max-stay cap.</summary>
+    public const int TailDays = 62;
 
-    /// <summary>index.json (data range and site list), loaded once.</summary>
+    private readonly Dictionary<string, Task<IlluminationSeries>> _years = [];    // "site|2027" → one yearly file
+    private readonly Dictionary<string, Task<IlluminationSeries>> _joined = [];   // "site|2027|2029" → joined years
+    private Task<IlluminationIndex>? _index;
+    private DateTime _from = new(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private DateTime _to = new(2028, 12, 31, 0, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>index.json (data range, years and site list), loaded once.</summary>
     public Task<IlluminationIndex> GetIndexAsync() =>
         _index ??= LoadAsync<IlluminationIndex>("data/illumination/index.json");
 
-    /// <summary>One site's hourly series, loaded on first use and cached.</summary>
-    public Task<IlluminationSeries> GetSeries(string siteId)
+    /// <summary>The landing window the next <see cref="GetSeries(string)"/> calls must cover (set by MissionConfigState).</summary>
+    public void SetWindow(DateTime from, DateTime to)
     {
-        if (!_series.TryGetValue(siteId, out var task))
-        {
-            task = LoadAsync<IlluminationSeries>($"data/illumination/{Uri.EscapeDataString(siteId)}.json");
-            _series[siteId] = task;
-        }
-        return task;
+        _from = TimeUtil.AsUtc(from);
+        _to = TimeUtil.AsUtc(to);
     }
 
-    /// <summary>Hourly sample index for a UTC time (same grid for every site), or −1 outside the data.</summary>
-    public async Task<int> IndexOf(DateTime utc)
+    /// <summary>Years needed for a window: its first year … the year of (end + mission tail), within the data.</summary>
+    public static (int First, int Last) YearsFor(DateTime from, DateTime to, IReadOnlyList<int> available)
+    {
+        var first = from.Year;
+        var last = to.AddDays(TailDays).Year;
+        if (available.Count > 0)
+        {
+            first = Math.Clamp(first, available.Min(), available.Max());
+            last = Math.Clamp(last, first, available.Max());
+        }
+        return (first, last);
+    }
+
+    /// <summary>One site's hourly series covering the current window (joined yearly files, cached).</summary>
+    public async Task<IlluminationSeries> GetSeries(string siteId)
     {
         var index = await GetIndexAsync();
-        if (TimeUtil.AsUtc(utc) > TimeUtil.AsUtc(index.End).AddHours(index.StepHours)) return -1;
-        var hours = (TimeUtil.AsUtc(utc) - TimeUtil.AsUtc(index.Start)).TotalHours;
-        return hours < 0 ? -1 : (int)Math.Floor(hours / index.StepHours + 1e-9);
+        var (first, last) = YearsFor(_from, _to, index.Years);
+        var key = $"{siteId}|{first}|{last}";
+        if (!_joined.TryGetValue(key, out var task))
+        {
+            // Keep only the joined series of the current window (yearly files stay cached).
+            foreach (var stale in _joined.Keys.Where(k => k.StartsWith(siteId + "|", StringComparison.Ordinal)).ToList())
+                _joined.Remove(stale);
+            task = JoinAsync(siteId, first, last);
+            _joined[key] = task;
+        }
+        return await task;
+    }
+
+    private async Task<IlluminationSeries> JoinAsync(string siteId, int first, int last)
+    {
+        var parts = await Task.WhenAll(Enumerable.Range(first, last - first + 1).Select(y => GetYear(siteId, y)));
+        return IlluminationSeries.Concat(parts);
+    }
+
+    /// <summary>One yearly file, loaded on first use and cached.</summary>
+    public Task<IlluminationSeries> GetYear(string siteId, int year)
+    {
+        var key = $"{siteId}|{year}";
+        if (!_years.TryGetValue(key, out var task))
+        {
+            task = LoadAsync<IlluminationSeries>($"data/illumination/{Uri.EscapeDataString(siteId)}/{year}.json");
+            _years[key] = task;
+        }
+        return task;
     }
 
     /// <summary>Data range: first sample … last sample (inclusive), UTC.</summary>

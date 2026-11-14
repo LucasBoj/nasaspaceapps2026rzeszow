@@ -5,9 +5,11 @@ Example::
     python build.py --dem /data/ldem_75s_120m_float.lbl --site malapert_massif
     python build.py --dem /data/ldem_75s_120m_float.lbl            # all sites
 
-Writes ``<out>/{siteId}.json`` for each site and (re)writes ``<out>/index.json``
-with headline statistics. Running a single site updates only its entry in the
-existing index.
+Writes one file per calendar year, ``<out>/{siteId}/{year}.json`` (same fields as the
+former single file, each year with its own ``start`` and ``count``), and (re)writes
+``<out>/index.json`` with statistics for the whole range and per year. Running a single
+site updates only its entry in the existing index. The frontend loads only the years it
+needs for the selected landing window.
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ import argparse
 import json
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -30,8 +32,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 DEFAULT_SITES = REPO / "SeleneFrontend" / "wwwroot" / "data" / "sites.json"
 DEFAULT_OUT = REPO / "SeleneFrontend" / "wwwroot" / "data" / "illumination"
-DEFAULT_START = "2027-01-01T00:00:00Z"
-DEFAULT_END = "2028-12-31T23:00:00Z"
+DEFAULT_START = "2026-11-01T00:00:00Z"   # data contract 2026-11-14: today … end of 2035, yearly files
+DEFAULT_END = "2035-12-31T23:00:00Z"
 STEP_HOURS = 1
 
 
@@ -92,6 +94,32 @@ def build_site(site: dict, dem: horizon.Dem, sky: ephemeris.MoonSky, times, star
             "method": "linear-disk-approx",
         },
     }
+
+
+SERIES_KEYS = ("sunFraction", "sunElevCentiDeg", "sunAzCentiDeg", "earthVisible", "earthElevCentiDeg", "earthAzCentiDeg")
+
+
+def split_years(doc: dict, start: datetime) -> dict[int, dict]:
+    """Cut a site document into calendar-year documents with the same fields (start/count per year)."""
+    count = doc["count"]
+    years: dict[int, dict] = {}
+    i = 0
+    while i < count:
+        t = start + timedelta(hours=i * STEP_HOURS)
+        next_year = datetime(t.year + 1, 1, 1, tzinfo=timezone.utc)
+        n = min(count - i, int((next_year - t).total_seconds() // 3600 // STEP_HOURS))
+        part = {k: v for k, v in doc.items() if k not in SERIES_KEYS}
+        part["start"] = iso_z(t)
+        part["count"] = n
+        for k in SERIES_KEYS:
+            part[k] = doc[k][i:i + n]
+        years[t.year] = part
+        i += n
+    return years
+
+
+def year_stats(part: dict) -> dict:
+    return illumination.summarize(np.array(part["sunFraction"]), np.array(part["earthVisible"]), STEP_HOURS)
 
 
 def write_json(path: Path, doc: dict) -> None:
@@ -169,17 +197,27 @@ def main(argv: list[str] | None = None) -> int:
             failed.append(site["id"])
             continue
 
-        write_json(args.out / f"{site['id']}.json", doc)
+        site_dir = args.out / site["id"]
+        site_dir.mkdir(parents=True, exist_ok=True)
+        parts = split_years(doc, start)
+        for year, part in parts.items():
+            write_json(site_dir / f"{year}.json", part)
+        legacy = args.out / f"{site['id']}.json"          # pre-2026-11-14 single-file format
+        if legacy.exists():
+            legacy.unlink()
         stats = illumination.summarize(np.array(doc["sunFraction"]), np.array(doc["earthVisible"]), STEP_HOURS)
         coverage = horizon.ray_coverage(dem, doc["lat"], doc["lon"], max_distance_m)
         entries.append({"siteId": site["id"], "name": site.get("name", site["id"]),
-                        "lat": doc["lat"], "lon": doc["lon"], "file": f"{site['id']}.json",
-                        **stats, "horizonCoveragePct": round(coverage * 100, 1)})
+                        "lat": doc["lat"], "lon": doc["lon"],
+                        "files": {str(y): f"{site['id']}/{y}.json" for y in parts},
+                        **stats, "horizonCoveragePct": round(coverage * 100, 1),
+                        "byYear": {str(y): year_stats(p) for y, p in parts.items()}})
         tqdm.write(f"  ✓ {site['id']}: sunlit {stats['pctSunlit']}%, comms {stats['pctComms']}%, "
                    f"longest dark {stats['longestDarkHours']} h, DEM coverage {coverage:.0%}")
 
     if entries:
         meta = {"start": iso_z(start), "end": iso_z(end), "stepHours": STEP_HOURS,
+                "years": list(range(start.year, end.year + 1)),
                 "observerHeightM": args.observer_height, "dem": dem.name,
                 "method": "linear-disk-approx",
                 "generatedAt": iso_z(datetime.now(timezone.utc))}
