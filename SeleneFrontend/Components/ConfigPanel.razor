@@ -4,139 +4,195 @@
 @inject MissionConfigState MissionState
 @inject AnalysisService Analysis
 @inject UiService Ui
+@inject IlluminationRepository Repo
 @implements IDisposable
 
 <div class="config-panel-content">
-    <nav class="stepper" aria-label="Setup steps">
-        <ol>
-            @foreach (var (n, label, target, done) in Steps())
+    <ol class="steps" aria-label="Plan a landing in three steps">
+        @* ---------------------------------------------------------------- 1 site *@
+        <li class="step-item @StepState(1)">
+            <h2 class="step-head">
+                <button type="button" aria-expanded="@(open == 1 ? "true" : "false")" aria-controls="step-body-1" @onclick="() => Toggle(1)">
+                    <span class="step-num" aria-hidden="true">@(Done(1) && open != 1 ? "✓" : "1")</span>
+                    <span class="step-title">Choose a site</span>
+                    @if (open != 1 && MissionState.SelectedSite is { } cur)
+                    {
+                        <span class="step-value">@cur.Name</span>
+                    }
+                </button>
+            </h2>
+            @if (open == 1)
             {
-                var state = done ? "done" : n == ActiveStep ? "active" : "next";
-                <li class="step @state">
-                    <button type="button" @onclick="() => Ui.ScrollToAsync(target)" aria-current="@(state == "active" ? "step" : null)">
-                        <span class="step-num" aria-hidden="true">@(done ? "✓" : n.ToString())</span>
-                        <span class="step-label">@label</span>
-                        <span class="sr-only">(@state)</span>
-                    </button>
-                </li>
-            }
-        </ol>
-    </nav>
-
-    <section class="config-section" id="step-site">
-        <h2><span class="section-number">01</span>TARGET SITE</h2>
-        <div class="section-body">
-            <div class="field">
-                <label>Selected Site</label>
-                <div class="site-info">
-                    <p><strong>@MissionState.SelectedSite?.Name</strong></p>
-                    <p style="font-size: 0.875rem; color: #7f93a6;">
-                        @string.Format("{0:F2}°, {1:F2}°", MissionState.SelectedSite?.Lat ?? 0, MissionState.SelectedSite?.Lon ?? 0)
-                    </p>
-                    @if (MissionState.SelectedSite?.Approximate ?? false)
+                <div class="step-body" id="step-body-1">
+                    @if (Ui.Landed)
                     {
-                        <p style="font-size: 0.75rem; color: #ffb020;">positions approximate — verify</p>
+                        <p class="step-note" role="status">Landed at @MissionState.SelectedSite?.Name. Start a new landing to change the site.</p>
+                        <button type="button" class="btn-secondary small" @onclick="Ui.NewLanding">New landing</button>
                     }
-                    else if (MissionState.SelectedSite is { CandidateId: { } cid } site)
+                    <div class="site-list" role="radiogroup" aria-label="Landing sites">
+                        @foreach (var site in MissionState.AvailableSites)
+                        {
+                            var selected = MissionState.SelectedSite?.Id == site.Id;
+                            var info = IndexFor(site.Id);
+                            <button type="button" role="radio" aria-checked="@(selected ? "true" : "false")"
+                                    class="site-row @(selected ? "selected" : "")" disabled="@Ui.Landed"
+                                    @onclick="() => OnSiteSelected(site.Id)">
+                                <span class="site-row-name">@site.Name</span>
+                                @if (info is not null)
+                                {
+                                    <span class="site-row-fact">sunlit <span class="num">@Pct0(info.PctSunlit)</span> of the time</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                    @if (MissionState.SelectedSite is { } custom && custom.Id.StartsWith("CUSTOM", StringComparison.Ordinal))
                     {
-                        <p class="site-source">site @cid · best of @site.CandidatesEvaluated published candidates ·
-                            <a href="https://doi.org/10.1029/2025JE009434" target="_blank" rel="noopener">Wueller et al. 2026</a></p>
+                        <p class="step-note">Custom point @Coords(custom) — no precomputed data here. Pick one of the sites above to analyze.</p>
                     }
-                    @if (MissionState.NasaCheckFor(MissionState.SelectedSite?.Id) is { } check && MissionState.NasaCheck is { } nasa)
+                    @if (Ui.AnalystMode && MissionState.SelectedSite is { } sel)
                     {
-                        <p class="site-source nasa-check">
-                            <Term Key="nasacheck">Sunlit time</Term> (18.6-yr avg, any sunlight):
-                            NASA LOLA map @Pct(check.NasaSunPct) · our model @Pct(check.OursSunPct18y)
-                            (@Delta(check.DeltaSunPct))@if (!double.IsNaN(check.NasaSunMinNearPct))
+                        <div class="site-info">
+                            <p class="num">@Coords(sel)</p>
+                            @if (sel.Approximate)
                             {
-                                <text> · NASA within ±120 m: @Pct(check.NasaSunMinNearPct)–@Pct(check.NasaSunMaxNearPct)</text>
-                            } ·
-                            <a href="@nasa.Url" target="_blank" rel="noopener">Mazarico et al. 2011</a>
-                        </p>
+                                <p class="site-source warn">positions approximate — verify</p>
+                            }
+                            else if (sel is { CandidateId: { } cid })
+                            {
+                                <p class="site-source">site @cid · best of @sel.CandidatesEvaluated published candidates ·
+                                    <a href="https://doi.org/10.1029/2025JE009434" target="_blank" rel="noopener">Wueller et al. 2026</a></p>
+                            }
+                            @if (MissionState.NasaCheckFor(sel.Id) is { } check && MissionState.NasaCheck is { } nasa)
+                            {
+                                <p class="site-source nasa-check">
+                                    <Term Key="nasacheck">Sunlit time</Term> (18.6-yr avg, any sunlight):
+                                    NASA LOLA map @Pct(check.NasaSunPct) · our model @Pct(check.OursSunPct18y)
+                                    (@Delta(check.DeltaSunPct))@if (!double.IsNaN(check.NasaSunMinNearPct))
+                                    {
+                                        <text> · NASA within ±120 m: @Pct(check.NasaSunMinNearPct)–@Pct(check.NasaSunMaxNearPct)</text>
+                                    } ·
+                                    <a href="@nasa.Url" target="_blank" rel="noopener">Mazarico et al. 2011</a>
+                                </p>
+                            }
+                            <button class="btn-secondary small" disabled="@(!MissionState.CanFlyTo)" @onclick="MissionState.RequestFlyTo">Fly to</button>
+                        </div>
                     }
+                    <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedSite is null)" @onclick="() => Open(2)">Next: choose a lander</button>
                 </div>
-            </div>
-            <div class="field">
-                <label>Choose Site</label>
-                <select value="@(MissionState.SelectedSite?.Id ?? "")" @onchange="@((ChangeEventArgs e) => OnSiteSelected(e.Value?.ToString() ?? ""))">
-                    <option value="">-- Select a site --</option>
-                    @foreach (var site in MissionState.AvailableSites)
+            }
+        </li>
+
+        @* ---------------------------------------------------------------- 2 lander *@
+        <li class="step-item @StepState(2)">
+            <h2 class="step-head">
+                <button type="button" aria-expanded="@(open == 2 ? "true" : "false")" aria-controls="step-body-2" @onclick="() => Toggle(2)">
+                    <span class="step-num" aria-hidden="true">@(Done(2) && open != 2 ? "✓" : "2")</span>
+                    <span class="step-title">Choose a lander</span>
+                    @if (open != 2 && MissionState.SelectedLander is { } l)
                     {
-                        <option value="@site.Id">@site.Name</option>
+                        <span class="step-value">@l.Name</span>
                     }
-                </select>
-            </div>
-            <button class="btn-secondary" disabled="@(!MissionState.CanFlyTo)" @onclick="MissionState.RequestFlyTo">Fly to</button>
-        </div>
-    </section>
-
-    <section class="config-section" id="step-lander">
-        <h2><span class="section-number">02</span>LANDER</h2>
-        <div class="section-body">
-            <LanderPicker />
-        </div>
-    </section>
-
-    <section class="config-section" id="step-run">
-        <h2><span class="section-number">03</span>MISSION WINDOW</h2>
-        <div class="section-body">
-            <div class="field">
-                <label for="win-start">Landing Window Start (UTC)</label>
-                <input id="win-start" @key="@($"ws-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowStart)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
-                       @onchange="@((ChangeEventArgs e) => OnStartDateChanged(e.Value?.ToString() ?? ""))" />
-            </div>
-            <div class="field">
-                <label for="win-end">Landing Window End (UTC)</label>
-                <input id="win-end" @key="@($"we-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowEnd)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
-                       @onchange="@((ChangeEventArgs e) => OnEndDateChanged(e.Value?.ToString() ?? ""))" />
-                @if (MissionState.WindowNotice is { } notice)
-                {
-                    <small class="window-notice" role="status">Window clipped — @notice</small>
-                }
-                else if (!string.IsNullOrEmpty(MissionState.DataRangeText))
-                {
-                    <small class="window-hint">@MissionState.DataRangeText</small>
-                }
-            </div>
-            <div class="field">
-                <label>Mission Duration [Earth days]</label>
-                <input type="number" min="0" step="any" value="@Inv(MissionState.MissionDurationDays)" @onchange="@((ChangeEventArgs e) => OnDurationChanged(e.Value?.ToString() ?? ""))" />
-            </div>
-            <p class="window-hint">Data step: 1 h (precomputed hourly, 2027–2028)</p>
-        </div>
-    </section>
-
-    <section class="config-section">
-        <h2><span class="section-number">04</span>CONSTRAINTS</h2>
-        <div class="section-body">
-            <div class="field">
-                <div class="label-row">
-                    <label for="min-comms">Min Earth visibility [% of hours]</label>
-                    <Term Key="earth" AriaLabel="What is Earth visibility?">?</Term>
+                </button>
+            </h2>
+            @if (open == 2)
+            {
+                <div class="step-body" id="step-body-2">
+                    <LanderPicker />
+                    <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedLander is null)" @onclick="() => Open(3)">Next: run the analysis</button>
                 </div>
-                <input id="min-comms" type="number" min="0" max="100" value="@Inv(MissionState.MinCommsPercent)" @onchange="@((ChangeEventArgs e) => OnMinCommsChanged(e.Value?.ToString() ?? ""))" />
-            </div>
-            <div class="field">
-                <div class="label-row">
-                    <label for="min-battery">Min battery SoC [%]</label>
-                    <Term Key="soc" AriaLabel="What is SoC?">?</Term>
-                </div>
-                <input id="min-battery" type="number" min="0" max="100" value="@Inv(MissionState.MinBatteryPercent)" @onchange="@((ChangeEventArgs e) => OnMinBatteryChanged(e.Value?.ToString() ?? ""))" />
-            </div>
-        </div>
-    </section>
+            }
+        </li>
 
-    <button type="button" class="btn-primary confirm-landing" disabled="@(!Ui.CanConfirmLanding)"
-            title="@(Ui.CanConfirmLanding ? (Ui.LandingAnimationEnabled ? "Play the landing and run the analysis" : "Fly to the site and run the analysis") : "Pick one of the 9 regions and a lander first")"
-            @onclick="() => Ui.ConfirmLandingAsync()">
-        @(Ui.LandingInProgress ? "LANDING…" : "▼ CONFIRM LANDING SITE")
-    </button>
-    <div class="config-actions">
-        <button class="btn-secondary" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? (Analysis.IsRunning ? "Running — click to restart with the current settings" : "Simulate every landing day for all 9 regions"))"
-                @onclick="() => Analysis.RunAsync()">
-            @(Analysis.IsRunning ? $"ANALYZING… {Analysis.Progress * 100:0}%" : "RUN ANALYSIS")
+        @* ---------------------------------------------------------------- 3 run *@
+        <li class="step-item @StepState(3)">
+            <h2 class="step-head">
+                <button type="button" aria-expanded="@(open == 3 ? "true" : "false")" aria-controls="step-body-3" @onclick="() => Toggle(3)">
+                    <span class="step-num" aria-hidden="true">@(Done(3) && open != 3 ? "✓" : "3")</span>
+                    <span class="step-title">Run analysis</span>
+                    @if (open != 3)
+                    {
+                        <span class="step-value">@VerdictText.Days(MissionState.MissionDurationDays) on the surface</span>
+                    }
+                </button>
+            </h2>
+            @if (open == 3)
+            {
+                <div class="step-body" id="step-body-3">
+                    <p class="step-summary">
+                        Stay <strong>@VerdictText.Days(MissionState.MissionDurationDays)</strong> on the surface, landing on the best day
+                        between <span class="num">@ShortDate(MissionState.WindowStart)</span> and <span class="num">@ShortDate(MissionState.WindowEnd)</span>.
+                    </p>
+                    <details class="change-dates" open="@Ui.AnalystMode">
+                        <summary>Change dates</summary>
+                        <div class="change-dates-body">
+                            <div class="field">
+                                <label for="win-start">Earliest landing date (UTC)</label>
+                                <input id="win-start" @key="@($"ws-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowStart)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
+                                       @onchange="@((ChangeEventArgs e) => OnStartDateChanged(e.Value?.ToString() ?? ""))" />
+                            </div>
+                            <div class="field">
+                                <label for="win-end">Latest landing date (UTC)</label>
+                                <input id="win-end" @key="@($"we-{MissionState.WindowRevision}")" type="date" value="@Day(MissionState.WindowEnd)" min="@Day(MissionState.DataStart)" max="@Day(MissionState.DataEnd)"
+                                       @onchange="@((ChangeEventArgs e) => OnEndDateChanged(e.Value?.ToString() ?? ""))" />
+                                @if (MissionState.WindowNotice is { } notice)
+                                {
+                                    <small class="window-notice" role="status">Dates adjusted — @notice</small>
+                                }
+                                else if (!string.IsNullOrEmpty(MissionState.DataRangeText))
+                                {
+                                    <small class="window-hint">@MissionState.DataRangeText</small>
+                                }
+                            </div>
+                            <div class="field">
+                                <label for="mission-days">Days on the surface (Earth days)</label>
+                                <input id="mission-days" type="number" min="0" step="any" value="@Inv(MissionState.MissionDurationDays)" @onchange="@((ChangeEventArgs e) => OnDurationChanged(e.Value?.ToString() ?? ""))" />
+                            </div>
+                            @if (Ui.AnalystMode)
+                            {
+                                <p class="window-hint">Data step: 1 h (precomputed hourly, 2027–2028)</p>
+                            }
+                        </div>
+                    </details>
+
+                    @if (Ui.AnalystMode)
+                    {
+                        <div class="constraints" role="group" aria-labelledby="constraints-title">
+                            <h3 id="constraints-title">Constraints</h3>
+                            <div class="field">
+                                <div class="label-row">
+                                    <label for="min-comms">Min Earth visibility [% of hours]</label>
+                                    <Term Key="earth" AriaLabel="What is Earth visibility?">?</Term>
+                                </div>
+                                <input id="min-comms" type="number" min="0" max="100" value="@Inv(MissionState.MinCommsPercent)" @onchange="@((ChangeEventArgs e) => OnMinCommsChanged(e.Value?.ToString() ?? ""))" />
+                            </div>
+                            <div class="field">
+                                <div class="label-row">
+                                    <label for="min-battery">Min battery SoC [%]</label>
+                                    <Term Key="soc" AriaLabel="What is SoC?">?</Term>
+                                </div>
+                                <input id="min-battery" type="number" min="0" max="100" value="@Inv(MissionState.MinBatteryPercent)" @onchange="@((ChangeEventArgs e) => OnMinBatteryChanged(e.Value?.ToString() ?? ""))" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </li>
+    </ol>
+
+    <div class="panel-actions">
+        <button type="button" class="btn-primary confirm-landing run-main" disabled="@(!Ui.CanConfirmLanding)"
+                title="@(Ui.CanConfirmLanding ? (Ui.LandingAnimationEnabled ? "Land at the site and simulate every landing day" : "Fly to the site and simulate every landing day") : "Choose one of the 9 sites and a lander first")"
+                @onclick="() => Ui.ConfirmLandingAsync()">
+            @(Ui.LandingInProgress ? "Landing…" : Analysis.IsRunning && Ui.VerdictRequested ? $"Analyzing… {Analysis.Progress * 100:0}%" : "Run analysis")
         </button>
-        <button class="btn-secondary" @onclick="@(() => MissionState.Reset())">Reset</button>
+        @if (Ui.AnalystMode)
+        {
+            <div class="config-actions">
+                <button class="btn-secondary small" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? "Simulate every landing day for all 9 sites without the landing animation")"
+                        @onclick="Ui.RunAnalysisAsync">Analyze without landing</button>
+                <button class="btn-secondary small" @onclick="@(() => MissionState.Reset())">Reset</button>
+            </div>
+        }
     </div>
 </div>
 
@@ -146,13 +202,42 @@
     private static string Pct(double v) => v.ToString("0.0", CultureInfo.InvariantCulture) + "%";
     private static string Delta(double pp) => (pp >= 0 ? "+" : "−") + Math.Abs(pp).ToString("0.0", CultureInfo.InvariantCulture) + " pp";
 
-    private int ActiveStep => Steps().FirstOrDefault(s => !s.Done).N;
+    private int open = 3;
+    private int seenRevision;
+    private IlluminationIndex? index;
 
-    private IEnumerable<(int N, string Label, string Target, bool Done)> Steps()
+    private static string Pct0(double v) => v.ToString("0", CultureInfo.InvariantCulture) + "%";
+    private static string Coords(Site s) => string.Format(CultureInfo.InvariantCulture, "{0:F2}°, {1:F2}°", s.Lat, s.Lon);
+    private static string ShortDate(DateTime? d) => d is { } v ? VerdictText.Date(v) : "—";
+
+    private IlluminationIndexSite? IndexFor(string id) => index?.Sites.FirstOrDefault(s => s.SiteId == id);
+
+    private bool Done(int n) => n switch
     {
-        yield return (1, "Pick a site", "step-site", MissionState.SelectedSite is not null);
-        yield return (2, "Pick a lander", "step-lander", MissionState.SelectedLander is not null);
-        yield return (3, "Run analysis", "step-run", Analysis.HasResults && !Analysis.IsOutdated);
+        1 => MissionState.SelectedSite is not null,
+        2 => MissionState.SelectedLander is not null,
+        _ => Analysis.HasResults && !Analysis.IsOutdated,
+    };
+
+    private string StepState(int n) => n == open ? "active" : Done(n) ? "done" : "next";
+
+    private void Toggle(int n) => open = open == n ? 0 : n;
+    private void Open(int n) => open = n;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { index = await Repo.GetIndexAsync(); }
+        catch (Exception ex) { Console.Error.WriteLine($"[ConfigPanel] index.json: {ex.Message}"); }
+    }
+
+    protected override void OnParametersSet() => SyncOpenStep();
+
+    /// <summary>NEW LANDING (and other UiService requests) open a given step.</summary>
+    private void SyncOpenStep()
+    {
+        if (Ui.OpenStepRevision == seenRevision) return;
+        seenRevision = Ui.OpenStepRevision;
+        open = Ui.OpenStep;
     }
 
     private static string? Day(DateTime? d) => d?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -164,7 +249,7 @@
         Ui.OnChanged += Refresh;
     }
 
-    private void Refresh() => InvokeAsync(StateHasChanged);
+    private void Refresh() => InvokeAsync(() => { SyncOpenStep(); StateHasChanged(); });
 
     public void Dispose()
     {
@@ -175,6 +260,7 @@
 
     private async Task OnSiteSelected(string siteId)
     {
+        if (Ui.Landed) return;
         await MissionState.SelectSite(siteId);
     }
 

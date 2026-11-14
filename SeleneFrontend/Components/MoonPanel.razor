@@ -27,15 +27,23 @@
     {
         <div class="viewer-hud">
             <div class="viewer-hud-buttons">
-                <button type="button" class="hud-btn" @onclick="SouthPoleViewAsync">SOUTH POLE VIEW</button>
-                <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)" @onclick="ZoomToSiteAsync">ZOOM TO SITE</button>
-                <button type="button" class="hud-btn" aria-expanded="@(settingsOpen ? "true" : "false")" aria-controls="hud-settings"
-                        title="Viewer settings" @onclick="() => settingsOpen = !settingsOpen">⚙</button>
-                <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
-                        disabled="@(!HasRegionSelected)" title="Show all evaluated candidate landing sites in this region"
-                        @onclick="Ui.ToggleCandidates">CANDIDATES</button>
+                <button type="button" class="hud-btn" aria-label="Back to the south pole view (Home key)" title="Back to the south pole view (Home)"
+                        @onclick="SouthPoleViewAsync">⌂ View</button>
+                <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)" @onclick="ZoomToSiteAsync">Zoom to site</button>
+                @if (Ui.Landed)
+                {
+                    <button type="button" class="hud-btn new-landing" @onclick="Ui.NewLanding">New landing</button>
+                }
+                @if (Ui.AnalystMode)
+                {
+                    <button type="button" class="hud-btn" aria-label="Viewer settings" aria-expanded="@(settingsOpen ? "true" : "false")" aria-controls="hud-settings"
+                            title="Viewer settings" @onclick="() => settingsOpen = !settingsOpen">⚙</button>
+                    <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
+                            disabled="@(!HasRegionSelected)" title="Show all evaluated candidate landing sites in this region"
+                            @onclick="Ui.ToggleCandidates">Candidates</button>
+                }
             </div>
-            @if (settingsOpen)
+            @if (settingsOpen && Ui.AnalystMode)
             {
                 <div class="hud-settings" id="hud-settings">
                     <label>
@@ -47,13 +55,20 @@
                     {
                         <small>Reduced motion is on — the landing shows as a short fade.</small>
                     }
+                    <label>
+                        <input type="checkbox" checked="@Ui.EnhanceView"
+                               @onchange="@((ChangeEventArgs e) => Ui.SetEnhanceView(e.Value is true))" />
+                        Enhance view
+                    </label>
+                    <small>Brighter on screen only. The pole really is this dark — the Sun stays a few degrees above the horizon. Light direction from JPL ephemerides.</small>
                 </div>
             }
-            @if (badgeText is not null)
+            @if (badgeText is not null && Ui.AnalystMode)
             {
                 <div class="viewer-badge mode" title="@badgeTitle">@badgeText</div>
             }
-            @if (Ui.LandingAnimationEnabled && MissionState.SelectedLander is { Model: { } model } lander)
+            @if (Ui.LandingAnimationEnabled && MissionState.SelectedLander is { Model: { } model } lander
+                 && (Ui.AnalystMode || modelStatus.GetValueOrDefault(model.Uri) == "loading"))
             {
                 var state = modelStatus.GetValueOrDefault(model.Uri);
                 <div class="viewer-badge model-status @state" tabindex="0" role="status"
@@ -82,12 +97,12 @@
                     }
                 </div>
             }
-            @if (Analysis.IsRunning)
+            @if (Analysis.IsRunning && (Ui.VerdictRequested || Ui.AnalystMode))
             {
                 <div class="hud-progress" role="progressbar" aria-label="Analysis progress"
                      aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)(Analysis.Progress * 100))">
                     <div class="hud-progress-bar" style="width: @((int)(Analysis.Progress * 100))%"></div>
-                    <span>ANALYZING · @((int)(Analysis.Progress * 100))%</span>
+                    <span>Analyzing all 9 sites · @((int)(Analysis.Progress * 100))%</span>
                 </div>
             }
         </div>
@@ -96,12 +111,9 @@
     {
         <div class="viewer-compass"><SunEarthCompass /></div>
     }
-    @if (Ui.ContactText is { } contact && !Ui.LandingInProgress)
+    @if (!Ui.AnalystMode)
     {
-        <div class="contact-banner" role="status">
-            <span>@contact</span>
-            <button type="button" class="welcome-close" aria-label="Dismiss" @onclick="Ui.ClearContact">×</button>
-        </div>
+        <VerdictCard />
     }
     <WelcomeCard />
     @if (initError is not null)
@@ -160,6 +172,7 @@
         Ui.OnChanged += HandleUiChanged;
         Ui.IntroRequested += HandleIntro;
         Ui.LandingRequested += HandleLandingRequested;
+        Ui.NewLandingRequested += HandleNewLanding;
         Ui.HoverTimeChanged += HandleHoverTime;
     }
 
@@ -214,7 +227,29 @@
         StateHasChanged();
     });
 
-    private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); StateHasChanged(); });
+    private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); await SyncViewerFlagsAsync(); StateHasChanged(); });
+
+    /// <summary>NEW LANDING: remove the landed model and give the camera back.</summary>
+    private void HandleNewLanding() => _ = InvokeAsync(async () =>
+    {
+        landedKey = null;
+        if (moonModule is null) return;
+        try { await moonModule.InvokeVoidAsync("clearLandingMarker"); }
+        catch (JSDisconnectedException) { }
+    });
+
+    private (bool Locked, bool Enhance)? sentFlags;
+
+    /// <summary>LANDED locks site picking on the Moon; ENHANCE brightens the scene. Sent only when they change.</summary>
+    private async Task SyncViewerFlagsAsync()
+    {
+        if (!moonLoaded || moonModule is null) return;
+        var flags = (Ui.Landed, Ui.EnhanceView);
+        if (sentFlags == flags) return;
+        sentFlags = flags;
+        try { await moonModule.InvokeVoidAsync("setViewerFlags", flags.Item1, flags.Item2); }
+        catch (JSDisconnectedException) { }
+    }
 
     private void HandleIntro()
     {
@@ -249,6 +284,7 @@
             }
 
             moonLoaded = true;
+            await SyncViewerFlagsAsync();
             Ui.SetViewerReady(result.TerrainLoaded);
             await SyncViewerAsync();
             if (introPending)
@@ -475,6 +511,7 @@
         Ui.OnChanged -= HandleUiChanged;
         Ui.IntroRequested -= HandleIntro;
         Ui.LandingRequested -= HandleLandingRequested;
+        Ui.NewLandingRequested -= HandleNewLanding;
         Ui.HoverTimeChanged -= HandleHoverTime;
 
         if (moonModule is not null)

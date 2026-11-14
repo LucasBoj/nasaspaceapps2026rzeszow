@@ -2152,3 +2152,365 @@ a { color: var(--accent-cyan); }
     .viewer-badge.model-status.loading { animation: model-pulse 1.4s ease-in-out infinite; }
 }
 @keyframes model-pulse { 50% { opacity: .55; } }
+
+/* ======================================================================
+   v2 — product layout (2026-11-14): SIMPLE / ANALYST modes, three-step panel,
+   one verdict card. Type scale: 28 / 18 / 14 / 12 px. Sans for text, Mono only
+   for numbers, dates and coordinates (.num). Colour only with meaning:
+   green/amber/red = verdict and state, cyan = interaction, amber = best window.
+   ====================================================================== */
+:root {
+    --fs-xl: 28px;
+    --fs-l: 18px;
+    --fs-m: 14px;
+    --fs-s: 12px;
+    --panel-w: 380px;
+    --bg-overlay: rgba(10, 14, 19, 0.9);
+    --text-dim: #9fb0c0;   /* secondary text on overlays: 7.6:1 on --bg-panel */
+}
+
+body { font-size: var(--fs-m); line-height: 1.45; }
+.num, .step-value .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* ---- Buttons: sentence case, calmer ---- */
+.btn-primary, .btn-secondary {
+    font-size: var(--fs-m);
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.btn-secondary.small, .hud-btn.small { font-size: var(--fs-s); padding: 6px 10px; }
+.btn-primary:focus-visible, .btn-secondary:focus-visible, .link-btn:focus-visible, .site-row:focus-visible,
+.step-head button:focus-visible, .compass-toggle:focus-visible, .analyst-toggle input:focus-visible + .switch-track,
+.status-dot.solo:focus-visible, .lander-card:focus-visible {
+    outline: 2px solid var(--accent-cyan);
+    outline-offset: 2px;
+}
+.link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--accent-cyan);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+.link-btn:hover { color: #8bd8fb; }
+
+/* ---- Top bar ---- */
+.top-bar { height: 56px; }
+.top-bar-left { gap: var(--s5); min-width: 0; }
+.app-title h1 { font-size: var(--fs-m); letter-spacing: 0.08em; }
+.app-title p {
+    display: block;
+    font-size: var(--fs-s);
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.quick-demo.top {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: var(--fs-m);
+    letter-spacing: 0;
+    text-transform: none;
+    flex: none;
+    padding: 8px 16px;
+}
+.top-bar-right { gap: var(--s4); }
+.status-item { font-size: var(--fs-s); }
+.utc-clock { font-size: var(--fs-s); }
+.status-dot.solo { width: 8px; height: 8px; cursor: help; }
+.help-btn { width: 32px; height: 32px; font-size: var(--fs-m); }
+
+.analyst-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    font-size: var(--fs-s);
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+.analyst-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch-track {
+    position: relative;
+    width: 32px; height: 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    background: var(--bg-raised);
+    transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.switch-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    border-radius: 1px;
+    background: var(--text-secondary);
+    transition: transform var(--t) var(--ease), background var(--t-fast) var(--ease);
+}
+.analyst-toggle input:checked + .switch-track { background: rgba(79, 195, 247, 0.2); border-color: var(--accent-cyan); }
+.analyst-toggle input:checked + .switch-track .switch-thumb { transform: translateX(14px); background: var(--accent-cyan); }
+
+/* ---- Layout: SIMPLE = big Moon + fixed-width step panel ---- */
+.mode-simple .main-content { grid-template-columns: minmax(0, 1fr) var(--panel-w); }
+.mode-simple .config-panel { grid-column: 2; }
+.mode-analyst .main-content { grid-template-columns: minmax(0, 1fr) 8px minmax(380px, 420px); }
+.moon-panel { border-right: none; }
+.config-panel { border-left: 1px solid var(--border-color); }
+
+/* ---- Step panel ---- */
+.config-panel-content { padding: var(--s4); gap: var(--s4); }
+.steps { list-style: none; display: flex; flex-direction: column; gap: var(--s2); }
+.step-item { background: var(--bg-raised); border-radius: 2px; }
+.step-item.active { box-shadow: inset 2px 0 0 var(--accent-cyan); }
+.step-head { margin: 0; font-size: inherit; }
+.step-head button {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: var(--s3);
+    width: 100%;
+    padding: var(--s3) var(--s4);
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.step-head button:hover .step-title { color: #fff; }
+.step-num {
+    display: inline-grid;
+    place-items: center;
+    width: 28px; height: 28px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    font-size: var(--fs-s);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.step-item.active .step-num { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.step-item.done .step-num { border-color: var(--status-ok); color: var(--status-ok); }
+.step-title { font-size: var(--fs-m); font-weight: 600; }
+.step-value {
+    font-size: var(--fs-s);
+    color: var(--text-dim);
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.step-body {
+    padding: 0 var(--s4) var(--s4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+    animation: step-open var(--t) var(--ease) both;
+}
+@keyframes step-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.step-note { font-size: var(--fs-s); color: var(--text-dim); }
+.step-summary { font-size: var(--fs-m); color: var(--text-primary); }
+.step-next { align-self: flex-start; flex: none; }
+
+.site-list { display: flex; flex-direction: column; gap: 2px; }
+.site-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s3);
+    padding: 10px var(--s3);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: var(--fs-m);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.site-row:hover:not(:disabled) { background: rgba(79, 195, 247, 0.06); border-color: var(--border-color); }
+.site-row.selected { border-color: var(--accent-cyan); background: rgba(79, 195, 247, 0.1); }
+.site-row:disabled { cursor: not-allowed; opacity: 0.55; }
+.site-row-fact { font-size: var(--fs-s); color: var(--text-dim); white-space: nowrap; }
+.site-info { display: flex; flex-direction: column; gap: var(--s1); font-size: var(--fs-s); color: var(--text-dim); }
+.site-info .btn-secondary { align-self: flex-start; flex: none; }
+.site-source.warn { color: var(--status-warn); }
+
+.change-dates summary {
+    cursor: pointer;
+    font-size: var(--fs-s);
+    color: var(--accent-cyan);
+    width: fit-content;
+}
+.change-dates-body { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s3); }
+.field label { font-size: var(--fs-s); font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text-dim); }
+.constraints { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--border-color); }
+.constraints h3 { font-size: var(--fs-s); font-weight: 600; color: var(--text-dim); }
+
+.panel-actions {
+    position: sticky;
+    bottom: 0;
+    margin: auto calc(-1 * var(--s4)) calc(-1 * var(--s4));
+    padding: var(--s4);
+    background: linear-gradient(to top, var(--bg-panel) 75%, rgba(16, 22, 29, 0));
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+}
+.run-main { flex: none; padding: 14px; font-size: var(--fs-l); }
+.panel-actions .config-actions { display: flex; gap: var(--s2); }
+
+/* Lander cards: quieter, no decorative tags */
+.segmented-option { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-s); letter-spacing: 0; text-transform: none; }
+.lander-card-name { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-m); font-weight: 600; letter-spacing: 0; }
+.lander-card-maker { font-size: var(--fs-s); }
+.lander-card-quality { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-s); color: var(--text-dim); }
+.quality-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 1px solid var(--text-secondary);
+    background: conic-gradient(var(--text-dim) calc(var(--q) * 360deg), transparent 0);
+}
+.lander-keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
+.lander-keys div { background: var(--bg-panel); padding: var(--s2) var(--s3); border-radius: 2px; }
+.lander-keys dt { font-size: var(--fs-s); color: var(--text-dim); }
+.lander-keys dd { font-family: 'IBM Plex Mono', monospace; font-size: var(--fs-m); margin: 0; }
+.lander-keys-note { font-size: var(--fs-s); color: var(--text-dim); display: flex; gap: var(--s1); align-items: baseline; }
+
+/* ---- Viewer HUD ---- */
+.hud-btn { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-s); letter-spacing: 0; padding: 6px 10px; }
+.hud-btn.new-landing { color: var(--text-primary); border-color: var(--accent-cyan); }
+.viewer-badge { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-s); letter-spacing: 0; }
+.hud-progress span { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-s); letter-spacing: 0; }
+.hud-settings small { max-width: 260px; color: var(--text-dim); font-size: var(--fs-s); }
+
+/* ---- Verdict card: the one place the verdict is shown ---- */
+.verdict-card {
+    position: absolute;
+    left: 50%;
+    bottom: var(--s4);
+    translate: -50% 0;   /* separate from `transform`, which the entry animation uses */
+    z-index: 6;
+    width: min(760px, calc(100% - 32px));
+    max-height: 30vh;
+    overflow-y: auto;
+    padding: var(--s4) var(--s5);
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-color);
+    border-top: 2px solid currentColor;
+    border-radius: 2px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    color: var(--text-primary);
+    animation: card-in var(--t-slow) var(--ease) both;
+    display: grid;
+    gap: var(--s3);
+}
+.verdict-card.v-feasible { border-top-color: var(--status-ok); }
+.verdict-card.v-marginal { border-top-color: var(--status-warn); }
+.verdict-card.v-nogo { border-top-color: var(--status-error); }
+.verdict-big {
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+.v-feasible .verdict-big { color: var(--status-ok); }
+.v-marginal .verdict-big { color: var(--status-warn); }
+.v-nogo .verdict-big { color: #ff6b6d; }   /* AA on the dark overlay */
+.verdict-sentence { font-size: var(--fs-m); margin-top: var(--s1); color: var(--text-primary); max-width: 64ch; }
+.verdict-numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); margin: 0; }
+.verdict-numbers dt { font-size: var(--fs-s); color: var(--text-dim); }
+.verdict-numbers dd { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: var(--fs-xl); font-weight: 500; line-height: 1.15; }
+.verdict-numbers dd small { display: inline; font-size: var(--fs-m); color: var(--text-dim); margin-left: 1px; }
+.verdict-card.inline { position: static; translate: none; width: auto; max-height: none; margin-bottom: var(--s3); box-shadow: none; background: var(--bg-panel); }
+.run-main { font-family: 'IBM Plex Sans', sans-serif; letter-spacing: 0; text-transform: none; }
+.verdict-numbers dd.date { font-size: var(--fs-l); padding-top: 6px; }
+.verdict-numbers .low dd { color: var(--status-warn); }
+.verdict-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.verdict-basis { font-size: var(--fs-s); color: var(--text-dim); display: inline-flex; align-items: center; gap: var(--s1); }
+.verdict-actions { display: flex; gap: var(--s2); align-items: center; }
+.verdict-actions .btn-secondary { flex: none; }
+.full-analysis-hint { font-size: var(--fs-m); }
+.verdict-card .term-tip { bottom: calc(100% + 6px); top: auto; left: 0; width: min(320px, 80vw); }
+
+/* ---- Welcome card ---- */
+.welcome-card { width: min(420px, calc(100% - 24px)); padding: var(--s5); z-index: 8; }
+.welcome-card h2 { font-size: var(--fs-l); }
+.welcome-card p { font-size: var(--fs-m); color: var(--text-dim); }
+.welcome-actions { display: flex; gap: var(--s2); margin: var(--s4) 0 var(--s3); }
+.welcome-actions .quick-demo, .welcome-actions .try-it { width: auto; flex: 1; }
+.welcome-help { font-size: var(--fs-s); }
+
+/* ---- Compass ---- */
+.compass-toggle {
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+.compass-toggle:hover { border-color: var(--accent-cyan); }
+.compass-toggle svg { width: 30px; height: 30px; }
+.compass.simple { position: relative; padding-right: 36px; }
+.compass.simple .compass-text { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-s); }
+.compass-close { top: 2px; right: 2px; }
+.compass-text { font-size: var(--fs-s); }
+/* the verdict card owns the bottom centre; the compass stays bottom-right next to it */
+.moon-viewer-container:has(.verdict-card.overlay) .verdict-card.overlay { width: min(760px, calc(100% - 140px)); }
+
+/* ---- Results (Analyst mode): handle only, no repeated verdict ---- */
+.results-title { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-m); text-transform: none; letter-spacing: 0; color: var(--text-primary); }
+.results-status { font-size: var(--fs-s); color: var(--text-dim); }
+.results-summary { font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-s); font-weight: 400; letter-spacing: 0; }
+.verdict-reason { font-size: var(--fs-s); color: var(--text-dim); }
+
+/* ---- Footer ---- */
+.app-footer { font-size: var(--fs-s); padding: 6px var(--s5); display: flex; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; }
+.app-footer .link-btn { font-size: var(--fs-s); }
+.credits-list { list-style: none; padding: 0; display: grid; gap: var(--s2); font-size: var(--fs-m); }
+
+/* ---- Landed: plain cursor on the Moon (title explains why) ---- */
+.is-landed .moon-viewer-canvas canvas { cursor: default; }
+
+/* ---- Motion ---- */
+@media (prefers-reduced-motion: reduce) {
+    .step-body, .verdict-card, .welcome-card { animation: fade-only var(--t) linear both; }
+    .switch-thumb, .switch-track { transition: none; }
+}
+@keyframes fade-only { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- Responsive ---- */
+@media (max-width: 1200px) {
+    .app-title p { display: none; }
+    :root { --panel-w: 360px; }
+}
+@media (max-width: 1023px) {
+    .mode-simple .main-content, .mode-analyst .main-content { grid-template-columns: minmax(0, 1fr); }
+    .mode-simple .config-panel { grid-column: 1; }
+    .moon-panel { height: auto; min-height: 0; }
+    .moon-viewer-container { height: auto; padding-top: 58vh; }
+    .moon-viewer-canvas { bottom: auto; height: 58vh; }
+    .verdict-card, .moon-viewer-container:has(.verdict-card.overlay) .verdict-card.overlay { position: static; translate: none; width: auto; max-height: none; margin: var(--s3); }
+    .welcome-card { position: static; width: auto; margin: var(--s3); }
+    .verdict-numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel-actions { position: static; margin: 0; background: none; padding: 0; }
+    .analyst-toggle span:last-child { display: none; }
+    .analyst-toggle::after { content: "Analyst"; font-size: var(--fs-s); }
+}
+@media (max-width: 560px) {
+    .top-bar { padding: 0 var(--s3); }
+    .quick-demo.top { padding: 6px 10px; font-size: var(--fs-s); }
+    .lander-keys { grid-template-columns: 1fr; }
+    .verdict-big { font-size: var(--fs-l); }
+}

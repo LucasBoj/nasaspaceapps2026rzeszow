@@ -23,6 +23,13 @@ const groundCache = new Map();   // "lat,lon" → sampled ground height (m)
 let markerPrims = [];            // glTF model primitive(s) left on the surface
 let pending = null;              // { hud, onKey } while play() is preparing (before the animation clock starts)
 let settleTimer = null;          // post-touchdown terrain-following of the landed marker
+let orbitClearance = 3;          // minimum camera height above the terrain while orbiting the landed lander (m)
+
+/** The descent is running (it owns the camera); moonViewer's camera guard waits. */
+export function isAnimating() { return active !== null || pending !== null; }
+
+/** Smallest camera height above the terrain in the landed orbit (scaled to the lander). */
+export function orbitClearanceM() { return orbitClearance; }
 
 // ------------------------------------------------------------------ optional glTF models (landers.json → modelUri)
 
@@ -520,9 +527,24 @@ export async function play(viewer, options) {
   };
 
   const camera = viewer.camera;
-  const heading0 = Cesium.Math.toRadians(215);
-  const finalHpr = new Cesium.HeadingPitchRange(heading0 + Cesium.Math.toRadians(55), Cesium.Math.toRadians(-28), frame * 9);
-  const landedAt = () => localToWorld(surface(), rot, 0, 0, parts.height * 0.4);
+  // Landed shot: the lander fills ~30 % of the view height (and at most half its width), seen slightly
+  // from above, with the Sun behind-left of the camera so the lit side and the long shadow both show.
+  const fovy = camera.frustum.fovy ?? 0.6;
+  const fovx = 2 * Math.atan(Math.tan(fovy / 2) * (camera.frustum.aspectRatio ?? 1.6));
+  const widthM = glb ? glb.widthM : parts.height;
+  const finalRange = glb
+    ? Math.max(parts.height / (0.3 * 2 * Math.tan(fovy / 2)), widthM / (0.5 * 2 * Math.tan(fovx / 2)))
+    : frame * 9;
+  const finalPitch = Cesium.Math.toRadians(-22);
+  const finalHeading = Number.isFinite(options.sunAzDeg)
+    ? Cesium.Math.toRadians(options.sunAzDeg + 120)          // looking away from the Sun, 60° off its line
+    : Cesium.Math.toRadians(270);
+  const heading0 = finalHeading - Cesium.Math.toRadians(55);
+  const finalHpr = new Cesium.HeadingPitchRange(finalHeading, finalPitch, finalRange);
+  // Aim below the lander so it sits above the middle of the view (the verdict card covers the bottom).
+  const drop = 0.12 * 2 * finalRange * Math.tan(fovy / 2) / Math.cos(finalPitch);
+  const landedAt = () => localToWorld(surface(), rot, 0, 0, parts.height * 0.5 - drop);
+  orbitClearance = Math.max(2, 0.3 * frame);
 
   return new Promise((resolve) => {
     const state = { viewer, entities, prims, fx: [], frame: 0, hud, onKey, resolve, fps: 0, simplified: false };
@@ -647,12 +669,13 @@ export async function play(viewer, options) {
       state.hud.update(telemetry(u));
 
       if (u < 1) {
-        // Chase camera: slow orbit, closing in as the lander slows down.
+        // Chase camera: slow orbit, closing in as the lander slows down, ending exactly on the landed shot.
+        const k = Math.pow(u, 0.7);
         const hpr = new Cesium.HeadingPitchRange(
-          heading0 + Cesium.Math.toRadians(55) * u,
-          Cesium.Math.toRadians(-14 - 14 * u),
-          frame * (60 - 51 * Math.pow(u, 0.7)));
-        safeLookAt(camera, localToWorld(current, rot, 0, 0, parts.height * 0.4), hpr);
+          heading0 + (finalHeading - heading0) * u,
+          Cesium.Math.toRadians(-14) + (finalPitch - Cesium.Math.toRadians(-14)) * u,
+          finalRange * (6.5 - 5.5 * k));
+        safeLookAt(camera, localToWorld(current, rot, 0, 0, parts.height * 0.5 - drop * u), hpr);
       } else {
         if (touchdownAt != null) {
           fxT = (now - touchdownAt) / 1000;

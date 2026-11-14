@@ -8,7 +8,7 @@
       "value": 200,
       "unit": "W",
       "kind": "sourced",
-      "note": "3 panels, ~1 lunar day of operations",
+      "note": "3 panels, surface output (secondary source). The FCC IM-1 application gives a maximum of 788 W without saying whether it applies on the surface — not used until confirmed.",
       "sourceUrl": "https://www.astronomy.com/space-exploration/intuitive-machines-preps-im-2-mission-for-moon-launch-this-week/"
     },
     "panels": {
@@ -20,15 +20,15 @@
       ],
       "unit": "",
       "kind": "assumption",
-      "note": "Team description: 3 fixed panels, 1 on the top deck and 2 on side walls of the hexagonal body, no Sun tracking (tip-overs of IM-1 and IM-2 cut their power). Assumed: the two walls are adjacent (60° apart) and the 3 panels share the output equally.",
+      "note": "Team description: 3 fixed panels (FCC IM-1 application confirms three fixed body-mounted solar panels; their directions are not published), 1 on the top deck and 2 on side walls of the hexagonal body, no Sun tracking (tip-overs of IM-1 and IM-2 cut their power). Assumed: the two walls are adjacent (60° apart) and the 3 panels share the output equally.",
       "sourceUrl": ""
     },
     "batteryWh": {
-      "value": 700,
+      "value": 1554,
       "unit": "Wh",
-      "kind": "derived",
-      "note": "25 Ah battery × 28 V bus",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
+      "kind": "sourced",
+      "note": "FCC IM-1 application: three fixed body-mounted solar panels, Li-ion batteries with a total energy capacity of 1554 Wh, 28 VDC bus (ODAR: three 518 Wh battery assemblies). Replaces the earlier 700 Wh derived from 25 Ah × 28 V (secondary sources).",
+      "sourceUrl": "https://apps.fcc.gov/els/GetAtt.html?amp=&id=266519&x="
     },
     "dayLoadW": {
       "value": 150,
@@ -38,11 +38,11 @@
       "sourceUrl": ""
     },
     "survivalLoadW": {
-      "value": 47,
+      "value": 104,
       "unit": "W",
       "kind": "derived",
-      "note": "700 Wh / ~15 h (IM: comms 10–20 h after sunset)",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
+      "note": "1554 Wh / ~15 h (IM: comms 10–20 h after sunset)",
+      "sourceUrl": "https://apps.fcc.gov/els/GetAtt.html?amp=&id=266519&x="
     },
     "missionDurationDays": {
       "value": 14,
@@ -66,9 +66,9 @@
       "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
     },
     "modelUri": "models/nova_c.glb",
-    "modelHeightM": 4,
+    "modelHeightM": 3.94,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
-    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 4 m (team value)."
+    "modelNote": "Visualisation only. Bounding-box height scaled to 3.94 m: FCC IM-1 application gives Nova-C as 2.19 m × 2.385 m × 3.938 m (https://apps.fcc.gov/els/GetAtt.html?amp=&id=266519&x=)."
   },
   {
     "id": "blue_ghost",

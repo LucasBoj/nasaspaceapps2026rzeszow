@@ -1,29 +1,36 @@
 @using SeleneFrontend.Services
 @implements IDisposable
 @inject UiService Ui
+@inject MissionConfigState MissionState
 
 @if (Ui.WelcomeVisible && !Ui.BootVisible)
 {
-    <section class="welcome-card" aria-labelledby="welcome-title">
+    <section class="welcome-card" role="dialog" aria-modal="false" aria-labelledby="welcome-title">
         <button type="button" class="welcome-close" aria-label="Close welcome card" @onclick="Ui.DismissWelcome">×</button>
         <h2 id="welcome-title">Can a lander survive here?</h2>
         <p>
-            SELENE OPS checks NASA's nine Artemis III candidate regions near the lunar south pole.
-            It simulates sunlight, Earth visibility and battery charge hour by hour for 2027–2028,
-            using NASA LRO LOLA terrain and JPL ephemerides.
-            Pick a site and a lander, and it finds the best landing window — or tells you why there isn't one.
+            Near the Moon's south pole the Sun barely rises, so a lander may run out of power or lose contact with Earth.
+            SELENE OPS simulates sunlight, Earth contact and battery hour by hour at NASA's nine Artemis III candidate sites,
+            using NASA LRO terrain and JPL ephemerides.
+            Choose a site and a lander, and it tells you whether the mission works and the best day to land.
         </p>
-        <ol class="welcome-steps">
-            <li><span>1</span>Pick a site</li>
-            <li><span>2</span>Pick a lander</li>
-            <li><span>3</span>Run analysis</li>
-        </ol>
-        <button type="button" class="btn-primary quick-demo" @onclick="Ui.QuickDemoAsync">▶ QUICK DEMO</button>
+        <div class="welcome-actions">
+            <button type="button" class="btn-primary quick-demo" disabled="@(!MissionState.IsLoaded)" @onclick="Ui.QuickDemoAsync">@(MissionState.IsLoaded ? "▶ Quick demo" : "Loading data…")</button>
+            <button type="button" class="btn-secondary try-it" @onclick="TryIt">Try it yourself</button>
+        </div>
+        <button type="button" class="link-btn welcome-help" @onclick="() => Ui.SetHelp(true)">How to read the results · glossary</button>
     </section>
 }
 
 @code {
-    protected override void OnInitialized() => Ui.OnChanged += Refresh;
+    /// <summary>Close the card and open step 1 so the visitor can pick a site.</summary>
+    private void TryIt()
+    {
+        Ui.DismissWelcome();
+        Ui.SetOpenStep(1);
+    }
+
+    protected override void OnInitialized() { Ui.OnChanged += Refresh; MissionState.OnStateChanged += Refresh; }
     private void Refresh() => InvokeAsync(StateHasChanged);
-    public void Dispose() => Ui.OnChanged -= Refresh;
+    public void Dispose() { Ui.OnChanged -= Refresh; MissionState.OnStateChanged -= Refresh; }
 }

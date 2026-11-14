@@ -1,12 +1,9 @@
+@inject SeleneFrontend.Services.UiService Ui
+
 <footer class="app-footer">
     <span>
-        Imagery: <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA/JPL Moon Trek</a> (LRO WAC)
-        · Terrain: <a href="https://pds-geosciences.wustl.edu/missions/lro/lola.htm" target="_blank" rel="noopener">NASA LRO LOLA</a>
-        · Ephemerides: <a href="https://naif.jpl.nasa.gov/naif/" target="_blank" rel="noopener">JPL/NAIF DE421</a> via Skyfield
-        · Illumination check: <a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noopener">NASA PGDA LOLA maps</a> (Mazarico et al. 2011)
-        · Landing sites: <a href="https://doi.org/10.1029/2025JE009434" target="_blank" rel="noopener">Wueller et al. 2026</a> (CC BY 4.0)
-        · 3D: <a href="https://cesium.com/" target="_blank" rel="noopener">CesiumJS / Cesium ion</a>
-        · Lander models: concept images <a href="https://www.meshy.ai/" target="_blank" rel="noopener">Meshy AI</a> · 3D <a href="https://github.com/microsoft/TRELLIS.2" target="_blank" rel="noopener">Microsoft TRELLIS.2</a> (MIT)
+        Data: NASA LRO LOLA · JPL ephemerides · NASA Moon Trek · Wueller et al. 2026 ·
+        <button type="button" class="link-btn" @onclick="() => Ui.SetCredits(true)">Credits</button>
     </span>
     <span class="footer-disclaimer">Not affiliated with or endorsed by NASA. NASA Space Apps Challenge 2026 · Rzeszów.</span>
 </footer>
