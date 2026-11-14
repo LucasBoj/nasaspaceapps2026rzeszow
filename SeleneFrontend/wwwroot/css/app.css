@@ -2110,3 +2110,18 @@ a { color: var(--accent-cyan); }
 }
 @keyframes shimmer-text { from { opacity: 0.55; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .landing-status { animation: none; } }
+
+/* Lander 3D model load state (MoonPanel HUD); the tooltip carries the model credit. */
+.viewer-badge.model-status {
+    color: var(--text-secondary, #9fb0c0);
+    border-color: rgba(159, 176, 192, 0.45);
+    pointer-events: auto;
+    cursor: help;
+}
+.viewer-badge.model-status.loading { color: var(--accent-cyan); border-color: rgba(79, 195, 247, 0.5); }
+.viewer-badge.model-status.failed { color: #ffb020; border-color: #ffb020; }
+.viewer-badge.model-status:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+    .viewer-badge.model-status.loading { animation: model-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes model-pulse { 50% { opacity: .55; } }

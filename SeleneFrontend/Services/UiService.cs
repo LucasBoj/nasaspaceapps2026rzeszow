@@ -10,7 +10,7 @@ public sealed record BootLine(string Text, BootStatus Status, string Detail = ""
 
 /// <summary>What the 3D viewer needs to play the landing animation.</summary>
 public sealed record LandingRequest(string SiteId, double Lat, double Lon, string SiteName, string LanderId, string LanderClass, string LanderName,
-    bool ReducedMotion, string? ModelUri, double? ModelHeightM);
+    bool ReducedMotion, LanderModelSpec? Model);
 
 /// <summary>
 /// First impression and presentation state: boot sequence, welcome card, recommended
@@ -264,7 +264,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
             _landingDone = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             Notify();
             LandingRequested.Invoke(new LandingRequest(site.Id, site.Lat, site.Lon, site.Name, lander.Id, lander.Class, lander.Name,
-                ReducedMotion, lander.ModelUri, lander.ModelHeightM));
+                ReducedMotion, lander.Model));
             var status = await _landingDone.Task;
             LandingInProgress = false;
             if (status == "cancelled") { Notify(); return; }   // site or lander changed mid-descent

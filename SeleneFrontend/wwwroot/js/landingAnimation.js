@@ -21,56 +21,90 @@ let marker = [];       // entities of the landed model (kept after touchdown)
 let generation = 0;    // bumped by play() and cancel(): a play() still awaiting setup aborts if it changed
 const groundCache = new Map();   // "lat,lon" → sampled ground height (m)
 let markerPrims = [];            // glTF model primitive(s) left on the surface
-const glbCache = new Map();      // uri → Promise<{ url, height, bottom } | null>
-const modelPool = new Map();     // uri → loaded Cesium.Model, hidden when not in use (parsing a large GLB again is slow)
 let pending = null;              // { hud, onKey } while play() is preparing (before the animation clock starts)
 let settleTimer = null;          // post-touchdown terrain-following of the landed marker
 
-// ------------------------------------------------------------------ optional glTF model (e.g. Nova-C)
+// ------------------------------------------------------------------ optional glTF models (landers.json → modelUri)
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const modelLoads = new Map();    // uri → Promise<{ model, info } | null> — one Cesium.Model per lander, shared
+let statusListener = null;       // (uri, "loading" | "ready" | "failed") → void, set by moonViewer.js
+const modelStatus = new Map();   // uri → last status
+
+function setStatus(uri, status) {
+  modelStatus.set(uri, status);
+  try { statusListener?.(uri, status); } catch { /* a listener must never break loading */ }
+}
+
+/** moonViewer.js forwards model load states to the HUD; the current states are replayed at once. */
+export function onModelStatus(listener) {
+  statusListener = listener;
+  for (const [uri, status] of modelStatus) listener(uri, status);
+}
+
+const NORM = { 5120: 127, 5121: 255, 5122: 32767, 5123: 65535 };   // KHR_mesh_quantization: normalized integer → float
 
 /**
- * Download a GLB once, read its height from the POSITION accessor bounds and keep the bytes
- * as a blob URL for Cesium (so the file is fetched a single time).
+ * Download a GLB once and measure it. The bounds come from the POSITION accessors (dequantized when
+ * normalized) through the node transforms: the optimised models (tools/optimize-models) store
+ * int16 positions plus a scale/translation on the mesh node.
  *
- * Orientation: glTF is Y-up by specification, and the TRELLIS export follows it (bounds:
- * x/z ±0.50, y ±0.41 → the lander is wider than tall, as Nova-C is). The model's height is
- * therefore its Y extent. Cesium.Model converts glTF Y-up to Z-up by default, so with an
- * east-north-up modelMatrix the model's "up" is the local vertical at the landing site and no
- * extra rotation is needed. Node transforms are ignored (this export has none).
+ * Orientation: glTF is Y-up by specification and the TRELLIS exports follow it (checked per model:
+ * Starship and Blue Moon are tallest along Y). Cesium.Model converts Y-up to Z-up, so with an
+ * east-north-up modelMatrix the model's up is the local vertical; landers.json → modelRotationDeg
+ * only turns the model about that vertical. Height = Y extent, width = larger of the X/Z extents.
  */
 function glbInfo(uri) {
-  if (!glbCache.has(uri)) {
-    glbCache.set(uri, (async () => {
-      try {
-        const res = await fetch(uri);
-        if (!res.ok) return null;
-        const buf = await res.arrayBuffer();
-        const dv = new DataView(buf);
-        if (buf.byteLength < 20 || dv.getUint32(0, true) !== 0x46546c67 || dv.getUint32(16, true) !== 0x4e4f534a) return null; // "glTF", "JSON"
-        const gltf = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, dv.getUint32(12, true))));
-        let minY = Infinity, maxY = -Infinity;
-        for (const mesh of gltf.meshes ?? []) {
-          for (const prim of mesh.primitives ?? []) {
-            const acc = gltf.accessors?.[prim.attributes?.POSITION];
-            if (acc?.min && acc?.max) { minY = Math.min(minY, acc.min[1]); maxY = Math.max(maxY, acc.max[1]); }
+  return (async () => {
+    try {
+      const res = await fetch(uri);
+      if (!res.ok) return null;
+      const buf = await res.arrayBuffer();
+      const dv = new DataView(buf);
+      if (buf.byteLength < 20 || dv.getUint32(0, true) !== 0x46546c67 || dv.getUint32(16, true) !== 0x4e4f534a) return null; // "glTF", "JSON"
+      const gltf = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, dv.getUint32(12, true))));
+      const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+      const corner = new Cesium.Cartesian3();
+      const visit = (index, parent) => {
+        const node = gltf.nodes?.[index];
+        if (!node) return;
+        const local = node.matrix
+          ? Cesium.Matrix4.fromColumnMajorArray(node.matrix)
+          : Cesium.Matrix4.fromTranslationQuaternionRotationScale(
+            Cesium.Cartesian3.fromArray(node.translation ?? [0, 0, 0]),
+            Cesium.Quaternion.unpack(node.rotation ?? [0, 0, 0, 1]),
+            Cesium.Cartesian3.fromArray(node.scale ?? [1, 1, 1]));
+        const world = Cesium.Matrix4.multiply(parent, local, new Cesium.Matrix4());
+        for (const prim of gltf.meshes?.[node.mesh]?.primitives ?? []) {
+          const acc = gltf.accessors?.[prim.attributes?.POSITION];
+          if (!acc?.min || !acc?.max) continue;
+          const k = acc.normalized ? NORM[acc.componentType] ?? 1 : 1;
+          for (let c = 0; c < 8; c++) {
+            corner.x = (c & 1 ? acc.max[0] : acc.min[0]) / k;
+            corner.y = (c & 2 ? acc.max[1] : acc.min[1]) / k;
+            corner.z = (c & 4 ? acc.max[2] : acc.min[2]) / k;
+            const p = Cesium.Matrix4.multiplyByPoint(world, corner, new Cesium.Cartesian3());
+            [p.x, p.y, p.z].forEach((v, i) => { min[i] = Math.min(min[i], v); max[i] = Math.max(max[i], v); });
           }
         }
-        if (!(maxY > minY)) return null;
-        return { url: URL.createObjectURL(new Blob([buf], { type: "model/gltf-binary" })), height: maxY - minY, bottom: minY };
-      } catch {
-        return null;
-      }
-    })());   // a failure is cached too: one request per session, no repeated 404s
-  }
-  return glbCache.get(uri);
+        for (const child of node.children ?? []) visit(child, world);
+      };
+      const scene = gltf.scenes?.[gltf.scene ?? 0];
+      for (const root of scene?.nodes ?? []) visit(root, Cesium.Matrix4.IDENTITY);
+      const height = max[1] - min[1];
+      const width = Math.max(max[0] - min[0], max[2] - min[2]);
+      if (!(height > 0 && width > 0)) return null;
+      return { url: URL.createObjectURL(new Blob([buf], { type: "model/gltf-binary" })), height, width, bottom: min[1] };
+    } catch {
+      return null;
+    }
+  })();
 }
 
 /** Pooled models are only hidden (reused by the next landing); anything else is removed. */
 function hideOrRemove(viewer, model) {
   if (!viewer || viewer.isDestroyed() || model.isDestroyed()) return;
-  if ([...modelPool.values()].includes(model)) model.show = false;
+  if (model._selenePooled) model.show = false;
   else viewer.scene.primitives.remove(model);
 }
 
@@ -82,51 +116,91 @@ async function whenModelReady(viewer, model, timeoutMs) {
   await Promise.race([new Promise((r) => { const off = viewer.scene.postRender.addEventListener(() => { off(); r(); }); }), sleep(500)]);
 }
 
+const inUse = (model) => (active && active.prims.includes(model)) || markerPrims.includes(model);
+
 /**
- * Background preparation (called a few seconds after a site is selected): download, parse and
- * upload the model once, then keep it hidden in the pool so CONFIRM can start instantly.
+ * Download, parse and upload a model once per session (and per viewer). Failures are cached too:
+ * one request per session, no repeated 404s, and the caller falls back to the schematic model.
  */
-export async function prefetchModel(viewer, uri, heightM) {
-  if (!uri || !viewer || viewer.isDestroyed()) return;
-  const loaded = await loadModel(viewer, uri, heightM, 20000);
-  if (!loaded) return;
-  await whenModelReady(viewer, loaded.model, 20000);
-  const inUse = (active && active.prims.includes(loaded.model)) || markerPrims.includes(loaded.model);
-  if (!inUse && !loaded.model.isDestroyed()) loaded.model.show = false;
+function ensureModel(viewer, uri) {
+  const cached = modelLoads.get(uri);
+  if (cached) return cached;
+  const load = (async () => {
+    setStatus(uri, "loading");
+    const info = await glbInfo(uri);
+    if (!info || viewer.isDestroyed()) { setStatus(uri, "failed"); return null; }
+    try {
+      const model = await Cesium.Model.fromGltfAsync({
+        url: info.url, minimumPixelSize: 64, maximumScale: 20000, shadows: Cesium.ShadowMode.ENABLED,
+      });
+      // Same uniform ambient as the terrain (see moonViewer.js) so the shaded side stays readable.
+      const amb = Array.from({ length: 9 }, () => new Cesium.Cartesian3(0, 0, 0));
+      amb[0] = new Cesium.Cartesian3(0.55, 0.55, 0.57);
+      model.imageBasedLighting.sphericalHarmonicCoefficients = amb;
+      model.errorEvent.addEventListener((e) => console.warn("[Landing] glTF model error:", e?.message ?? e));
+      model._selenePooled = true;
+      model._seleneViewer = viewer;
+      if (viewer.isDestroyed()) { setStatus(uri, "failed"); return null; }
+      viewer.scene.primitives.add(model);    // loads off-screen (identity matrix = Moon centre) until placed
+      await whenModelReady(viewer, model, 30000);
+      if (!model.ready) { setStatus(uri, "failed"); return null; }
+      if (!inUse(model) && !model.isDestroyed()) model.show = false;
+      setStatus(uri, "ready");
+      return { model, info };
+    } catch (e) {
+      console.warn("[Landing] glTF model unavailable, using the schematic model:", e?.message ?? e);
+      setStatus(uri, "failed");
+      return null;
+    }
+  })();
+  modelLoads.set(uri, load);
+  return load;
 }
 
-/** Load the model scaled to heightM; null on any failure or if it is not ready within timeoutMs. */
-async function loadModel(viewer, uri, heightM, timeoutMs) {
-  const info = await Promise.race([glbInfo(uri), sleep(timeoutMs).then(() => null)]);
-  if (!info || !(heightM > 0)) return null;
-  const pooled = modelPool.get(uri);
-  if (pooled && !pooled.isDestroyed() && viewer.scene.primitives.contains(pooled)) {
-    pooled.scale = heightM / info.height;
-    pooled.show = true;
-    return { model: pooled, lift: -info.bottom * pooled.scale };
+/** Real-world size of a loaded model for the given spec: scale, lift (feet on the ground), height, width. */
+function sized(loaded, spec) {
+  const { info } = loaded;
+  const scale = spec.sizeM / (spec.scaleBy === "width" ? info.width : info.height);
+  return { scale, lift: -info.bottom * scale, heightM: info.height * scale, widthM: info.width * scale };
+}
+
+/**
+ * Background preparation of a lander model (selected lander and the post-start preload): it is
+ * downloaded, uploaded and kept hidden in the pool so CONFIRM can start instantly.
+ */
+export async function prefetchModel(viewer, spec) {
+  if (!spec?.uri || !viewer || viewer.isDestroyed()) return;
+  await currentModel(viewer, spec.uri);
+}
+
+/** ensureModel, but a model left over from a destroyed (re-created) viewer is loaded again. */
+function currentModel(viewer, uri) {
+  return ensureModel(viewer, uri).then((r) => {
+    if (r && (r.model.isDestroyed() || r.model._seleneViewer !== viewer)) {
+      if (modelLoads.get(uri)) modelLoads.delete(uri);
+      return ensureModel(viewer, uri);
+    }
+    return r;
+  });
+}
+
+/** Preload several models one after another (first entry first), without blocking anything. */
+export async function preloadModels(viewer, specs) {
+  for (const spec of specs ?? []) {
+    if (!viewer || viewer.isDestroyed()) return;
+    await prefetchModel(viewer, spec);
   }
-  try {
-    const scale = heightM / info.height;
-    const model = await Promise.race([
-      Cesium.Model.fromGltfAsync({
-        url: info.url, scale, minimumPixelSize: 64, maximumScale: 20000,
-        shadows: Cesium.ShadowMode.ENABLED,
-      }),
-      sleep(timeoutMs).then(() => null),
-    ]);
-    if (!model) return null;
-    // Same uniform ambient as the terrain (see moonViewer.js) so the shaded side stays readable.
-    const amb = Array.from({ length: 9 }, () => new Cesium.Cartesian3(0, 0, 0));
-    amb[0] = new Cesium.Cartesian3(0.55, 0.55, 0.57);
-    model.imageBasedLighting.sphericalHarmonicCoefficients = amb;
-    model.errorEvent.addEventListener((e) => console.warn("[Landing] glTF model error — using the schematic model next time:", e?.message ?? e));
-    viewer.scene.primitives.add(model);
-    modelPool.set(uri, model);
-    return { model, lift: -info.bottom * scale };   // raise so the lowest point (feet) touches the ground
-  } catch (e) {
-    console.warn("[Landing] glTF model unavailable, using the schematic model:", e?.message ?? e);
-    return null;
-  }
+}
+
+/** The model scaled for this landing; null on any failure or if it is not ready within timeoutMs. */
+async function loadModel(viewer, spec, timeoutMs) {
+  if (!spec?.uri || !(spec.sizeM > 0)) return null;
+  const loaded = await Promise.race([currentModel(viewer, spec.uri), sleep(timeoutMs).then(() => null)]);
+  if (!loaded || loaded.model.isDestroyed() || !viewer.scene.primitives.contains(loaded.model)) return null;
+  const size = sized(loaded, spec);
+  loaded.model.scale = size.scale;
+  loaded.model.show = true;
+  return { model: loaded.model, ...size, rotation: Cesium.Math.toRadians(-(spec.rotationDeg ?? 0)) };
 }
 
 // ------------------------------------------------------------------ descent curve (shared by motion + telemetry)
@@ -275,6 +349,11 @@ function buildHud(host, opts, onSkip) {
       for (const [p, node] of Object.entries(phaseEl)) node.classList.toggle("on", p === t.phase);
     },
     done() { root.classList.add("done"); skip.remove(); catcher.remove(); },
+    status(text) { status.textContent = text; },
+    model(credit) {
+      badge.title = "Illustrative descent profile: altitude, vertical speed and range follow the animated trajectory, " +
+        "not a flight-dynamics simulation. Lander model scaled to its approximate real size." + (credit ? ` ${credit}.` : "");
+    },
     destroy() { host.replaceChildren(); },
   };
 }
@@ -324,7 +403,8 @@ export function clearMarker(viewer) {
 }
 
 /**
- * options: { lat, lon, landerClass: "clps"|"hls", landerName, siteName, reducedMotion, hudHost: HTMLElement }
+ * options: { lat, lon, landerClass: "clps"|"hls", landerName, siteName, reducedMotion, hudHost: HTMLElement,
+ *            model: { uri, sizeM, scaleBy: "height"|"width", rotationDeg, credit } | null }
  */
 export async function play(viewer, options) {
   cancel();
@@ -362,16 +442,21 @@ export async function play(viewer, options) {
   }
   const at = (s) => path.getValue(Cesium.JulianDate.addSeconds(epoch, Math.min(s, DESCENT_S), new Cesium.JulianDate()));
 
-  // glTF model (only landers that declare one, e.g. Nova-C); otherwise / on failure: schematic primitives.
+  // glTF model (landers.json → modelUri); not ready within 4 s or failed → schematic primitives.
   const prims = [];
-  const glb = options.modelUri ? await loadModel(viewer, options.modelUri, options.modelHeightM, 4000) : null;
+  if (options.model && modelStatus.get(options.model.uri) !== "ready") hud.status("LOADING 3D MODEL…");
+  const glb = options.model ? await loadModel(viewer, options.model, 4000) : null;
   if (glb) prims.push(glb.model);
   if (aborted()) {
     for (const m of prims) hideOrRemove(viewer, m);
     return { status: "cancelled", fps: 0, simplified: false };
   }
 
-  const parts = glb ? { solids: [], legs: [], height: options.modelHeightM } : modelParts(options.landerClass);
+  const parts = glb ? { solids: [], legs: [], height: glb.heightM } : modelParts(options.landerClass);
+  // Size the camera and the effects frame: the largest real dimension of the lander (Starship 50 m
+  // needs a far wider shot than Blue Ghost's 2 m). The schematic model keeps its exaggerated height.
+  const frame = glb ? Math.max(glb.heightM, glb.widthM) : parts.height;
+  if (glb) hud.model(options.model.credit);
   let simplified = false;
   // Vertical correction (m) towards the terrain that is actually rendered near the site. The
   // pre-landing height sample is taken from far away and can differ from the detailed tiles that
@@ -391,7 +476,11 @@ export async function play(viewer, options) {
   };
   let current = pathAt(0);
   const placeModel = () => {
-    if (glb) glb.model.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(localToWorld(current, rot, 0, 0, glb.lift));
+    if (!glb) return;
+    const enu = Cesium.Transforms.eastNorthUpToFixedFrame(localToWorld(current, rot, 0, 0, glb.lift));
+    glb.model.modelMatrix = glb.rotation
+      ? Cesium.Matrix4.multiplyByMatrix3(enu, Cesium.Matrix3.fromRotationZ(glb.rotation), enu)
+      : enu;
   };
   placeModel();
   // First draw of a large model compiles shaders and can stall the page for a moment; start the
@@ -432,7 +521,7 @@ export async function play(viewer, options) {
 
   const camera = viewer.camera;
   const heading0 = Cesium.Math.toRadians(215);
-  const finalHpr = new Cesium.HeadingPitchRange(heading0 + Cesium.Math.toRadians(55), Cesium.Math.toRadians(-28), parts.height * 9);
+  const finalHpr = new Cesium.HeadingPitchRange(heading0 + Cesium.Math.toRadians(55), Cesium.Math.toRadians(-28), frame * 9);
   const landedAt = () => localToWorld(surface(), rot, 0, 0, parts.height * 0.4);
 
   return new Promise((resolve) => {
@@ -494,6 +583,11 @@ export async function play(viewer, options) {
         }
         current = surface();
         placeModel();
+        // The camera still orbits the old target: move it along (keeping the user's heading, pitch and
+        // range), or a +68 m tile jump buries a small lander's close-up camera under the terrain.
+        if (!viewer.isDestroyed() && !Cesium.Matrix4.equals(camera.transform, Cesium.Matrix4.IDENTITY)) {
+          safeLookAt(camera, landedAt(), new Cesium.HeadingPitchRange(camera.heading, camera.pitch, Cesium.Cartesian3.magnitude(camera.position)));
+        }
       }, 400);
     };
 
@@ -511,7 +605,7 @@ export async function play(viewer, options) {
     // larger than the major one, which yields an invalid ellipse and stops Cesium rendering.
     let touchdownAt = null;
     let fxT = 0;                       // seconds since touchdown, updated in tick()
-    let ringR = 2;
+    let ringR = frame * 0.4;
     const ring = {
       position: new Cesium.CallbackProperty(() => localToWorld(surface(), rot, 0, 0, 0.5), false),
       ellipse: {
@@ -524,7 +618,7 @@ export async function play(viewer, options) {
       properties: { kind: "lander-fx" },
     };
     const flash = {
-      position: new Cesium.CallbackProperty(() => localToWorld(surface(), rot, 0, 0, 2), false),
+      position: new Cesium.CallbackProperty(() => localToWorld(surface(), rot, 0, 0, frame * 0.3), false),
       point: {
         pixelSize: new Cesium.CallbackProperty(() => 6 + 50 * Math.min(1, fxT / 0.25), false),
         color: new Cesium.CallbackProperty(() => Cesium.Color.WHITE.withAlpha(Math.max(0, 1 - fxT / 0.45)), false),
@@ -557,12 +651,12 @@ export async function play(viewer, options) {
         const hpr = new Cesium.HeadingPitchRange(
           heading0 + Cesium.Math.toRadians(55) * u,
           Cesium.Math.toRadians(-14 - 14 * u),
-          parts.height * (60 - 51 * Math.pow(u, 0.7)));
+          frame * (60 - 51 * Math.pow(u, 0.7)));
         safeLookAt(camera, localToWorld(current, rot, 0, 0, parts.height * 0.4), hpr);
       } else {
         if (touchdownAt != null) {
           fxT = (now - touchdownAt) / 1000;
-          ringR = 2 + parts.height * 3.2 * Math.min(1, fxT / 0.9);
+          ringR = frame * (0.4 + 2.8 * Math.min(1, fxT / 0.9));   // dust ring scales with the lander
         }
         if (touchdownAt == null) {
           touchdownAt = now;

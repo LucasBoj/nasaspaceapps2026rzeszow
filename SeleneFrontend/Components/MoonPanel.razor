@@ -53,6 +53,20 @@
             {
                 <div class="viewer-badge mode" title="@badgeTitle">@badgeText</div>
             }
+            @if (Ui.LandingAnimationEnabled && MissionState.SelectedLander is { Model: { } model } lander)
+            {
+                var state = modelStatus.GetValueOrDefault(model.Uri);
+                <div class="viewer-badge model-status @state" tabindex="0" role="status"
+                     title="@($"{lander.Name} 3D model (visualisation only). {model.Credit}")">
+                    @(state switch
+                    {
+                        "loading" => $"LOADING 3D MODEL · {lander.Name.ToUpperInvariant()}…",
+                        "failed" => "SCHEMATIC MODEL (3D model unavailable)",
+                        "ready" => $"3D MODEL · {lander.Name.ToUpperInvariant()} · STYLIZED",
+                        _ => $"3D MODEL · {lander.Name.ToUpperInvariant()} · QUEUED",
+                    })
+                </div>
+            }
             @if (Ui.CandidatesOn && HasRegionSelected)
             {
                 <div class="hud-legend">
@@ -111,6 +125,8 @@
     private bool settingsOpen;
     private string? landedKey;      // "siteId|landerId" of the lander on the surface (or descending)
     private string? prefetchedFor;  // site whose landing module + ground height are already warm
+    private bool modelPreloadStarted;
+    private readonly Dictionary<string, string> modelStatus = new();   // model uri → loading | ready | failed
 
     private sealed class LandingResult
     {
@@ -161,7 +177,7 @@
                 {
                     lat = req.Lat, lon = req.Lon, landerClass = req.LanderClass,
                     landerName = req.LanderName, siteName = req.SiteName, reducedMotion = req.ReducedMotion,
-                    modelUri = req.ModelUri, modelHeightM = req.ModelHeightM,
+                    model = req.Model,
                 };
                 var result = await moonModule.InvokeAsync<LandingResult>("playLanding", options, landingHud);
                 status = result.Status;
@@ -286,6 +302,8 @@
 
         try
         {
+            StartModelPreload();
+
             // Sites may arrive after the viewer started; only re-send when the list actually changed.
             if (!ReferenceEquals(loadedSites, MissionState.AvailableSites))
             {
@@ -297,13 +315,12 @@
             if (selected is not null && !selected.Id.StartsWith("CUSTOM", StringComparison.Ordinal))
             {
                 await moonModule.InvokeVoidAsync("selectSite", selected.Id);
-                var modelUri = MissionState.SelectedLander?.ModelUri;
-                var prefetchKey = $"{selected.Id}|{modelUri}";
+                var model = MissionState.SelectedLander?.Model;
+                var prefetchKey = $"{selected.Id}|{model?.Uri}";
                 if (Ui.LandingAnimationEnabled && prefetchedFor != prefetchKey)
                 {
                     prefetchedFor = prefetchKey;
-                    _ = moonModule.InvokeVoidAsync("prefetchLanding", selected.Lat, selected.Lon, modelUri,
-                        MissionState.SelectedLander?.ModelHeightM).AsTask();
+                    _ = moonModule.InvokeVoidAsync("prefetchLanding", selected.Lat, selected.Lon, model).AsTask();
                 }
                 await SyncSunLightAsync(selected);
             }
@@ -404,6 +421,29 @@
         {
             Console.Error.WriteLine($"[MoonPanel] Fly-to failed: {ex}");
         }
+    }
+
+    /// <summary>
+    /// Once per session: preload every lander model in the background (QUICK DEMO lander first, then the
+    /// selected one, then the rest), a few seconds after start so it does not slow the first view.
+    /// </summary>
+    private void StartModelPreload()
+    {
+        if (modelPreloadStarted || moonModule is null || !Ui.LandingAnimationEnabled || MissionState.AllLanders.Count == 0) return;
+        modelPreloadStarted = true;
+        var models = MissionState.AllLanders
+            .OrderBy(l => l.Id == UiService.RecommendedLanderId ? 0 : l.Id == MissionState.SelectedLander?.Id ? 1 : 2)
+            .Select(l => l.Model).OfType<LanderModelSpec>().ToList();
+        _ = moonModule.InvokeVoidAsync("preloadModels", models, 3000).AsTask();
+    }
+
+    /// <summary>Load state of a lander model ("loading", "ready", "failed"), shown in the viewer HUD.</summary>
+    [JSInvokable]
+    public Task OnModelStatus(string uri, string status)
+    {
+        if (modelStatus.TryGetValue(uri, out var old) && old == status) return Task.CompletedTask;
+        modelStatus[uri] = status;
+        return InvokeAsync(StateHasChanged);
     }
 
     [JSInvokable]

@@ -479,20 +479,41 @@ export function flyToSite(siteId) {
 /** Play the landing animation; resolves with { status, fps, simplified }. */
 export async function playLanding(options, hudHost) {
   if (!viewer) return { status: "unavailable" };
-  landingModule ??= await import("./landingAnimation.js");
-  return landingModule.play(viewer, { ...options, hudHost });
+  const m = await landing();
+  return m.play(viewer, { ...options, hudHost });
+}
+
+/** The landing module, loaded once; lander-model load states are forwarded to the HUD (MoonPanel.OnModelStatus). */
+async function landing() {
+  if (!landingModule) {
+    landingModule = await import("./landingAnimation.js");
+    landingModule.onModelStatus((uri, status) => dotNetRef?.invokeMethodAsync("OnModelStatus", uri, status).catch(() => {}));
+  }
+  return landingModule;
 }
 
 /**
  * Load the animation module and sample the site's ground height ahead of CONFIRM LANDING SITE.
- * A lander model (GLB, several MB) is fetched a few seconds later so it never competes with
- * the first page load.
+ * The selected lander's model (GLB, ~1 MB) is fetched a moment later so it never competes with
+ * the site's terrain tiles.
  */
-export async function prefetchLanding(lat, lon, modelUri, modelHeightM) {
+export async function prefetchLanding(lat, lon, model) {
   if (!viewer) return;
-  landingModule ??= await import("./landingAnimation.js");
-  if (modelUri) setTimeout(() => landingModule.prefetchModel(viewer, modelUri, modelHeightM), 4000);
-  await landingModule.prefetchGround(viewer, lat, lon);
+  const m = await landing();
+  if (model?.uri) setTimeout(() => m.prefetchModel(viewer, model), 1500);
+  await m.prefetchGround(viewer, lat, lon);
+}
+
+/**
+ * Background preload of every lander model after start-up, one after another in the given order
+ * (the QUICK DEMO lander first), so the first landing of any lander does not wait for a download.
+ */
+export async function preloadModels(models, delayMs) {
+  if (!viewer || !models?.length) return;
+  await new Promise((r) => setTimeout(r, delayMs ?? 0));
+  if (!viewer) return;
+  const m = await landing();
+  await m.preloadModels(viewer, models);
 }
 
 // ---- Sunlight from the precomputed ephemeris ----

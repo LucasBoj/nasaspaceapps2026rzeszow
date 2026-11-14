@@ -100,8 +100,30 @@ public class LanderPreset
     /// <summary>Optional glTF/GLB model for the 3D view (visualisation only; falls back to primitives).</summary>
     public string? ModelUri { get; set; }
 
-    /// <summary>Height the 3D model is scaled to, in metres (visual scale, not a provenance-tracked figure).</summary>
+    /// <summary>Height the 3D model is scaled to, in metres (visual scale, see ModelNote).</summary>
     public double? ModelHeightM { get; set; }
+
+    /// <summary>Largest horizontal extent the model is scaled to when ModelScaleBy is "width".</summary>
+    public double? ModelWidthM { get; set; }
+
+    /// <summary>"height" (default) or "width": which bounding-box extent is matched to the real size.</summary>
+    public string? ModelScaleBy { get; set; }
+
+    /// <summary>Extra rotation about the local vertical (degrees, clockwise seen from above); 0 if the export is already aligned.</summary>
+    public double? ModelRotationDeg { get; set; }
+
+    /// <summary>Attribution of the 3D model (shown as a tooltip).</summary>
+    public string? ModelCredit { get; set; }
+
+    /// <summary>Where the model's size comes from and how approximate it is.</summary>
+    public string? ModelNote { get; set; }
+
+    /// <summary>What the 3D viewer needs to load and scale the model (null when the lander has none).</summary>
+    public LanderModelSpec? Model =>
+        ModelUri is null ? null
+        : ModelScaleBy == "width"
+            ? (ModelWidthM is > 0 ? new LanderModelSpec(ModelUri, ModelWidthM.Value, "width", ModelRotationDeg ?? 0, ModelCredit) : null)
+            : (ModelHeightM is > 0 ? new LanderModelSpec(ModelUri, ModelHeightM.Value, "height", ModelRotationDeg ?? 0, ModelCredit) : null);
 
     /// <summary>All present parameters, in display order.</summary>
     public IEnumerable<LanderParam> AllParams =>
@@ -110,3 +132,6 @@ public class LanderPreset
 
     public int CountKind(string kind) => AllParams.Count(p => p.Kind == kind);
 }
+
+/// <summary>3D model for the viewer: GLB path, real size (m) of the extent named by ScaleBy, extra yaw and credit.</summary>
+public sealed record LanderModelSpec(string Uri, double SizeM, string ScaleBy, double RotationDeg, string? Credit);

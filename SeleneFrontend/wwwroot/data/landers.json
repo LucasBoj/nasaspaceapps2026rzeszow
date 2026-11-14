@@ -67,7 +67,8 @@
     },
     "modelUri": "models/nova_c.glb",
     "modelHeightM": 4,
-    "modelNote": "3D model for visualisation only (concept image: Meshy AI; mesh: Microsoft TRELLIS.2). Scaled to modelHeightM."
+    "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
+    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 4 m (team value)."
   },
   {
     "id": "blue_ghost",
@@ -127,7 +128,11 @@
       "kind": "sourced",
       "note": "M1 configuration ended ~5 h after sunset",
       "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
-    }
+    },
+    "modelUri": "models/blue_ghost.glb",
+    "modelHeightM": 2,
+    "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
+    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 2 m (team value)."
   },
   {
     "id": "griffin",
@@ -192,7 +197,12 @@
       "kind": "sourced",
       "note": "",
       "sourceUrl": "https://astrobotic.com/lunar-delivery/landers"
-    }
+    },
+    "modelUri": "models/griffin.glb",
+    "modelScaleBy": "width",
+    "modelWidthM": 4.5,
+    "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
+    "modelNote": "Visualisation only. APPROXIMATE: the model's largest horizontal extent is scaled to 4.5 m. Astrobotic's Griffin page (https://www.astrobotic.com/lunar-delivery/landers/griffin-lander/) labels a drawing \"4.5M\" but its text gives no dimensions, so the width is not confirmed."
   },
   {
     "id": "starship_hls",
@@ -255,7 +265,11 @@
       "kind": "sourced",
       "note": "",
       "sourceUrl": "https://ntrs.nasa.gov/api/citations/20230013222/downloads/DRAFT-%20IAC%20Final_Sept14.pdf"
-    }
+    },
+    "modelUri": "models/starship_hls.glb",
+    "modelHeightM": 50,
+    "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
+    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 50 m (team value)."
   },
   {
     "id": "blue_moon_mk2",
@@ -318,6 +332,10 @@
       "kind": "sourced",
       "note": "",
       "sourceUrl": "https://www.collectspace.com/news/news-051923a-nasa-artemis-5-blue-moon-lunar-lander-selection.html"
-    }
+    },
+    "modelUri": "models/blue_moon_mk2.glb",
+    "modelHeightM": 16,
+    "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
+    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 16 m (team value)."
   }
 ]
