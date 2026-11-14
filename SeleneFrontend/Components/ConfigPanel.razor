@@ -114,8 +114,13 @@
         </div>
     </section>
 
+    <button type="button" class="btn-primary confirm-landing" disabled="@(!Ui.CanConfirmLanding)"
+            title="@(Ui.CanConfirmLanding ? (Ui.LandingAnimationEnabled ? "Play the landing and run the analysis" : "Fly to the site and run the analysis") : "Pick one of the 9 regions and a lander first")"
+            @onclick="() => Ui.ConfirmLandingAsync()">
+        @(Ui.LandingInProgress ? "LANDING…" : "▼ CONFIRM LANDING SITE")
+    </button>
     <div class="config-actions">
-        <button class="btn-primary" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? (Analysis.IsRunning ? "Running — click to restart with the current settings" : "Simulate every landing day for all 9 regions"))"
+        <button class="btn-secondary" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? (Analysis.IsRunning ? "Running — click to restart with the current settings" : "Simulate every landing day for all 9 regions"))"
                 @onclick="() => Analysis.RunAsync()">
             @(Analysis.IsRunning ? $"ANALYZING… {Analysis.Progress * 100:0}%" : "RUN ANALYSIS")
         </button>
@@ -142,6 +147,7 @@
     {
         MissionState.OnStateChanged += Refresh;
         Analysis.OnChanged += Refresh;
+        Ui.OnChanged += Refresh;
     }
 
     private void Refresh() => InvokeAsync(StateHasChanged);
@@ -150,6 +156,7 @@
     {
         MissionState.OnStateChanged -= Refresh;
         Analysis.OnChanged -= Refresh;
+        Ui.OnChanged -= Refresh;
     }
 
     private async Task OnSiteSelected(string siteId)

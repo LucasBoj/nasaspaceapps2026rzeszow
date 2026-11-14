@@ -229,6 +229,13 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         return result;
     }
 
+    /// <summary>Expand the results strip now (e.g. right after the landing animation touches down).</summary>
+    public void RequestExpand()
+    {
+        ExpandToken++;
+        Notify();
+    }
+
     private void Notify() => OnChanged?.Invoke();
 
     /// <summary>Reports synchronously; Progress&lt;T&gt; would post to the sync context and lag behind the work.</summary>

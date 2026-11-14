@@ -21,6 +21,7 @@ const SELECTED_LABEL_OFFSET = new Cesium.Cartesian2(LEADER.w + 4, -LEADER.h - 2)
 
 let viewer = null;
 let dotNetRef = null;
+let landingModule = null;   // loaded on first use only (feature can be switched off)
 let reducedMotion = false;
 let selectedSiteId = null;
 let hoveredId = null;
@@ -63,6 +64,17 @@ export async function initViewer(elementId, token, dotNetReference) {
   if (scene.moon) scene.moon.show = false;
   // Attribution is shown in the app footer.
   viewer.cesiumWidget.creditContainer.style.display = "none";
+
+  // Safety net: a render error normally stops Cesium for good. Drop the only dynamic geometry we
+  // add (the landing animation) and resume the render loop — at most a few times per session.
+  let renderRecoveries = 0;
+  viewer.cesiumWidget.showRenderLoopErrors = false;
+  scene.renderError.addEventListener((_scene, error) => {
+    window.__seleneRenderErrors = (window.__seleneRenderErrors ?? 0) + 1;
+    console.warn("[MoonViewer] render error — recovering:", error?.message ?? error);
+    landingModule?.cancel();
+    if (renderRecoveries++ < 3) setTimeout(() => { if (!viewer.isDestroyed()) viewer.useDefaultRenderLoop = true; }, 0);
+  });
 
   // NASA Moon Trek LRO WAC mosaic — works without any token.
   viewer.imageryLayers.addImageryProvider(
@@ -113,8 +125,14 @@ export function waitForTiles(timeoutMs) {
 }
 
 /** Intro: from far space down to the south-pole overview (instant with reduced motion). */
+/** Release a camera lock left by the landing animation (orbit around the landed site). */
+function releaseCamera() {
+  if (viewer && !viewer.isDestroyed()) viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+}
+
 export function introFlight() {
   if (!viewer) return;
+  releaseCamera();
   if (reducedMotion) { resetView(false); return; }
   const view = southPoleView();
   viewer.camera.flyTo({
@@ -134,6 +152,7 @@ function southPoleView() {
 /** South-pole overview. Instant by default; pass animate=true for a camera flight. */
 export function resetView(animate = false) {
   if (!viewer) return;
+  releaseCamera();
   const view = southPoleView();
   if (animate && !reducedMotion) {
     viewer.camera.flyTo({ ...view, duration: FLY_DURATION_S });
@@ -198,7 +217,7 @@ function onLeftClick(click) {
     dotNetRef?.invokeMethodAsync("OnSiteSelected", entity.id);
     return;
   }
-  if (entity instanceof Cesium.Entity && ["candidate", "decor"].includes(entityKind(entity))) return;
+  if (entity instanceof Cesium.Entity && ["candidate", "decor", "lander", "lander-fx"].includes(entityKind(entity))) return;
 
   let position;
   if (viewer.scene.pickPositionSupported) {
@@ -432,6 +451,7 @@ export function clearCandidates() {
 
 export function flyToSite(siteId) {
   if (!viewer) return;
+  releaseCamera();
   const entity = viewer.entities.getById(siteId);
   if (!entity) return;
   // Fly to an offset above the site — flying to the surface point puts the camera into the ground.
@@ -447,7 +467,34 @@ export function setSunDirection(azimuthDeg, elevationDeg) {
   console.log(`Sun direction: az=${azimuthDeg}°, el=${elevationDeg}°`);
 }
 
+// ---- Landing animation (isolated module) ----
+
+/** Play the landing animation; resolves with { status, fps, simplified }. */
+export async function playLanding(options, hudHost) {
+  if (!viewer) return { status: "unavailable" };
+  landingModule ??= await import("./landingAnimation.js");
+  return landingModule.play(viewer, { ...options, hudHost });
+}
+
+/** Load the animation module and sample the site's ground height ahead of CONFIRM LANDING SITE. */
+export async function prefetchLanding(lat, lon) {
+  if (!viewer) return;
+  landingModule ??= await import("./landingAnimation.js");
+  await landingModule.prefetchGround(viewer, lat, lon);
+}
+
+export function cancelLanding() {
+  landingModule?.cancel();
+}
+
+export function clearLandingMarker() {
+  if (!landingModule) return;
+  landingModule.cancel();
+  landingModule.clearMarker(viewer);
+}
+
 export function dispose() {
+  clearLandingMarker();
   if (hoverFrame) cancelAnimationFrame(hoverFrame);
   hoverFrame = 0;
   pendingHoverPos = null;

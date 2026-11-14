@@ -1865,3 +1865,148 @@ a { color: var(--accent-cyan); }
     .kind-badge { font-size: 0.52rem; padding: 1px 3px; }
     .impact-row { grid-template-columns: 1fr auto 5.5rem; font-size: 0.72rem; }
 }
+
+/* ======================================================================
+   Landing animation (landingAnimation.js owns the DOM inside .landing-hud-host)
+   ====================================================================== */
+.landing-hud-host {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    pointer-events: none;
+}
+
+.landing-hud-host.fade { animation: landing-fade 300ms ease both; }
+@keyframes landing-fade { 0% { background: rgba(5, 8, 11, 0.85); } 100% { background: transparent; } }
+
+.landing-hud { position: absolute; inset: 0; }
+.landing-catcher { position: absolute; inset: 0; pointer-events: auto; cursor: pointer; }
+
+.landing-panel {
+    position: absolute;
+    left: var(--s3);
+    top: var(--s3);
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    padding: var(--s3);
+    background: rgba(10, 14, 19, 0.88);
+    border: 1px solid var(--border-color);
+    border-left: 2px solid var(--status-warn);
+    border-radius: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-primary);
+    pointer-events: auto;
+    animation: card-in var(--t) var(--ease) both;
+}
+
+.landing-badge {
+    align-self: flex-start;
+    padding: 2px 8px;
+    border: 1px solid var(--status-warn);
+    border-radius: 2px;
+    background: rgba(255, 176, 32, 0.12);
+    color: var(--status-warn);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    cursor: help;
+}
+
+.landing-badge:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+.landing-title { font-size: 0.72rem; color: var(--text-secondary); }
+
+.landing-telemetry {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px var(--s3);
+    font-size: 0.8rem;
+}
+
+.landing-telemetry dt { color: var(--text-secondary); font-size: 0.68rem; align-self: center; }
+.landing-telemetry dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.landing-phases {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    font-size: 0.55rem;
+    letter-spacing: 0.04em;
+}
+
+.landing-phases li {
+    padding: 3px 0;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    transition: background var(--t-fast), color var(--t-fast);
+}
+
+.landing-phases li.on { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #000; font-weight: 600; }
+.landing-hud.done .landing-phases li.on { background: var(--status-ok); border-color: var(--status-ok); }
+.landing-skip { align-self: flex-end; }
+.landing-hud.done .landing-panel { animation: landing-out 600ms ease 1.6s forwards; }
+@keyframes landing-out { to { opacity: 0; visibility: hidden; } }
+
+.contact-banner {
+    position: absolute;
+    left: 50%;
+    top: var(--s3);
+    transform: translateX(-50%);
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: 6px 6px 6px 14px;
+    background: rgba(10, 14, 19, 0.9);
+    border: 1px solid var(--status-ok);
+    border-radius: 2px;
+    color: var(--status-ok);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    animation: card-in var(--t) var(--ease) both;
+}
+
+.contact-banner .welcome-close { position: static; width: 22px; height: 22px; font-size: 0.9rem; }
+
+.hud-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    padding: var(--s2) var(--s3);
+    background: rgba(10, 14, 19, 0.92);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-primary);
+    pointer-events: auto;
+}
+
+.hud-settings label { display: flex; align-items: center; gap: var(--s2); cursor: pointer; }
+.hud-settings input { accent-color: var(--accent-cyan); }
+.hud-settings small { color: var(--text-secondary); font-size: 10px; max-width: 240px; }
+
+.confirm-landing {
+    width: 100%;
+    flex: none;
+    padding: 0.85rem 1rem;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-panel, .contact-banner { animation: none; }
+    .landing-hud.done .landing-panel { animation: landing-out 1ms linear 1.6s forwards; }
+}
+
+@media (max-width: 1023px) {
+    .contact-banner { white-space: normal; max-width: calc(100% - 24px); }
+    .landing-panel { width: min(260px, calc(100% - 24px)); }
+}
+.confirm-landing { margin-top: auto; }
+.confirm-landing + .config-actions { margin-top: 0; }

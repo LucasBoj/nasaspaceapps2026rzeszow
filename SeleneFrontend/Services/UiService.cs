@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.JSInterop;
 using SeleneFrontend.Models;
 
@@ -7,13 +8,17 @@ public enum BootStatus { Pending, Ok, Failed }
 
 public sealed record BootLine(string Text, BootStatus Status, string Detail = "");
 
+/// <summary>What the 3D viewer needs to play the landing animation.</summary>
+public sealed record LandingRequest(string SiteId, double Lat, double Lon, string SiteName, string LanderId, string LanderClass, string LanderName, bool ReducedMotion);
+
 /// <summary>
 /// First impression and presentation state: boot sequence, welcome card, recommended
 /// scenario, QUICK DEMO, help dialog, compass time, candidate overlay, compare selection.
 /// </summary>
-public sealed class UiService(IJSRuntime js, MissionConfigState state, IlluminationRepository repo, AnalysisService analysis)
+public sealed class UiService(IJSRuntime js, MissionConfigState state, IlluminationRepository repo, AnalysisService analysis, IConfiguration config)
 {
     private const string BootSeenKey = "selene.bootSeen.v1";
+    private const string LandingAnimKey = "selene.landingAnimation.v1";
     private const string WelcomeDismissedKey = "selene.welcomeDismissed.v1";
     public const string RecommendedLanderId = "nova_c";
     public static readonly TimeSpan BootMax = TimeSpan.FromMilliseconds(2500);
@@ -25,6 +30,15 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
 
     /// <summary>The 3D viewer should start (or skip to the end of) its intro flight.</summary>
     public event Action? IntroRequested;
+
+    /// <summary>The 3D viewer should play the landing animation (MoonPanel answers with NotifyLandingFinished).</summary>
+    public event Action<LandingRequest>? LandingRequested;
+
+    /// <summary>Feature flag <c>features:landingAnimation</c> (appsettings.json), overridable in the HUD settings.</summary>
+    public bool LandingAnimationEnabled { get; private set; } = true;
+    public bool LandingInProgress { get; private set; }
+    public string? ContactText { get; private set; }
+    private TaskCompletionSource<string>? _landingDone;
 
     private IJSObjectReference? _ui;
 
@@ -70,6 +84,8 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
 
         var ui = await Ui();
         ReducedMotion = await ui.InvokeAsync<bool>("prefersReducedMotion");
+        LandingAnimationEnabled = !bool.TryParse(config["features:landingAnimation"], out var flag) || flag;
+        if (LandingAnimationEnabled && await ui.InvokeAsync<string?>("getItem", LandingAnimKey) == "0") LandingAnimationEnabled = false;
         BootVisible = await ui.InvokeAsync<string?>("getItem", BootSeenKey) is null;
         WelcomeVisible = await ui.InvokeAsync<string?>("getItem", WelcomeDismissedKey) is null;
         if (BootVisible) await ui.InvokeVoidAsync("setItem", BootSeenKey, "1");
@@ -205,17 +221,86 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         state.ResetWhatIf();
     }
 
-    /// <summary>▶ QUICK DEMO: recommended scenario → analysis → camera to the site → BEST WINDOW pulse.</summary>
+    /// <summary>▶ QUICK DEMO: recommended scenario → landing (animation + analysis in parallel) → BEST WINDOW pulse.</summary>
     public async Task QuickDemoAsync()
     {
         DismissWelcome();
         RecommendedSiteId ??= await PickRecommendedSiteAsync();
         if (RecommendedSiteId is null) return;
         state.Reset();
-        await ApplyRecommendedScenarioAsync(fly: true);
+        await ApplyRecommendedScenarioAsync(fly: false);   // the landing (or its fallback fly-to) moves the camera
         ResultsTab = "mission";
         Notify();
-        await analysis.RunAsync(expand: true, highlightBest: true);
+        await ConfirmLandingAsync(highlightBest: true);
+    }
+
+    // ------------------------------------------------------------------ landing
+
+    public bool CanConfirmLanding =>
+        !LandingInProgress && state.SelectedLander is not null
+        && state.SelectedSite is { } s && state.AvailableSites.Any(a => a.Id == s.Id);
+
+    /// <summary>
+    /// CONFIRM LANDING SITE: the analysis starts immediately and runs in parallel with the landing
+    /// animation; the results open right after touchdown. With the feature off (or no 3D view)
+    /// the camera simply flies to the site.
+    /// </summary>
+    public async Task ConfirmLandingAsync(bool highlightBest = false)
+    {
+        if (!CanConfirmLanding) return;
+        var site = state.SelectedSite!;
+        var lander = state.SelectedLander!;
+        ContactText = null;
+        var analysisTask = analysis.RunAsync(expand: false, highlightBest: highlightBest);
+
+        if (LandingAnimationEnabled && ViewerReady && LandingRequested is not null)
+        {
+            LandingInProgress = true;
+            _landingDone = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Notify();
+            LandingRequested.Invoke(new LandingRequest(site.Id, site.Lat, site.Lon, site.Name, lander.Id, lander.Class, lander.Name, ReducedMotion));
+            var status = await _landingDone.Task;
+            LandingInProgress = false;
+            if (status == "cancelled") { Notify(); return; }   // site or lander changed mid-descent
+        }
+        else
+        {
+            state.RequestFlyTo();
+        }
+
+        // Results right after touchdown: wait for the quick phase of the analysis if it is not done yet.
+        while (!analysisTask.IsCompleted && analysis.MissionSiteId != site.Id)
+        {
+            await Task.WhenAny(analysisTask, Task.Delay(50));
+        }
+        var date = analysis.MissionSiteId == site.Id && analysis.Mission is { } m ? m.LandingUtc.ToString("yyyy-MM-dd") : "date pending";
+        ContactText = $"CONTACT CONFIRMED · {site.Name} · {date}";
+        analysis.RequestExpand();
+        Notify();
+        await analysisTask;
+    }
+
+    /// <summary>Called by the viewer when the animation ends: landed, skipped, reduced, cancelled or unavailable.</summary>
+    public void NotifyLandingFinished(string status) => _landingDone?.TrySetResult(status);
+
+    public void ClearContact()
+    {
+        if (ContactText is null) return;
+        ContactText = null;
+        Notify();
+    }
+
+    public void SetLandingAnimation(bool enabled)
+    {
+        LandingAnimationEnabled = enabled;
+        _ = PersistValueAsync(LandingAnimKey, enabled ? "1" : "0");
+        Notify();
+    }
+
+    private async Task PersistValueAsync(string key, string value)
+    {
+        try { await (await Ui()).InvokeVoidAsync("setItem", key, value); }
+        catch (JSDisconnectedException) { }
     }
 
     // ------------------------------------------------------------------ small UI state

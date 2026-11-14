@@ -13,6 +13,8 @@
 <div class="moon-viewer-container">
     @* Cesium owns this element exclusively — Blazor must never render children into it. *@
     <div id="moon-viewer-element" class="moon-viewer-canvas"></div>
+    @* Landing animation HUD: owned by landingAnimation.js — Blazor never renders children into it. *@
+    <div class="landing-hud-host" @ref="landingHud"></div>
 
     @if (!moonLoaded && initError is null)
     {
@@ -26,10 +28,26 @@
             <div class="viewer-hud-buttons">
                 <button type="button" class="hud-btn" @onclick="SouthPoleViewAsync">SOUTH POLE VIEW</button>
                 <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)" @onclick="ZoomToSiteAsync">ZOOM TO SITE</button>
+                <button type="button" class="hud-btn" aria-expanded="@(settingsOpen ? "true" : "false")" aria-controls="hud-settings"
+                        title="Viewer settings" @onclick="() => settingsOpen = !settingsOpen">⚙</button>
                 <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
                         disabled="@(!HasRegionSelected)" title="Show all evaluated candidate landing sites in this region"
                         @onclick="Ui.ToggleCandidates">CANDIDATES</button>
             </div>
+            @if (settingsOpen)
+            {
+                <div class="hud-settings" id="hud-settings">
+                    <label>
+                        <input type="checkbox" checked="@Ui.LandingAnimationEnabled"
+                               @onchange="@((ChangeEventArgs e) => Ui.SetLandingAnimation(e.Value is true))" />
+                        Landing animation
+                    </label>
+                    @if (Ui.ReducedMotion)
+                    {
+                        <small>Reduced motion is on — the landing shows as a short fade.</small>
+                    }
+                </div>
+            }
             @if (badgeText is not null)
             {
                 <div class="viewer-badge mode" title="@badgeTitle">@badgeText</div>
@@ -59,9 +77,16 @@
             }
         </div>
     }
-    @if (moonLoaded)
+    @if (moonLoaded && !Ui.LandingInProgress)
     {
         <div class="viewer-compass"><SunEarthCompass /></div>
+    }
+    @if (Ui.ContactText is { } contact && !Ui.LandingInProgress)
+    {
+        <div class="contact-banner" role="status">
+            <span>@contact</span>
+            <button type="button" class="welcome-close" aria-label="Dismiss" @onclick="Ui.ClearContact">×</button>
+        </div>
     }
     <WelcomeCard />
     @if (initError is not null)
@@ -81,6 +106,17 @@
     private DotNetObjectReference<MoonPanel>? dotNetRef;
     private List<Site>? loadedSites;
     private string? badgeTitle;
+    private ElementReference landingHud;
+    private bool settingsOpen;
+    private string? landedKey;      // "siteId|landerId" of the lander on the surface (or descending)
+    private string? prefetchedFor;  // site whose landing module + ground height are already warm
+
+    private sealed class LandingResult
+    {
+        public string Status { get; set; } = "";
+        public double Fps { get; set; }
+        public bool Simplified { get; set; }
+    }
     private bool introPending;
     private string? candidatesShownFor;
     private string? candidateError;
@@ -105,6 +141,50 @@
         Analysis.OnChanged += HandleAnalysisChanged;
         Ui.OnChanged += HandleUiChanged;
         Ui.IntroRequested += HandleIntro;
+        Ui.LandingRequested += HandleLandingRequested;
+    }
+
+    private void HandleLandingRequested(LandingRequest req) => _ = InvokeAsync(() => PlayLandingAsync(req));
+
+    private async Task PlayLandingAsync(LandingRequest req)
+    {
+        var status = "unavailable";
+        try
+        {
+            if (moonLoaded && moonModule is not null)
+            {
+                landedKey = $"{req.SiteId}|{req.LanderId}";
+                var options = new
+                {
+                    lat = req.Lat, lon = req.Lon, landerClass = req.LanderClass,
+                    landerName = req.LanderName, siteName = req.SiteName, reducedMotion = req.ReducedMotion,
+                };
+                var result = await moonModule.InvokeAsync<LandingResult>("playLanding", options, landingHud);
+                status = result.Status;
+                if (result.Simplified) Console.WriteLine($"[Landing] low frame rate ({result.Fps:0} fps) — simplified model");
+            }
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Landing] animation failed: {ex.Message}");
+        }
+        finally
+        {
+            Ui.NotifyLandingFinished(status);
+        }
+    }
+
+    /// <summary>The landed model stays until the site or the lander changes; a change mid-descent cancels it.</summary>
+    private async Task SyncLandingMarkerAsync()
+    {
+        if (landedKey is null || moonModule is null) return;
+        var key = $"{MissionState.SelectedSite?.Id}|{MissionState.SelectedLander?.Id}";
+        if (key == landedKey) return;
+        landedKey = null;
+        try { await moonModule.InvokeVoidAsync("clearLandingMarker"); }
+        catch (JSDisconnectedException) { }
+        Ui.ClearContact();
     }
 
     private void HandleAnalysisChanged() => _ = InvokeAsync(StateHasChanged);
@@ -166,6 +246,7 @@
     {
         _ = SyncViewerAsync();
         _ = InvokeAsync(SyncCandidatesAsync);
+        _ = InvokeAsync(SyncLandingMarkerAsync);
         _ = InvokeAsync(StateHasChanged); // keeps HUD button state in sync with the selection
     }
 
@@ -207,6 +288,11 @@
             if (selected is not null && !selected.Id.StartsWith("CUSTOM", StringComparison.Ordinal))
             {
                 await moonModule.InvokeVoidAsync("selectSite", selected.Id);
+                if (Ui.LandingAnimationEnabled && prefetchedFor != selected.Id)
+                {
+                    prefetchedFor = selected.Id;
+                    _ = moonModule.InvokeVoidAsync("prefetchLanding", selected.Lat, selected.Lon).AsTask();
+                }
             }
         }
         catch (JSDisconnectedException)
@@ -305,6 +391,7 @@
         Analysis.OnChanged -= HandleAnalysisChanged;
         Ui.OnChanged -= HandleUiChanged;
         Ui.IntroRequested -= HandleIntro;
+        Ui.LandingRequested -= HandleLandingRequested;
 
         if (moonModule is not null)
         {
