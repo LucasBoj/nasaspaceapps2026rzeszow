@@ -13,7 +13,7 @@
 | Frontend | Blazor WebAssembly standalone, **.NET 10**. CesiumJS **1.120** (self-hosted in `wwwroot/lib/cesium-1.120`) via JS interop; IBM Plex self-hosted in `wwwroot/fonts` | `SeleneFrontend/` (`wwwroot/js/moonViewer.js`, `cardGrid.js`) |
 | Data | Python 3.11+ (Skyfield, rasterio, pyproj, numpy). A **one-off** precompute into JSON | `pipeline/` → `SeleneFrontend/wwwroot/data/illumination/` |
 | Runtime | **No backend.** Static files only | — |
-| Hosting | Static files on Mikrus (nginx): stable :80 (jury link) + preview :8080. Deployed by GitHub Actions: push `main` → preview, push `stable` → stable. GitHub Pages mirror planned | `deploy/` (README in Polish), `.github/workflows/deploy.yml` |
+| Hosting | Static files on Mikrus (nginx): stable :80 (jury link) + preview :8080. Deployed by GitHub Actions: **push `main` → stable (selene.byst.re, the jury link)**; preview only via "Run workflow" (since `85d36e0`). GitHub Pages mirror planned | `deploy/` (README in Polish), `.github/workflows/deploy.yml` |
 
 ## Data sources
 
@@ -69,7 +69,7 @@ dotnet build                      # must build with 0 warnings
 dotnet test ../SeleneFrontend.Tests  # simulator + optimizer unit tests (links the logic sources)
 
 # Deploy (from repo root, see deploy/README.md)
-git push origin main                      # CI → preview (tests gate it; secrets MIKRUS_* in GitHub)
+git push origin main                      # CI → STABLE = jury link (tests gate it; secrets MIKRUS_* in GitHub). Verify in the browser first.
 git push origin main:stable               # CI → stable (jury link); rollback: git push -f origin <good>:stable
 ./deploy/deploy.sh preview --build-only   # local build + checks, no upload (works in Git Bash)
 ./deploy/deploy.sh preview                # manual deploy (needs rsync; not in Git Bash), then: … stable
@@ -114,6 +114,9 @@ python compare_nasa_illumination.py [--refresh]   # sunlit/Earth time vs NASA LO
 - glTF models (`wwwroot/models/*.glb`, only via `landers.json → modelUri`) are Y-up. `Cesium.Model` converts to Z-up, so use an ENU `modelMatrix` and add no extra rotation. Scale from the POSITION accessor bounds to `modelHeightM`. Models are pooled (hidden, not destroyed), because re-parsing a 13 MB GLB is slow.
 - Terrain height near the camera changes as Cesium Moon tiles refine (~68 m jumps). Anything placed on the surface must follow `scene.sampleHeight` of the rendered tiles; a single early sample is not enough.
 - The scene light is the real Sun from the illumination JSON (`setSunLight` in moonViewer.js). Polar light is grazing, so the uniform SH ambient is what keeps terrain and models readable.
+- Lander heading in 3D = the analysed mission's heading (`SimulationResult.HeadingDeg`, AUTO or manual). It arrives ~1 s into the descent; `MoonPanel.SyncLanderHeadingAsync` calls `setLanderHeading` only for missions newer than the landing (`AnalysisService.MissionVersion`), and `landingAnimation.js` buffers a heading that arrives before the lander exists (`earlyHeading`). The lander yaws in the terminal phase; a landed marker turns via `freeze()` (every part has pose functions — do not shift frozen positions by hand).
+- The Nova-C GLB has **no side panels** (uniform gold foil, 4-fold hull). Solar panels in 3D are our own plates drawn from `landers.json → panels` (`plateSpecs`), never read from a model. GLB front: glTF +Z → east after Cesium's axis correction (`GLB_FRONT_AZ_DEG = 90`); the model only turns about the local vertical.
+- `requestAnimationFrame` stops while the Browser pane / tab is hidden: the landing and marker turns then freeze mid-way. Test hook: `window.__seleneLanderPose()` → `{headingDeg, targetDeg, plates, landed, plateAzimuths}` (azimuths measured from the rendered plates).
 - The landing animation is optional (`features.landingAnimation`). Nothing outside `landingAnimation.js` may depend on it, and `moonViewer.js` only imports it lazily.
 - UI state that many components share (boot, welcome, help, compare, compass time) lives in `UiService`. Timeline hover uses its own `HoverTimeChanged` event so the whole UI does not re-render on mouse move.
 - `sites.json` is **generated** by `pipeline/select_sites.py` from Wueller et al. (2026) candidates (Zenodo, CC-BY-4.0). Do not edit coordinates by hand; re-run the pipeline. Their shapefile projection has true scale at −70°, unlike the DEM (−90°), so always reproject with the shipped `.prj`.

@@ -21,6 +21,9 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
 
     public HeatmapResult? Heatmap { get; private set; }
     public SimulationResult? Mission { get; private set; }
+
+    /// <summary>Bumped every time <see cref="Mission"/> is replaced (tells the 3D lander a new heading is ready).</summary>
+    public int MissionVersion { get; private set; }
     public string? MissionSiteId { get; private set; }
     public string MissionSiteName { get; private set; } = "";
     public double ThresholdBatteryPct { get; private set; }
@@ -193,6 +196,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
     {
         Mission = MissionSimulator.Run(site.Series, lander, landingUtc, state.MissionDurationDays, Thresholds);
+        MissionVersion++;
         // Same heading as the shown mission, so "max stay" and the verdict describe the same landing.
         MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
             landingUtc, Thresholds, MaxSurvivableCapDays);

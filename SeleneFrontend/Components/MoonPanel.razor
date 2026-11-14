@@ -157,12 +157,20 @@
             if (moonLoaded && moonModule is not null)
             {
                 landedKey = $"{req.SiteId}|{req.LanderId}";
+                landingMissionVersion = req.MissionVersion;
+                lastHeadingKey = null;
+                var mission = FreshMission(req.SiteId);
                 var options = new
                 {
                     lat = req.Lat, lon = req.Lon, landerClass = req.LanderClass,
                     landerName = req.LanderName, siteName = req.SiteName, reducedMotion = req.ReducedMotion,
                     modelUri = req.ModelUri, modelHeightM = req.ModelHeightM,
+                    panels = req.Panels?.Select(f => new { f.AzOffsetDeg, f.NormalElevDeg, f.Share }).ToArray(),
+                    // Usually still null here: the analysis answers ~1 s into the descent (SyncLanderHeadingAsync).
+                    headingDeg = mission is { FixedPanels: true } ? mission.HeadingDeg : null,
+                    headingAuto = mission?.HeadingAuto ?? true,
                 };
+                if (mission is not null) lastHeadingKey = HeadingKey(mission);
                 var result = await moonModule.InvokeAsync<LandingResult>("playLanding", options, landingHud);
                 status = result.Status;
                 Console.WriteLine($"[Landing] {result.Status} · model: {result.Model ?? "schematic"}");
@@ -195,8 +203,36 @@
     private void HandleAnalysisChanged() => _ = InvokeAsync(async () =>
     {
         if (MissionState.SelectedSite is { } s) await SyncSunLightAsync(s);
+        await SyncLanderHeadingAsync();
         StateHasChanged();
     });
+
+    // ---- Lander heading in 3D = the analysed mission's heading (AUTO or manual) ----
+    private int landingMissionVersion = int.MaxValue;   // missions newer than this belong to the current landing
+    private string? lastHeadingKey;
+
+    /// <summary>The mission at this site computed after the current landing started (null if none yet).</summary>
+    private SimulationResult? FreshMission(string siteId) =>
+        Analysis.MissionVersion > landingMissionVersion && Analysis.MissionSiteId == siteId ? Analysis.Mission : null;
+
+    private static string HeadingKey(SimulationResult m) =>
+        m.FixedPanels && m.HeadingDeg is { } h ? $"{h:0.#}|{m.HeadingAuto}" : "none";
+
+    /// <summary>Turn the descending or landed lander to the newest mission's heading (in flight: terminal yaw).</summary>
+    private async Task SyncLanderHeadingAsync()
+    {
+        if (landedKey is null || moonModule is null || MissionState.SelectedSite is not { } site) return;
+        if (FreshMission(site.Id) is not { } mission) return;
+        var key = HeadingKey(mission);
+        if (key == lastHeadingKey) return;
+        lastHeadingKey = key;
+        try
+        {
+            await moonModule.InvokeVoidAsync("setLanderHeading",
+                mission.FixedPanels ? mission.HeadingDeg : null, mission.HeadingAuto, Ui.ReducedMotion);
+        }
+        catch (JSDisconnectedException) { }
+    }
 
     private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); StateHasChanged(); });
 

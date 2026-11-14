@@ -484,6 +484,18 @@ export async function playLanding(options, hudHost) {
 }
 
 /**
+ * Heading of the lander in flight or on the surface (degrees clockwise from north; null = unknown),
+ * from the mission analysis. A no-op when the optional landing module was never loaded.
+ */
+export function setLanderHeading(headingDeg, auto, reducedMotion) {
+  if (!viewer || !landingModule) return;
+  landingModule.setHeading(viewer, headingDeg, auto, reducedMotion);
+}
+
+// Test hook (like __seleneRenderErrors): heading state of the landed / descending lander.
+window.__seleneLanderPose = () => landingModule?.getPose() ?? null;
+
+/**
  * Load the animation module and sample the site's ground height ahead of CONFIRM LANDING SITE.
  * A lander model (GLB, several MB) is fetched a few seconds later so it never competes with
  * the first page load.

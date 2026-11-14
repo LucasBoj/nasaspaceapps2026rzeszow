@@ -15,6 +15,12 @@ const FPS_FLOOR = 30;
 
 const BODY = "#c9d3dc";
 const LINE = "#4fc3f7";
+const PANEL = "#1d3557";          // our own schematic solar plates (from landers.json → panels)
+
+// Front of a glTF model after Cesium's axis correction: glTF +Z ("front" by the glTF spec) becomes
+// the local +X axis, i.e. east in an east-north-up modelMatrix. Azimuth in degrees clockwise from north.
+const GLB_FRONT_AZ_DEG = 90;
+const YAW_MIN_RATE = Math.PI / 3; // rad/s: slowest yaw manoeuvre (60°/s); faster if touchdown is close
 
 let active = null;     // running animation state
 let marker = [];       // entities of the landed model (kept after touchdown)
@@ -25,6 +31,8 @@ const glbCache = new Map();      // uri → Promise<{ url, height, bottom } | nu
 const modelPool = new Map();     // uri → loaded Cesium.Model, hidden when not in use (parsing a large GLB again is slow)
 let pending = null;              // { hud, onKey } while play() is preparing (before the animation clock starts)
 let settleTimer = null;          // post-touchdown terrain-following of the landed marker
+let pose = null;                 // heading state of the lander in flight or on the surface (see setHeading)
+let earlyHeading;                // setHeading() that arrived while play() was still preparing (undefined = none)
 
 // ------------------------------------------------------------------ optional glTF model (e.g. Nova-C)
 
@@ -50,15 +58,18 @@ function glbInfo(uri) {
         const dv = new DataView(buf);
         if (buf.byteLength < 20 || dv.getUint32(0, true) !== 0x46546c67 || dv.getUint32(16, true) !== 0x4e4f534a) return null; // "glTF", "JSON"
         const gltf = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, dv.getUint32(12, true))));
-        let minY = Infinity, maxY = -Infinity;
+        let minY = Infinity, maxY = -Infinity, radius = 0;
         for (const mesh of gltf.meshes ?? []) {
           for (const prim of mesh.primitives ?? []) {
             const acc = gltf.accessors?.[prim.attributes?.POSITION];
-            if (acc?.min && acc?.max) { minY = Math.min(minY, acc.min[1]); maxY = Math.max(maxY, acc.max[1]); }
+            if (acc?.min && acc?.max) {
+              minY = Math.min(minY, acc.min[1]); maxY = Math.max(maxY, acc.max[1]);
+              radius = Math.max(radius, Math.abs(acc.min[0]), Math.abs(acc.max[0]), Math.abs(acc.min[2]), Math.abs(acc.max[2]));
+            }
           }
         }
         if (!(maxY > minY)) return null;
-        return { url: URL.createObjectURL(new Blob([buf], { type: "model/gltf-binary" })), height: maxY - minY, bottom: minY };
+        return { url: URL.createObjectURL(new Blob([buf], { type: "model/gltf-binary" })), height: maxY - minY, bottom: minY, radius };
       } catch {
         return null;
       }
@@ -103,7 +114,7 @@ async function loadModel(viewer, uri, heightM, timeoutMs) {
   if (pooled && !pooled.isDestroyed() && viewer.scene.primitives.contains(pooled)) {
     pooled.scale = heightM / info.height;
     pooled.show = true;
-    return { model: pooled, lift: -info.bottom * pooled.scale };
+    return { model: pooled, lift: -info.bottom * pooled.scale, radius: info.radius * pooled.scale };
   }
   try {
     const scale = heightM / info.height;
@@ -122,7 +133,7 @@ async function loadModel(viewer, uri, heightM, timeoutMs) {
     model.errorEvent.addEventListener((e) => console.warn("[Landing] glTF model error — using the schematic model next time:", e?.message ?? e));
     viewer.scene.primitives.add(model);
     modelPool.set(uri, model);
-    return { model, lift: -info.bottom * scale };   // raise so the lowest point (feet) touches the ground
+    return { model, lift: -info.bottom * scale, radius: info.radius * scale };   // lift: feet touch the ground
   } catch (e) {
     console.warn("[Landing] glTF model unavailable, using the schematic model:", e?.message ?? e);
     return null;
@@ -179,12 +190,59 @@ function modelParts(landerClass) {
   return {
     solids: [
       { kind: "box", size: [half * 2, half * 2, bodyH], at: [0, 0, legH + bodyH / 2] },
-      { kind: "box", size: [half * 1.8, half * 1.8, 0.8], at: [0, 0, legH + bodyH + 0.4], optional: true },  // top panel
+      // generic top panel, replaced by the data-driven plates when the lander declares a layout
+      { kind: "box", size: [half * 1.8, half * 1.8, 0.8], at: [0, 0, legH + bodyH + 0.4], optional: true, panel: true },
       { kind: "cylinder", length: 10, top: 0.8, bottom: 0.8, at: [half * 0.6, half * 0.6, legH + bodyH + 5], optional: true }, // antenna
     ],
     legs,
     height: legH + bodyH + 10,
+    body: { radius: half + 0.6, wallMid: legH + bodyH / 2, wallH: bodyH * 0.8, deckZ: legH + bodyH + 0.5, width: half * 1.5, thick: 0.6 },
   };
+}
+
+/**
+ * Solar plates from landers.json → panels.facets, in the lander's own frame (heading 0).
+ * Same geometry as SolarGeometry.cs: facet normal azimuth = heading + azOffsetDeg, elevation
+ * normalElevDeg (0 = wall, 90 = deck). Returns [{ az, elev, at:[e,n,u] at heading 0, size:[w,t,h] }].
+ * Our own schematic plates: the visual model itself carries no reliable panel geometry.
+ */
+function plateSpecs(facets, body) {
+  if (!Array.isArray(facets) || !body) return [];
+  const used = facets.filter((f) => f && f.share > 0);
+  const maxShare = Math.max(0, ...used.map((f) => f.share));
+  return used.map((f) => {
+    const elev = Cesium.Math.toRadians(f.normalElevDeg ?? 0);
+    const az = Cesium.Math.toRadians(f.azOffsetDeg ?? 0);
+    const w = body.width * Math.sqrt(f.share / maxShare);
+    if (f.normalElevDeg >= 60) {
+      return { az, elev, at: [0, 0, body.deckZ], size: [w, body.thick, w] };
+    }
+    return { az, elev, at: [body.radius * Math.sin(az), body.radius * Math.cos(az), body.wallMid], size: [w, body.thick, body.wallH] };
+  });
+}
+
+/** (east, north) offset defined at heading 0, turned by `heading` (rad, clockwise from north). */
+function turnEN(east, north, heading) {
+  const c = Math.cos(heading), s = Math.sin(heading);
+  return [east * c + north * s, -east * s + north * c];
+}
+
+/**
+ * Orientation of a plate whose normal points to azimuth `az` (rad, clockwise from north) and
+ * elevation `elev`: box axes x = horizontal along the plate, y = normal (thickness), z = x × y.
+ */
+function plateOrientation(enuRot, az, elev) {
+  const n = new Cesium.Cartesian3(Math.cos(elev) * Math.sin(az), Math.cos(elev) * Math.cos(az), Math.sin(elev));
+  const x = new Cesium.Cartesian3(Math.cos(az), -Math.sin(az), 0);
+  const z = Cesium.Cartesian3.cross(x, n, new Cesium.Cartesian3());
+  const local = new Cesium.Matrix3(x.x, n.x, z.x, x.y, n.y, z.y, x.z, n.z, z.z);   // columns x, n, z
+  const world = Cesium.Matrix3.multiply(enuRot, local, new Cesium.Matrix3());
+  return Cesium.Quaternion.fromRotationMatrix(world);
+}
+
+/** Shortest signed angle from a to b (rad). */
+function angleDiff(a, b) {
+  return Cesium.Math.negativePiToPi(b - a);
 }
 
 // ------------------------------------------------------------------ helpers
@@ -246,11 +304,13 @@ function buildHud(host, opts, onSkip) {
   const title = el("div", "landing-title", `${opts.landerName} → ${opts.siteName}`);
   const rows = el("dl", "landing-telemetry");
   const value = {};
-  for (const [k, label] of [["alt", "ALT"], ["vs", "V/S"], ["range", "RANGE TO SITE"]]) {
+  for (const [k, label] of [["alt", "ALT"], ["vs", "V/S"], ["range", "RANGE TO SITE"], ["yaw", "YAW"]]) {
     rows.append(el("dt", null, label));
     value[k] = el("dd", null, "—");
     rows.append(value[k]);
   }
+  value.yaw.title = "Heading at touchdown that points the fixed solar panels at the Sun (from the mission analysis).";
+  value.yaw.textContent = opts.panels?.length ? "awaiting analysis…" : "—";
   const phases = el("ol", "landing-phases");
   const phaseEl = {};
   for (const p of ["DEORBIT", "BRAKING", "TERMINAL", "TOUCHDOWN"]) {
@@ -274,6 +334,7 @@ function buildHud(host, opts, onSkip) {
       value.range.textContent = `${fmt(t.range)} m`;
       for (const [p, node] of Object.entries(phaseEl)) node.classList.toggle("on", p === t.phase);
     },
+    setYaw(text) { value.yaw.textContent = text; },
     done() { root.classList.add("done"); skip.remove(); catcher.remove(); },
     destroy() { host.replaceChildren(); },
   };
@@ -298,6 +359,7 @@ export function cancel() {
   stopPending();
   stopSettle();
   if (!active) return;
+  if (pose && !pose.landed) pose = null;   // the descending lander is removed below
   const a = active;
   active = null;
   cancelAnimationFrame(a.frame);
@@ -315,7 +377,53 @@ export async function prefetchGround(viewer, lat, lon) {
   await groundHeight(viewer, Cesium.Cartographic.fromDegrees(lon, lat, 0), 4000);
 }
 
+let turnFrame = 0;   // requestAnimationFrame id of a landed-marker turn
+
+/**
+ * Heading of the lander (degrees clockwise from north, null = unknown / ideal tracking), from the
+ * mission analysis. In flight it becomes the target of the terminal yaw manoeuvre; on the surface
+ * the landed marker turns to it (immediately with reduced motion). `auto` labels the HUD value.
+ */
+export function setHeading(viewer, deg, auto = true, reducedMotion = false) {
+  const p = pose;
+  if (!p) {
+    if (pending) earlyHeading = { deg, auto };   // play() is preparing: apply once the lander exists
+    return;
+  }
+  const target = Number.isFinite(deg) ? Cesium.Math.toRadians(deg) : null;
+  p.yaw.target = target;
+  p.yaw.auto = auto;
+  if (p.plates) p.hud?.setYaw(p.yawText());
+  if (!p.landed || target === null || !viewer || viewer.isDestroyed()) return;
+
+  cancelAnimationFrame(turnFrame);
+  if (reducedMotion) { p.yaw.heading = target; p.freeze(); return; }
+  let last = performance.now();
+  const step = (now) => {
+    if (pose !== p || viewer.isDestroyed()) return;
+    const diff = angleDiff(p.yaw.heading, target);
+    const max = Cesium.Math.toRadians(120) * ((now - last) / 1000);
+    last = now;
+    p.yaw.heading += Math.sign(diff) * Math.min(Math.abs(diff), max);
+    p.freeze();
+    if (Math.abs(diff) > max) turnFrame = requestAnimationFrame(step);
+  };
+  turnFrame = requestAnimationFrame(step);
+}
+
+/** Test hook: current heading state of the lander in flight or on the surface. */
+export function getPose() {
+  if (!pose) return null;
+  const deg = (r) => (r === null ? null : Math.round(Cesium.Math.toDegrees(Cesium.Math.zeroToTwoPi(r)) * 10) / 10);
+  return {
+    headingDeg: deg(pose.yaw.heading), targetDeg: deg(pose.yaw.target), plates: pose.plates, landed: pose.landed,
+    plateAzimuths: pose.plateAzimuths(),
+  };
+}
+
 export function clearMarker(viewer) {
+  cancelAnimationFrame(turnFrame);
+  pose = null;
   stopSettle();
   for (const e of marker) if (viewer && !viewer.isDestroyed()) viewer.entities.remove(e);
   for (const m of markerPrims) hideOrRemove(viewer, m);
@@ -324,11 +432,14 @@ export function clearMarker(viewer) {
 }
 
 /**
- * options: { lat, lon, landerClass: "clps"|"hls", landerName, siteName, reducedMotion, hudHost: HTMLElement }
+ * options: { lat, lon, landerClass: "clps"|"hls", landerName, siteName, reducedMotion, hudHost: HTMLElement,
+ *            modelUri?, modelHeightM?, panels?: [{ azOffsetDeg, normalElevDeg, share }] (fixed panels only),
+ *            headingDeg?: heading from the analysis if already known (later via setHeading), headingAuto? }
  */
 export async function play(viewer, options) {
   cancel();
   clearMarker(viewer);
+  earlyHeading = undefined;
   const myGeneration = generation;
   options.hudHost.classList.remove("fade");
   // An unfinished camera flight (intro, fly-to) fights lookAt() and drives the camera to NaN.
@@ -348,7 +459,12 @@ export async function play(viewer, options) {
   if (aborted()) return { status: "cancelled", fps: 0, simplified: false };
   const siteGround = Cesium.Cartesian3.fromRadians(site.longitude, site.latitude, ground, Cesium.Ellipsoid.MOON);
   const rot = enuRotation(siteGround);
-  const orientation = Cesium.Transforms.headingPitchRollQuaternion(siteGround, new Cesium.HeadingPitchRoll(0, 0, 0));
+  // Heading (rad, clockwise from north): the lander starts at 0 and yaws to the analysis heading
+  // during the terminal phase (setHeading). Reduced motion lands at the target heading directly.
+  const toRad = (deg) => (Number.isFinite(deg) ? Cesium.Math.toRadians(deg) : null);
+  const yaw = { heading: 0, target: toRad(options.headingDeg), auto: options.headingAuto !== false };
+  if (options.reducedMotion && yaw.target !== null) yaw.heading = yaw.target;
+  const orientationAt = (h) => Cesium.Transforms.headingPitchRollQuaternion(siteGround, new Cesium.HeadingPitchRoll(h, 0, 0));
 
   // Trajectory as a SampledPositionProperty on a private epoch (independent of viewer.clock).
   const epoch = Cesium.JulianDate.fromDate(new Date(Date.UTC(2000, 0, 1)));
@@ -371,7 +487,18 @@ export async function play(viewer, options) {
     return { status: "cancelled", fps: 0, simplified: false };
   }
 
-  const parts = glb ? { solids: [], legs: [], height: options.modelHeightM } : modelParts(options.landerClass);
+  const parts = glb
+    ? {
+      solids: [], legs: [], height: options.modelHeightM,
+      // Plates sit just outside the hull: hull faces of the Nova-C GLB are at ~0.55-0.75 of its half-width.
+      body: {
+        radius: glb.radius * 0.66, wallMid: options.modelHeightM * 0.42, wallH: options.modelHeightM * 0.3,
+        deckZ: options.modelHeightM * 0.88, width: glb.radius * 0.62, thick: Math.max(0.04, options.modelHeightM * 0.012),
+      },
+    }
+    : modelParts(options.landerClass);
+  const plates = plateSpecs(options.panels, parts.body);
+  if (plates.length) parts.solids = parts.solids.filter((s) => !s.panel);
   let simplified = false;
   // Vertical correction (m) towards the terrain that is actually rendered near the site. The
   // pre-landing height sample is taken from far away and can differ from the detailed tiles that
@@ -391,7 +518,12 @@ export async function play(viewer, options) {
   };
   let current = pathAt(0);
   const placeModel = () => {
-    if (glb) glb.model.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(localToWorld(current, rot, 0, 0, glb.lift));
+    if (!glb) return;
+    // Only a turn about the local vertical: the glTF front (+Z → east after Cesium's axis correction)
+    // is rotated counter-clockwise by (front azimuth − heading) so it points at the heading.
+    const enu = Cesium.Transforms.eastNorthUpToFixedFrame(localToWorld(current, rot, 0, 0, glb.lift));
+    const turn = Cesium.Matrix3.fromRotationZ(Cesium.Math.toRadians(GLB_FRONT_AZ_DEG) - yaw.heading);
+    glb.model.modelMatrix = Cesium.Matrix4.multiply(enu, Cesium.Matrix4.fromRotationTranslation(turn, Cesium.Cartesian3.ZERO), new Cesium.Matrix4());
   };
   placeModel();
   // First draw of a large model compiles shaders and can stall the page for a moment; start the
@@ -401,27 +533,80 @@ export async function play(viewer, options) {
     for (const m of prims) hideOrRemove(viewer, m);
     return { status: "cancelled", fps: 0, simplified: false };
   }
+  // Every part has pose functions of (current, yaw.heading). In flight they back CallbackProperties;
+  // on the surface freeze() turns them into constants (cheap) and re-runs whenever the heading changes.
   const entities = [];
-  const posOf = (off) => new Cesium.CallbackProperty(() => localToWorld(current, rot, off[0], off[1], off[2]), false);
-  const add = (spec) => { const e = viewer.entities.add({ properties: { kind: "lander" }, ...spec }); entities.push(e); return e; };
+  const at3 = (off) => {
+    const [e, n] = turnEN(off[0], off[1], yaw.heading);
+    return localToWorld(current, rot, e, n, off[2]);
+  };
+  const add = (spec, fns) => {
+    const e = viewer.entities.add({ properties: { kind: "lander" }, ...spec });
+    e._pose = fns;
+    entities.push(e);
+    return e;
+  };
+  const live = (fn) => new Cesium.CallbackProperty(fn, false);
 
   for (const s of parts.solids) {
     const graphics = s.kind === "box"
       ? { box: { dimensions: new Cesium.Cartesian3(...s.size), material: Cesium.Color.fromCssColorString(BODY), outline: true, outlineColor: Cesium.Color.fromCssColorString(LINE) } }
       : { cylinder: { length: s.length, topRadius: s.top, bottomRadius: s.bottom, material: Cesium.Color.fromCssColorString(BODY), outline: true, outlineColor: Cesium.Color.fromCssColorString(LINE), slices: 24 } };
-    const e = add({ position: posOf(s.at), orientation, ...graphics });
+    const fns = { pos: () => at3(s.at), ori: () => orientationAt(yaw.heading) };
+    const e = add({ position: live(fns.pos), orientation: live(fns.ori), ...graphics }, fns);
     e._optional = !!s.optional;
   }
   parts.legs.forEach((leg, i) => {
+    const fns = { line: () => [at3(leg.from), at3(leg.to)] };
     const e = add({
-      polyline: {
-        positions: new Cesium.CallbackProperty(() => [
-          localToWorld(current, rot, ...leg.from), localToWorld(current, rot, ...leg.to)], false),
-        width: 2, material: Cesium.Color.fromCssColorString(LINE), arcType: Cesium.ArcType.NONE,
-      },
-    });
+      polyline: { positions: live(fns.line), width: 2, material: Cesium.Color.fromCssColorString(LINE), arcType: Cesium.ArcType.NONE },
+    }, fns);
     e._optional = i >= 4 || (parts.legs.length === 4 && i % 2 === 1);   // first to go when simplifying
   });
+  for (const p of plates) {
+    const fns = { pos: () => at3(p.at), ori: () => plateOrientation(rot, p.az + yaw.heading, p.elev) };
+    add({
+      position: live(fns.pos), orientation: live(fns.ori),
+      box: {
+        dimensions: new Cesium.Cartesian3(...p.size), material: Cesium.Color.fromCssColorString(PANEL),
+        outline: true, outlineColor: Cesium.Color.fromCssColorString(LINE),
+      },
+      properties: { kind: "lander-panel" },
+    }, fns);
+  }
+
+  /** Constant properties from the pose functions (landed marker). */
+  const freeze = () => {
+    for (const e of entities) {
+      if (!e._pose) continue;
+      if (e._pose.pos) e.position = new Cesium.ConstantPositionProperty(e._pose.pos());
+      if (e._pose.ori) e.orientation = new Cesium.ConstantProperty(e._pose.ori());
+      if (e._pose.line) e.polyline.positions = new Cesium.ConstantProperty(e._pose.line());
+    }
+  };
+  const yawText = () => (yaw.target === null
+    ? (plates.length ? "awaiting analysis…" : "—")
+    : `→ ${Math.round(Cesium.Math.toDegrees(Cesium.Math.zeroToTwoPi(yaw.target))) % 360}°${yaw.auto ? " AUTO" : ""} · panels to Sun`);
+  if (plates.length) hud.setYaw(yawText());
+  /** Heading state shared with setHeading(); `landed` switches it to rotating the frozen marker. */
+  // Test hook: wall-plate azimuths measured from the rendered entity positions (not from the specs).
+  const plateAzimuths = () => {
+    const toEnu = Cesium.Matrix3.transpose(rot, new Cesium.Matrix3());
+    const now = Cesium.JulianDate.now();
+    return entities.filter((e) => e.properties?.kind?.getValue?.() === "lander-panel").map((e) => {
+      const d = Cesium.Cartesian3.subtract(e.position.getValue(now), current, new Cesium.Cartesian3());
+      const enu = Cesium.Matrix3.multiplyByVector(toEnu, d, new Cesium.Cartesian3());
+      if (Math.hypot(enu.x, enu.y) < 1e-3) return null;   // deck plate (centred)
+      return Math.round(Cesium.Math.toDegrees(Cesium.Math.zeroToTwoPi(Math.atan2(enu.x, enu.y))));
+    });
+  };
+  const myPose = { yaw, plates: plates.length, landed: false, freeze: () => { freeze(); placeModel(); }, hud, yawText, plateAzimuths };
+  pose = myPose;
+  if (earlyHeading !== undefined) {   // the analysis answered while the model was still loading
+    setHeading(viewer, earlyHeading.deg, earlyHeading.auto, options.reducedMotion);
+    earlyHeading = undefined;
+    if (options.reducedMotion && yaw.target !== null) yaw.heading = yaw.target;
+  }
 
   const simplify = () => {
     if (simplified) return;
@@ -448,20 +633,15 @@ export async function play(viewer, options) {
       const g = renderedGround();
       if (g !== undefined && Math.abs(g - ground) < 500) groundAdj = g - ground;   // final snap to the rendered terrain
       current = surface();
+      if (yaw.target !== null) yaw.heading = yaw.target;   // skip / short descent: end at the target heading
       placeModel();
       for (const e of state.fx) viewer.entities.remove(e);
       safeLookAt(camera, landedAt(), finalHpr);   // stays in orbit around the site until another camera command
       state.hud?.update(telemetry(1));
       state.hud?.done();
-      // Freeze the landed model as plain constant positions (cheap) and keep it as a marker.
-      const now = Cesium.JulianDate.now();
-      for (const e of entities) {
-        if (e.position) {
-          const p = e.position.getValue(now);
-          if (p) e.position = new Cesium.ConstantPositionProperty(p);
-        }
-        if (e.polyline) e.polyline.positions = new Cesium.ConstantProperty(e.polyline.positions.getValue(now));
-      }
+      // Freeze the landed model as constants (cheap) and keep it as a marker; setHeading() can still turn it.
+      freeze();
+      myPose.landed = true;
       marker = entities;
       markerPrims = prims;
       startSettle();
@@ -473,7 +653,6 @@ export async function play(viewer, options) {
 
     // After touchdown keep the landed marker on the terrain that is actually rendered: finer tiles
     // can keep streaming in for a few seconds and shift the surface by tens of metres.
-    const up = Cesium.Matrix3.multiplyByVector(rot, Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3());
     const startSettle = () => {
       stopSettle();
       const t0s = performance.now();
@@ -484,15 +663,8 @@ export async function play(viewer, options) {
         const delta = g - ground - groundAdj;
         if (Math.abs(delta) < 0.3) return;
         groundAdj += delta;
-        const shift = Cesium.Cartesian3.multiplyByScalar(up, delta, new Cesium.Cartesian3());
-        const now = Cesium.JulianDate.now();
-        for (const e of entities) {
-          const p = e.position?.getValue(now);
-          if (p) e.position = new Cesium.ConstantPositionProperty(Cesium.Cartesian3.add(p, shift, new Cesium.Cartesian3()));
-          const line = e.polyline?.positions?.getValue(now);
-          if (line) e.polyline.positions = new Cesium.ConstantProperty(line.map((q) => Cesium.Cartesian3.add(q, shift, new Cesium.Cartesian3())));
-        }
         current = surface();
+        freeze();   // re-place every part from its pose function (keeps the current heading)
         placeModel();
       }, 400);
     };
@@ -549,6 +721,16 @@ export async function play(viewer, options) {
         if (g !== undefined && Math.abs(g - ground) < 500) groundAdj += (g - ground - groundAdj) * 0.35;
       }
       current = pathAt(s);
+      // Yaw manoeuvre: from the terminal phase on, turn towards the analysis heading so the turn
+      // ends around touchdown (at least 60°/s; faster when little time is left).
+      if (yaw.target !== null && altitude(u) < 1500) {
+        const diff = angleDiff(yaw.heading, yaw.target);
+        if (Math.abs(diff) > 1e-4) {
+          const left = Math.max(0.15, (DESCENT_S + SETTLE_S * 0.5) - s);
+          const step = Math.max(YAW_MIN_RATE, Math.abs(diff) / left) * (dt / 1000);
+          yaw.heading += Math.sign(diff) * Math.min(Math.abs(diff), step);
+        }
+      }
       placeModel();
       state.hud.update(telemetry(u));
 
