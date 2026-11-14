@@ -93,7 +93,7 @@
                             <h3>MISSION TIMELINE · @mission.DurationDays.ToString("0.#") d</h3>
                             <MissionTimeline Result="mission" ThresholdPct="Analysis.ThresholdBatteryPct" OnHoverTime="Ui.SetHoverTime" />
                         </section>
-                        <section class="results-panel" aria-label="Landing window heatmap">
+                        <section class="results-panel" aria-label="Landing window heatmap" id="results-heatmap">
                             @if (Analysis.Heatmap is { } heatmap)
                             {
                                 <div class="panel-head">

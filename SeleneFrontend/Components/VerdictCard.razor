@@ -66,6 +66,10 @@
                 {
                     <button type="button" class="link-btn full-analysis-hint" @onclick="Ui.ShowFullAnalysisAsync">See the full analysis →</button>
                 }
+                @if (Ui.CanPlayMission && !Ui.ReplayPlaying)
+                {
+                    <button type="button" class="btn-primary small play-mission" @onclick="Ui.PlayMissionAsync">▶ Play mission</button>
+                }
                 <button type="button" class="btn-secondary small new-landing" @onclick="Ui.NewLanding">New landing</button>
             </span>
         </div>
@@ -79,7 +83,8 @@
     /// <summary>Only after the user (or QUICK DEMO) asked for a result, never mid-descent, and for the selected site.</summary>
     private bool Visible =>
         (Ui.VerdictRequested || Inline) && !Ui.VerdictDismissed && !Ui.LandingInProgress
-        && Analysis.Mission is not null;
+        && Analysis.Mission is not null
+        && (Inline || (!Ui.ReplayPlaying && Ui.ReplayOutcome is null));   // the replay HUD / summary take its place
 
     /// <summary>Settings (site, lander, dates, limits, what-if) changed since this result was computed.</summary>
     private bool Outdated => Analysis.IsOutdated || Analysis.MissionSiteId != MissionState.SelectedSite?.Id;

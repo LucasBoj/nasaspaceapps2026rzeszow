@@ -120,6 +120,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         var ui = await Ui();
         ReducedMotion = await ui.InvokeAsync<bool>("prefersReducedMotion");
         LandingAnimationEnabled = !bool.TryParse(config["features:landingAnimation"], out var flag) || flag;
+        MissionReplayEnabled = !bool.TryParse(config["features:missionReplay"], out var replayFlag) || replayFlag;
         if (LandingAnimationEnabled && await ui.InvokeAsync<string?>("getItem", LandingAnimKey) == "0") LandingAnimationEnabled = false;
         BootVisible = await ui.InvokeAsync<string?>("getItem", BootSeenKey) is null;
         AnalystMode = await ui.InvokeAsync<string?>("getItem", AnalystModeKey) == "1";
@@ -281,6 +282,89 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         Notify();
         await ConfirmLandingAsync(highlightBest: true);
         if (!AnalystMode && VerdictRequested) { FullAnalysisHint = true; Notify(); }
+        // The demo ends with the mission played back (can be skipped from its HUD).
+        if (Landed && CanPlayMission) await PlayMissionAsync();
+    }
+
+    // ------------------------------------------------------------------ mission replay
+
+    /// <summary>Feature flag <c>features:missionReplay</c> (appsettings.json).</summary>
+    public bool MissionReplayEnabled { get; private set; } = true;
+
+    public bool ReplayPlaying { get; private set; }
+
+    /// <summary>"lost", "complete-clps", "complete-hls" after a replay (or the static summary); null = none shown.</summary>
+    public string? ReplayOutcome { get; private set; }
+
+    /// <summary>Mission step under the replay cursor (−1 = no replay); separate event so only the timeline re-renders.</summary>
+    public int ReplayStep { get; private set; } = -1;
+    public event Action? ReplayStepChanged;
+
+    /// <summary>The viewer should play (true) or stop and reset (false) the mission replay.</summary>
+    public event Action<bool>? ReplayRequested;
+
+    public bool CanPlayMission =>
+        MissionReplayEnabled && Landed && !LandingInProgress && analysis.Mission is not null && !analysis.IsOutdated
+        && analysis.MissionSiteId == state.SelectedSite?.Id;
+
+    /// <summary>▶ Play mission: the result replayed in ~25 s; with reduced motion only the summary card is shown.</summary>
+    public async Task PlayMissionAsync()
+    {
+        if (!CanPlayMission) return;
+        ReplayOutcome = null;
+        if (ReducedMotion)
+        {
+            ReplayOutcome = OutcomeOf();
+            Notify();
+            return;
+        }
+        ReplayPlaying = true;
+        Notify();
+        ReplayRequested?.Invoke(true);
+        await Task.CompletedTask;
+    }
+
+    /// <summary>How the replay ends for the current result and lander class.</summary>
+    public string OutcomeOf() =>
+        analysis.Mission is { DepletedAtStep: not null } ? "lost"
+        : state.SelectedLander?.Class == "hls" ? "complete-hls" : "complete-clps";
+
+    public void SetReplayStep(int step)
+    {
+        if (ReplayStep == step) return;
+        ReplayStep = step;
+        ReplayStepChanged?.Invoke();
+    }
+
+    /// <summary>Called by the viewer when the replay reaches its end (or is skipped).</summary>
+    public void ReplayEnded(string outcome)
+    {
+        ReplayPlaying = false;
+        ReplayOutcome = outcome;
+        Notify();
+    }
+
+    /// <summary>Close the summary (and stop a running replay): the scene goes back to the landing moment.</summary>
+    public void CloseReplay()
+    {
+        var wasActive = ReplayPlaying || ReplayOutcome is not null;
+        ReplayPlaying = false;
+        ReplayOutcome = null;
+        SetReplayStep(-1);
+        if (wasActive) ReplayRequested?.Invoke(false);
+        Notify();
+    }
+
+    /// <summary>"Try another date": Analyst mode, scrolled to the landing-window heatmap.</summary>
+    public async Task ShowHeatmapAsync()
+    {
+        CloseReplay();
+        SetAnalystMode(true);
+        ResultsTab = "mission";
+        analysis.RequestExpand();
+        Notify();
+        await Task.Delay(80);
+        await ScrollToAsync("results-heatmap");
     }
 
     // ------------------------------------------------------------------ landing
@@ -396,6 +480,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     /// <summary>NEW LANDING: remove the landed model, unlock site picking and go back to step 1.</summary>
     public void NewLanding()
     {
+        CloseReplay();
         Landed = false;
         _landedLanderId = null;
         ContactText = null;
@@ -416,6 +501,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         {
             Landed = false;
             _landedLanderId = null;
+            CloseReplay();
             Notify();
         }
     }

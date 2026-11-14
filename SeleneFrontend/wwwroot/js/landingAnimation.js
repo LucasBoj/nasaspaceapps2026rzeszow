@@ -446,7 +446,37 @@ function stopSettle() {
   settleTimer = null;
 }
 
-let lingeringFx = null;   // touchdown dust still settling after finish(); removed by cancel()/clearMarker()
+let lingeringFx = null;
+let landed = null;        // { base: Cartesian3, up: Cartesian3, sizeM, heightM, nozzle: [e,n,u] } of the lander on the surface
+let markerLift = 0;       // metres the landed marker is currently raised (mission replay lift-off)
+
+/** The lander on the surface (for the mission replay), or null. */
+export function landedInfo() {
+  return landed && (marker.length || markerPrims.length) ? { ...landed, lift: markerLift } : null;
+}
+
+/**
+ * Raise (or lower) the landed lander along the local vertical by dz metres: models and entities alike.
+ * The terrain-follow loop stops first, so it cannot pull the lander back to the ground mid-ascent.
+ */
+export function liftMarker(viewer, dz) {
+  if (!landed || !viewer || viewer.isDestroyed() || !Number.isFinite(dz) || dz === 0) return;
+  stopSettle();
+  const shift = Cesium.Cartesian3.multiplyByScalar(landed.up, dz, new Cesium.Cartesian3());
+  const now = Cesium.JulianDate.now();
+  for (const e of marker) {
+    const p = e.position?.getValue(now);
+    if (p) e.position = new Cesium.ConstantPositionProperty(Cesium.Cartesian3.add(p, shift, new Cesium.Cartesian3()));
+    const line = e.polyline?.positions?.getValue(now);
+    if (line) e.polyline.positions = new Cesium.ConstantProperty(line.map((q) => Cesium.Cartesian3.add(q, shift, new Cesium.Cartesian3())));
+  }
+  for (const m of markerPrims) {
+    if (m.isDestroyed()) continue;
+    const t = Cesium.Matrix4.getTranslation(m.modelMatrix, new Cesium.Cartesian3());
+    m.modelMatrix = Cesium.Matrix4.setTranslation(m.modelMatrix, Cesium.Cartesian3.add(t, shift, t), new Cesium.Matrix4());
+  }
+  markerLift += dz;
+}   // touchdown dust still settling after finish(); removed by cancel()/clearMarker()
 
 function stopLingeringFx() {
   if (lingeringFx) { clearTimeout(lingeringFx.timer); lingeringFx.fx.destroy(); lingeringFx = null; }
@@ -523,6 +553,8 @@ export function getPose() {
 
 export function clearMarker(viewer) {
   stopLingeringFx();
+  landed = null;
+  markerLift = 0;
   cancelAnimationFrame(turnFrame);
   pose = null;
   stopSettle();
@@ -788,6 +820,8 @@ export async function play(viewer, options) {
       myPose.landed = true;
       marker = entities;
       markerPrims = prims;
+      landed = { base: surface(), up: upVec, sizeM: frame, heightM: parts.height, nozzle };
+      markerLift = 0;
       startSettle();
       resolve({ status, fps: Math.round(state.fps), simplified, model: glb ? "gltf" : "schematic" });
     };
@@ -808,6 +842,7 @@ export async function play(viewer, options) {
         if (Math.abs(delta) < 0.3) return;
         groundAdj += delta;
         current = surface();
+        if (landed) landed.base = surface();
         freeze();   // re-place every part from its pose function (keeps the current heading)
         placeModel();
         // The camera still orbits the old target: move it along (keeping the user's heading, pitch and
