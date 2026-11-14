@@ -12,7 +12,12 @@
         else
         {
             <span class="metric-value">@D1(M.SunElevMinDeg)° … @D1(M.SunElevMaxDeg)°</span>
-            <span class="metric-sub">mean @D1(M.SunElevMeanDeg)° above the horizontal</span>
+            <span class="metric-sub">
+                mean @D1(M.SunElevMeanDeg)°@if (!double.IsNaN(M.SunClearanceMinDeg))
+                {
+                    <text> · <Term Key="clearance">terrain margin</Term> @D1(M.SunClearanceMinDeg)°</text>
+                }
+            </span>
         }
     </div>
 
@@ -47,7 +52,7 @@
         <span class="metric-label"><Term Key="earth">EARTH COMMS</Term></span>
         <span class="metric-value">@D0(M.CommsPct)% in view</span>
         <span class="metric-sub">
-            <Term Key="commsgap">longest gap</Term> @Hours(M.LongestCommsGapH)@(double.IsNaN(M.EarthElevMinDeg) ? "" : $" · el {D1(M.EarthElevMinDeg)}…{D1(M.EarthElevMaxDeg)}°")
+            <Term Key="commsgap">longest gap</Term> @Hours(M.LongestCommsGapH)@(double.IsNaN(M.EarthClearanceMinDeg) ? "" : $" · terrain margin {D1(M.EarthClearanceMinDeg)}°")
         </span>
     </div>
 

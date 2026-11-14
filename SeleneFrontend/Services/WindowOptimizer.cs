@@ -63,25 +63,41 @@ public static class WindowOptimizer
     /// Score 0–100.
     /// <code>
     ///   NOT FEASIBLE (battery depleted)          → 0
-    ///   otherwise  40 × socMargin + 25 × comms + 15 × light + 20 × surplus
+    ///   otherwise  35 × socMargin + 20 × comms + 10 × light + 20 × surplus + 15 × terrainMargin
     ///     socMargin = minSoC% / 100              (0..1, how much battery is left at the worst hour)
     ///     comms     = Earth-visible hours / all  (0..1)
     ///     light     = lit hours (sunFraction ≥ 50) / all (0..1)
     ///     surplus   = clamp(produced / used − 1, 0, 1)   (solar energy beyond the mission's needs;
     ///                 1 = at least twice what the mission uses)
+    ///     terrainMargin = ½ m(min Sun clearance) + ½ m(min Earth clearance),  m(c) = 1 − e^(−max(c, 0) / 2°)
+    ///                 (lowest height of the Sun / Earth centre above the LOLA horizon during the mission:
+    ///                  how robust light and comms are to errors of the 120 m terrain model, with diminishing
+    ///                  returns — 0.5° → 0.22, 2° → 0.63, 4° → 0.86; 0 without horizon data)
     /// </code>
-    /// The surplus term separates missions whose battery never drops (min SoC 100 % for low-draw
-    /// landers), which the other terms alone scored identically.
+    /// The surplus term separates missions whose battery never drops (min SoC 100 % for low-draw landers);
+    /// the terrain margin separates fully lit, fully connected missions, which are otherwise identical
+    /// (with ideal tracking every such window scored exactly the same at every site).
     /// A surviving mission always scores at least 1, so it is distinguishable from "not feasible".
     /// </summary>
     public static double Score(SimulationResult r)
     {
         if (r.Verdict == Verdict.NotFeasible) return 0;
-        var score = 40 * Math.Clamp(r.MinSocPct / 100, 0, 1)
-                  + 25 * Math.Clamp(r.CommsPct / 100, 0, 1)
-                  + 15 * Math.Clamp(r.SunPct / 100, 0, 1)
-                  + 20 * Surplus(r);
+        var score = 35 * Math.Clamp(r.MinSocPct / 100, 0, 1)
+                  + 20 * Math.Clamp(r.CommsPct / 100, 0, 1)
+                  + 10 * Math.Clamp(r.SunPct / 100, 0, 1)
+                  + 20 * Surplus(r)
+                  + 15 * TerrainMargin(r);
         return Math.Clamp(score, 1, 100);
+    }
+
+    /// <summary>Scale of the terrain margin: a clearance of this many degrees earns 1 − 1/e ≈ 63 % of the points.</summary>
+    public const double ClearanceScaleDeg = 2;
+
+    /// <summary>½ m(min Sun clearance) + ½ m(min Earth clearance), m(c) = 1 − e^(−max(c,0)/2°); NaN parts count 0.</summary>
+    public static double TerrainMargin(SimulationResult r)
+    {
+        static double Part(double deg) => double.IsNaN(deg) ? 0 : 1 - Math.Exp(-Math.Max(deg, 0) / ClearanceScaleDeg);
+        return 0.5 * Part(r.SunClearanceMinDeg) + 0.5 * Part(r.EarthClearanceMinDeg);
     }
 
     /// <summary>clamp(produced / used − 1, 0, 1); 0 when nothing is used.</summary>

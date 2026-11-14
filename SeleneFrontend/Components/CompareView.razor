@@ -51,7 +51,7 @@ else
                     }
                     else
                     {
-                        <div class="compare-verdict @VerdictClass(m.Verdict)">@VerdictLabel(m.Verdict) · score @e.Score.ToString("0")</div>
+                        <div class="compare-verdict @VerdictClass(m.Verdict)">@VerdictLabel(m.Verdict) · score @e.Score.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)</div>
                         <div class="compare-date">land @m.LandingUtc.ToString("yyyy-MM-dd")</div>
                         <MiniTimeline Result="m" ThresholdPct="Analysis.ThresholdBatteryPct" />
                         <dl class="compare-metrics">

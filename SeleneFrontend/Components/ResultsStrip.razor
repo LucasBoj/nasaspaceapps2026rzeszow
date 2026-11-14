@@ -106,7 +106,7 @@
                                         else
                                         {
                                             <button type="button" class="best-date" @onclick="() => OnCellClick((site, day))">
-                                                @heatmap.Sites[s].Name · @heatmap.DayUtc(day).ToString("MM-dd") · @heatmap.Scores[s, day].ToString("0")
+                                                @heatmap.Sites[s].Name · @heatmap.DayUtc(day).ToString("MM-dd") · @heatmap.Scores[s, day].ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)
                                             </button>
                                         }
                                     }

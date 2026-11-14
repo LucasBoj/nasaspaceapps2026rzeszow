@@ -13,12 +13,61 @@ public class WindowOptimizerTests
     {
         // Same case as MissionSimulatorTests: min SoC 50 %, comms 50 %, lit 37.5 %
         // energy: produced 3 h × 100 W = 300 Wh, used 3 × 40 + 5 × 20 = 220 Wh → surplus = 300/220 − 1 = 0.3636…
-        // score = 40 × 0.50 + 25 × 0.50 + 15 × 0.375 + 20 × 0.3636… = 20 + 12.5 + 5.625 + 7.2727… = 45.3977…
+        // no horizon data → terrain margin 0
+        // score = 35 × 0.50 + 20 × 0.50 + 10 × 0.375 + 20 × 0.3636… + 15 × 0 = 17.5 + 10 + 3.75 + 7.2727… = 38.5227…
         var series = Fixtures.Series([100, 100, 100, 0, 0, 0, 0, 0], [1, 1, 1, 1, 0, 0, 0, 0]);
         var r = MissionSimulator.Run(series, Lander, Fixtures.T0, 8.0 / 24, Thresholds);
         Assert.Equal(300, r.EnergyProducedWh, 9);
         Assert.Equal(220, r.EnergyLoadWh, 9);
-        Assert.Equal(20 + 12.5 + 5.625 + 20 * (300.0 / 220 - 1), WindowOptimizer.Score(r), 9);
+        Assert.True(double.IsNaN(r.SunClearanceMinDeg));
+        Assert.Equal(0, WindowOptimizer.TerrainMargin(r), 9);
+        Assert.Equal(17.5 + 10 + 3.75 + 20 * (300.0 / 220 - 1), WindowOptimizer.Score(r), 9);
+    }
+
+    [Fact]
+    public void Terrain_margin_from_clearance_above_the_horizon()
+    {
+        // Flat 1° horizon except 3° towards az 90°; Sun at az 90° rising 4° → 5°, Earth at az 0° at 3°.
+        // Sun clearance = el − 3° → min 1°; Earth clearance = 3° − 1° = 2°.
+        // margin = ½ (1 − e^(−1/2)) + ½ (1 − e^(−2/2))
+        var horizon = Enumerable.Repeat(1.0, 360).ToArray();
+        horizon[90] = 3;
+        var s = SolarGeometryTests.GeoSeries([100, 100], [4, 5], [90, 90]);
+        s.HorizonDeg = horizon;
+        s.EarthElevCentiDeg = [300, 300];
+        s.EarthAzCentiDeg = [0, 0];
+        var r = MissionSimulator.Run(s, Lander, Fixtures.T0, 2 / 24.0, Thresholds);
+        Assert.Equal(1, r.SunClearanceMinDeg, 9);
+        Assert.Equal(2, r.EarthClearanceMinDeg, 9);
+        Assert.Equal(0.5 * (1 - Math.Exp(-0.5)) + 0.5 * (1 - Math.Exp(-1)), WindowOptimizer.TerrainMargin(r), 9);
+
+        // Horizon is interpolated between whole degrees (az 89.5° → halfway between 1° and 3°).
+        s = SolarGeometryTests.GeoSeries([100], [4], [89.5]);
+        s.HorizonDeg = horizon;
+        Assert.Equal(2, s.SunClearanceDeg()[0], 9);
+
+        // Below the horizon counts as no margin, never negative.
+        s = SolarGeometryTests.GeoSeries([0], [-2], [0]);
+        s.HorizonDeg = horizon;
+        Assert.Equal(-3, MissionSimulator.Run(s, Lander with { BatteryWh = 1000 }, Fixtures.T0, 1 / 24.0, Thresholds).SunClearanceMinDeg, 9);
+    }
+
+    [Fact]
+    public void More_terrain_clearance_scores_higher_when_everything_else_ties()
+    {
+        // Two fully lit, fully connected missions with identical energy: only the Sun's clearance differs.
+        IlluminationSeries Make(double sunEl)
+        {
+            var s = SolarGeometryTests.GeoSeries(Fixtures.Repeat([100], 24), Enumerable.Repeat(sunEl, 24).ToArray(), new double[24]);
+            s.HorizonDeg = new double[360];
+            s.EarthElevCentiDeg = Enumerable.Repeat(500, 24).ToArray();
+            s.EarthAzCentiDeg = new int[24];
+            return s;
+        }
+        var low = MissionSimulator.Run(Make(1), Lander, Fixtures.T0, 1, Thresholds);
+        var high = MissionSimulator.Run(Make(4), Lander, Fixtures.T0, 1, Thresholds);
+        Assert.Equal(low.EnergyProducedWh, high.EnergyProducedWh, 9);
+        Assert.True(WindowOptimizer.Score(high) > WindowOptimizer.Score(low));
     }
 
     [Fact]
@@ -30,8 +79,8 @@ public class WindowOptimizerTests
         var rich = MissionSimulator.Run(sunny, Lander with { DayLoadW = 40 }, Fixtures.T0, 1, Thresholds);   // 100 W vs 40 W
         Assert.Equal(100, thin.MinSocPct, 9);
         Assert.Equal(100, rich.MinSocPct, 9);
-        Assert.Equal(80 + 20 * (100.0 / 90 - 1), WindowOptimizer.Score(thin), 9);
-        Assert.Equal(100, WindowOptimizer.Score(rich), 9);                 // surplus clamps at 1 (≥ 2× the need)
+        Assert.Equal(65 + 20 * (100.0 / 90 - 1), WindowOptimizer.Score(thin), 9);   // no horizon data → no terrain margin
+        Assert.Equal(85, WindowOptimizer.Score(rich), 9);                  // surplus clamps at 1 (≥ 2× the need)
         Assert.True(WindowOptimizer.Score(rich) > WindowOptimizer.Score(thin));
     }
 
@@ -112,7 +161,7 @@ public class WindowOptimizerTests
         Assert.Equal(0, result.Scores[1, 0]);              // site B day 0 is dark → dies
         Assert.Equal(1, result.BestSite);
         Assert.Equal(1, result.BestDay);                   // first full-sun day (ties keep the earliest)
-        Assert.Equal(100, result.Scores[1, 1], 9);         // full battery, full comms, full light
+        Assert.Equal(85, result.Scores[1, 1], 9);          // full battery, comms, light and surplus; no horizon data → no terrain margin
         Assert.Equal(1, result.BestDayFor(1));
         Assert.Equal(-1, result.BestDayFor(0));
         Assert.Equal(1.0, progress[^1]);

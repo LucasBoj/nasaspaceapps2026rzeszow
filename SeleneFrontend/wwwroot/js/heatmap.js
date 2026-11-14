@@ -62,7 +62,7 @@ function describe(dd, s, d) {
   const i = s * dd.days + d;
   const score = dd.scores[i];
   const parts = [`${dd.sites[s]} · land ${dayDate(dd, d).toISOString().slice(0, 10)}`,
-    score > 0 ? `score ${Math.round(score)} · ${VERDICTS[dd.verdicts[i]]}` : "NOT FEASIBLE",
+    score > 0 ? `score ${score.toFixed(1)} · ${VERDICTS[dd.verdicts[i]]}` : "NOT FEASIBLE",
     `lit ${Math.round(dd.sunPct[i])}%`, `Earth ${Math.round(dd.commsPct[i])}%`,
     `energy ${dd.energyRatio[i].toFixed(2)}×`, `min battery ${Math.round(dd.minSoc[i])}%`];
   const h = dd.heading[i];

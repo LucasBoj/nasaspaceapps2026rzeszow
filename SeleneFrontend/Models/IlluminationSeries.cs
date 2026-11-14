@@ -34,6 +34,37 @@ public sealed class IlluminationSeries
 
     public bool HasEarthElevation => Count > 0 && EarthElevCentiDeg.Length >= Count;
 
+    public bool HasHorizon => HorizonDeg.Length > 0;
+
+    private double[]? _sunClearance, _earthClearance;
+
+    /// <summary>
+    /// Sun centre elevation above the terrain horizon at its azimuth, per sample (degrees; empty without
+    /// horizon or Sun geometry). Same linear horizon interpolation as the pipeline.
+    /// </summary>
+    public double[] SunClearanceDeg() =>
+        _sunClearance ??= HasSunGeometry && HasHorizon ? Clearance(SunElevCentiDeg, SunAzCentiDeg) : [];
+
+    /// <summary>Earth centre elevation above the terrain horizon, per sample (degrees; empty when unavailable).</summary>
+    public double[] EarthClearanceDeg() =>
+        _earthClearance ??= HasHorizon && EarthElevCentiDeg.Length >= Count && EarthAzCentiDeg.Length >= Count && Count > 0
+            ? Clearance(EarthElevCentiDeg, EarthAzCentiDeg) : [];
+
+    private double[] Clearance(int[] elCenti, int[] azCenti)
+    {
+        var result = new double[Count];
+        var n = HorizonDeg.Length;
+        for (var i = 0; i < Count; i++)
+        {
+            var az = (azCenti[i] / 100.0 % 360 + 360) % 360 * n / 360.0;
+            var k = (int)Math.Floor(az);
+            var f = az - k;
+            var h = HorizonDeg[k % n] * (1 - f) + HorizonDeg[(k + 1) % n] * f;
+            result[i] = elCenti[i] / 100.0 - h;
+        }
+        return result;
+    }
+
     // Lazily computed trigonometry of the Sun direction (private fields: never serialised).
     private double[]? _cosEl, _sinEl, _cosAz, _sinAz;
 

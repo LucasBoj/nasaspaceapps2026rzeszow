@@ -51,6 +51,10 @@ public sealed record SimulationResult
     public double EarthElevMaxDeg { get; init; } = double.NaN;
     public double LongestLitH { get; init; }
     public double LongestCommsGapH { get; init; }
+    /// <summary>Lowest Sun-centre height above the terrain horizon during the mission (°; NaN without horizon data).</summary>
+    public double SunClearanceMinDeg { get; init; } = double.NaN;
+    /// <summary>Lowest Earth-centre height above the terrain horizon during the mission (°; NaN without horizon data).</summary>
+    public double EarthClearanceMinDeg { get; init; } = double.NaN;
 
     public double MinSocPct { get; init; }
     public int MinSocStep { get; init; }
@@ -180,6 +184,16 @@ public static class MissionSimulator
             if (recordSeries) { sun[i] = sf; earth[i] = e; socPct[i] = pct; }
         }
 
+        static double MinOver(double[] values, int from, int count)
+        {
+            if (values.Length < from + count) return double.NaN;
+            var m = double.PositiveInfinity;
+            for (var t = from; t < from + count; t++) m = Math.Min(m, values[t]);
+            return m;
+        }
+        var sunClearanceMin = MinOver(series.SunClearanceDeg(), start, steps);
+        var earthClearanceMin = MinOver(series.EarthClearanceDeg(), start, steps);
+
         double earthMin = double.NaN, earthMax = double.NaN;
         if (series.HasEarthElevation)
         {
@@ -218,6 +232,8 @@ public static class MissionSimulator
             EarthElevMaxDeg = earthMax,
             LongestLitH = longestLitH,
             LongestCommsGapH = longestGapH,
+            SunClearanceMinDeg = sunClearanceMin,
+            EarthClearanceMinDeg = earthClearanceMin,
             MinSocPct = minSocPct,
             MinSocStep = minSocStep,
             HoursBelowThreshold = belowSteps * dt,
