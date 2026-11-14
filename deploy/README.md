@@ -129,7 +129,7 @@ Potem w kroku 3 ustaw **`MIKRUS_USER=deploy`** zamiast `root`. Skrypt można uru
 
 ### 3. Sekrety i zmienne w GitHubie
 
-GitHub → repozytorium → **Settings → Secrets and variables → Actions**.
+GitHub → repozytorium → **Settings → Secrets and variables → Actions**. Zakładka *Settings* wymaga roli **Admin** w repozytorium (np. właściciel); osoba z samym prawem zapisu może pushować, ale nie ustawi sekretów.
 
 Zakładka **Secrets** → *New repository secret*:
 
