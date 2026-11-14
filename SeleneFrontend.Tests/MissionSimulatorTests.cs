@@ -136,6 +136,111 @@ public class MissionSimulatorTests
         Assert.Equal(0, Fixtures.Series(Sun, Earth).IndexOf(local));
     }
 
+    // ---- Fixed panels (Lambert incidence) ----
+
+    private static readonly PanelLayout OnePanel = new()
+    {
+        Mode = PanelLayout.FixedMode,
+        Facets = [new PanelFacet { Name = "side", AzOffsetDeg = 0, NormalElevDeg = 0, Share = 1 }],
+    };
+
+    [Fact]
+    public void Fixed_panel_60_degrees_off_the_sun_produces_half()
+    {
+        // Sun at az 60°, el 0, full disk; panel heading 0 → cos 60° = 0.5 → 50 W from a 100 W array.
+        var n = 4;
+        var s = SolarGeometryTests.GeoSeries(Enumerable.Repeat(100, n).ToArray(), new double[n], Enumerable.Repeat(60.0, n).ToArray());
+        var lander = Lander with { Panels = OnePanel, HeadingDeg = 0 };
+        var r = MissionSimulator.Run(s, lander, Fixtures.T0, n / 24.0, Thresholds);
+
+        Assert.True(r.FixedPanels);
+        Assert.False(r.HeadingAuto);
+        Assert.Equal(0, r.HeadingDeg);
+        Assert.All(r.PowerW, p => Assert.Equal(50, p, 6));
+        Assert.Equal(200, r.EnergyProducedWh, 6);
+        Assert.Equal(400, r.EnergyIdealWh, 6);
+        Assert.Equal(0.5, r.PanelEfficiency, 6);
+        Assert.Equal(160, r.EnergyLoadWh, 6);
+    }
+
+    [Fact]
+    public void Panel_facing_away_from_the_sun_depletes_the_battery()
+    {
+        // Sun behind the panel: no production in full daylight, day load 40 W drains 200 Wh in 5 h.
+        var n = 8;
+        var s = SolarGeometryTests.GeoSeries(Enumerable.Repeat(100, n).ToArray(), new double[n], Enumerable.Repeat(180.0, n).ToArray());
+        var r = MissionSimulator.Run(s, Lander with { Panels = OnePanel, HeadingDeg = 0 }, Fixtures.T0, n / 24.0, Thresholds);
+        Assert.Equal(Verdict.NotFeasible, r.Verdict);
+        Assert.Equal(4, r.DepletedAtStep);
+        Assert.Equal("battery depleted on day 1 — the Sun has moved out of the fixed panels' view (output 0% of ideal)", r.Reason);
+
+        // AUTO heading turns the panel towards the Sun → full power, feasible.
+        var auto = MissionSimulator.Run(s, Lander with { Panels = OnePanel }, Fixtures.T0, n / 24.0, Thresholds);
+        Assert.True(auto.HeadingAuto);
+        Assert.InRange(auto.HeadingDeg!.Value, 178, 182);
+        Assert.Equal(Verdict.Feasible, auto.Verdict);
+    }
+
+    [Fact]
+    public void Ideal_tracking_what_if_and_files_without_geometry_keep_the_old_model()
+    {
+        var n = 8;
+        var geo = SolarGeometryTests.GeoSeries(Sun, new double[n], Enumerable.Repeat(180.0, n).ToArray());
+        var baseline = MissionSimulator.Run(Fixtures.Series(Sun, Earth), Lander, Fixtures.T0, EightHours, Thresholds);
+
+        var ideal = MissionSimulator.Run(geo, Lander with { Panels = OnePanel, HeadingDeg = 0, IdealTracking = true }, Fixtures.T0, EightHours, Thresholds);
+        var noGeometry = MissionSimulator.Run(Fixtures.Series(Sun, Earth), Lander with { Panels = OnePanel, HeadingDeg = 0 }, Fixtures.T0, EightHours, Thresholds);
+
+        foreach (var r in new[] { ideal, noGeometry })
+        {
+            Assert.False(r.FixedPanels);
+            Assert.Null(r.HeadingDeg);
+            Assert.Equal(baseline.SocPct, r.SocPct);
+            Assert.Equal(1, r.PanelEfficiency, 9);
+        }
+    }
+
+    [Fact]
+    public void Max_survivable_duration()
+    {
+        // Darkness, 100 Wh, survival 20 W: 80, 60, 40, 20 Wh after 4 h, empty in hour 5 → 4 h.
+        var dark = Fixtures.Series(new int[48], new int[48]);
+        Assert.Equal(4 / 24.0, MissionSimulator.MaxSurvivableDays(dark, Lander with { BatteryWh = 100 }, Fixtures.T0, Thresholds), 9);
+
+        // Endless sunshine → capped by the data (48 h) or by capDays.
+        var sunny = Fixtures.Series(Fixtures.Repeat([100], 48), new int[48]);
+        Assert.Equal(2, MissionSimulator.MaxSurvivableDays(sunny, Lander, Fixtures.T0, Thresholds), 9);
+        Assert.Equal(1, MissionSimulator.MaxSurvivableDays(sunny, Lander, Fixtures.T0, Thresholds, capDays: 1), 9);
+
+        // Fixed panel, Sun moves from straight ahead to behind it: survives while it still faces the panel.
+        // az 0..175° over 36 h (5°/h), heading 0, day load 40 W, 100 W array → production 100·cos(az) ≥ 40 W
+        // until az ≈ 66° (hour 13); then the 200 Wh battery covers the growing deficit for a while.
+        var n = 36;
+        var s = SolarGeometryTests.GeoSeries(Enumerable.Repeat(100, n).ToArray(), new double[n],
+            Enumerable.Range(0, n).Select(i => i * 5.0).ToArray());
+        var fixedDays = MissionSimulator.MaxSurvivableDays(s, Lander with { Panels = OnePanel, HeadingDeg = 0 }, Fixtures.T0, Thresholds);
+        Assert.InRange(fixedDays * 24, 14, 30);
+        Assert.True(fixedDays < MissionSimulator.MaxSurvivableDays(s, Lander, Fixtures.T0, Thresholds));
+    }
+
+    [Fact]
+    public void Sky_and_comms_metrics()
+    {
+        // el = −1, 2, 5, 2 → min −1, max 5, mean 2; Earth 1 0 0 1 → longest gap 2 h; Sun 100 100 0 100 → longest lit 2 h.
+        var s = SolarGeometryTests.GeoSeries([100, 100, 0, 100], [-1, 2, 5, 2], [0, 0, 0, 0]);
+        s.EarthVisible = [1, 0, 0, 1];
+        s.EarthElevCentiDeg = [100, -50, -200, 300];
+        var r = MissionSimulator.Run(s, Lander, Fixtures.T0, 4 / 24.0, Thresholds);
+        Assert.Equal(-1, r.SunElevMinDeg, 9);
+        Assert.Equal(5, r.SunElevMaxDeg, 9);
+        Assert.Equal(2, r.SunElevMeanDeg, 9);
+        Assert.Equal(2, r.LongestLitH, 9);
+        Assert.Equal(2, r.LongestCommsGapH, 9);
+        Assert.Equal(-2, r.EarthElevMinDeg, 9);
+        Assert.Equal(3, r.EarthElevMaxDeg, 9);
+        Assert.Equal(new[] { -1.0, 2, 5, 2 }, r.SunElevDeg);
+    }
+
     private sealed class ToleranceComparer(double tol) : IEqualityComparer<double>
     {
         public bool Equals(double a, double b) => Math.Abs(a - b) <= tol;

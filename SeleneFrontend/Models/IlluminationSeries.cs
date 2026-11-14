@@ -29,6 +29,34 @@ public sealed class IlluminationSeries
 
     public DateTime TimeAt(int index) => Start.AddHours(index * StepHours);
 
+    /// <summary>Sun elevation and azimuth are present for every sample (needed for fixed-panel incidence).</summary>
+    public bool HasSunGeometry => Count > 0 && SunElevCentiDeg.Length >= Count && SunAzCentiDeg.Length >= Count;
+
+    public bool HasEarthElevation => Count > 0 && EarthElevCentiDeg.Length >= Count;
+
+    // Lazily computed trigonometry of the Sun direction (private fields: never serialised).
+    private double[]? _cosEl, _sinEl, _cosAz, _sinAz;
+
+    /// <summary>cos/sin of Sun elevation and azimuth per sample, computed once (the optimizer loop must not call trig).</summary>
+    public (double[] CosEl, double[] SinEl, double[] CosAz, double[] SinAz) SunTrig()
+    {
+        if (_cosEl is null || _cosEl.Length != Count)
+        {
+            if (!HasSunGeometry) throw new InvalidOperationException($"{SiteId}: no Sun elevation/azimuth series.");
+            var cosEl = new double[Count]; var sinEl = new double[Count];
+            var cosAz = new double[Count]; var sinAz = new double[Count];
+            for (var i = 0; i < Count; i++)
+            {
+                var el = SunElevCentiDeg[i] / 100.0 * Math.PI / 180.0;
+                var az = SunAzCentiDeg[i] / 100.0 * Math.PI / 180.0;
+                cosEl[i] = Math.Cos(el); sinEl[i] = Math.Sin(el);
+                cosAz[i] = Math.Cos(az); sinAz[i] = Math.Sin(az);
+            }
+            (_cosEl, _sinEl, _cosAz, _sinAz) = (cosEl, sinEl, cosAz, sinAz);
+        }
+        return (_cosEl, _sinEl!, _cosAz!, _sinAz!);
+    }
+
     /// <summary>Sample index containing <paramref name="utc"/>, or −1 if outside the data.</summary>
     public int IndexOf(DateTime utc)
     {

@@ -22,6 +22,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     private const string LandingAnimKey = "selene.landingAnimation.v1";
     private const string WelcomeDismissedKey = "selene.welcomeDismissed.v1";
     public const string RecommendedLanderId = "nova_c";
+    public const double RecommendedMissionDays = 7;
     public static readonly TimeSpan BootMax = TimeSpan.FromMilliseconds(2500);
 
     public event Action? OnChanged;
@@ -219,6 +220,9 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         if (state.SelectedLanderClass != "clps") await state.SelectLanderClass("clps");
         await state.SelectSite(RecommendedSiteId, fly: fly);
         await state.SelectLander(RecommendedLanderId);
+        // With fixed panels the Sun leaves the panels' view after ~7–8 days at the pole, so a 14-day
+        // CLPS mission is never feasible there; the demo shows a feasible 7-day surface stay instead.
+        await state.UpdateMissionDuration(RecommendedMissionDays);
         state.ResetWhatIf();
     }
 

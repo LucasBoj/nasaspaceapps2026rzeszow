@@ -27,11 +27,27 @@ public class MissionConfigState
     public const string WhatIfSolarArrayW = "solarArrayW";
     public const string WhatIfBatteryWh = "batteryWh";
     public const string WhatIfSurvivalLoadW = "survivalLoadW";
+    public const string WhatIfHeadingDeg = "headingDeg";          // manual landing heading (absent = AUTO)
+    public const string WhatIfIdealTracking = "idealTracking";    // present = ideal Sun tracking instead of fixed panels
 
     private readonly Dictionary<string, double> _whatIf = [];
 
     public bool HasWhatIf => _whatIf.Count > 0;
     public bool IsWhatIf(string key) => _whatIf.ContainsKey(key);
+
+    /// <summary>Manual landing heading in degrees, or null for AUTO (best heading for each mission).</summary>
+    public double? HeadingOverrideDeg => _whatIf.TryGetValue(WhatIfHeadingDeg, out var h) ? h : null;
+
+    /// <summary>What-if: simulate ideal Sun tracking instead of the lander's fixed panels.</summary>
+    public bool IdealTracking => _whatIf.ContainsKey(WhatIfIdealTracking);
+
+    /// <summary>The selected lander has fixed body-mounted panels (heading and incidence matter).</summary>
+    public bool HasFixedPanels => SelectedLander?.Panels is { IsFixed: true };
+
+    public void ClearWhatIf(string key)
+    {
+        if (_whatIf.Remove(key)) OnStateChanged?.Invoke();
+    }
 
     /// <summary>Effective value used by calculations: what-if override if set, otherwise the preset figure.</summary>
     public double? Effective(string key)

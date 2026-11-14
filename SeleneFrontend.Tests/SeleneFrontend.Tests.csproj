@@ -23,6 +23,7 @@
     <Compile Include="..\SeleneFrontend\Models\LanderPreset.cs" Link="Linked\LanderPreset.cs" />
     <Compile Include="..\SeleneFrontend\Services\MissionSimulator.cs" Link="Linked\MissionSimulator.cs" />
     <Compile Include="..\SeleneFrontend\Services\WindowOptimizer.cs" Link="Linked\WindowOptimizer.cs" />
+    <Compile Include="..\SeleneFrontend\Services\SolarGeometry.cs" Link="Linked\SolarGeometry.cs" />
   </ItemGroup>
 
   <ItemGroup>

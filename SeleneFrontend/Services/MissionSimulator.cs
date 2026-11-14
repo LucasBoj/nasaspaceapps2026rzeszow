@@ -4,7 +4,11 @@ namespace SeleneFrontend.Services;
 
 /// <summary>Lander power figures used by the simulation (effective values, what-if applied).</summary>
 /// <param name="WeakestKind">Weakest provenance of the inputs: sourced / derived / assumption / whatif.</param>
-public sealed record LanderInputs(double SolarArrayW, double BatteryWh, double DayLoadW, double SurvivalLoadW, string WeakestKind);
+/// <param name="Panels">Array mounting; null or <c>ideal</c> = the array always faces the Sun.</param>
+/// <param name="HeadingDeg">Lander heading at touchdown (clockwise from lunar north); null = AUTO (best for the mission).</param>
+/// <param name="IdealTracking">What-if: ignore the layout and use ideal Sun tracking (upper bound).</param>
+public sealed record LanderInputs(double SolarArrayW, double BatteryWh, double DayLoadW, double SurvivalLoadW, string WeakestKind,
+                                  PanelLayout? Panels = null, double? HeadingDeg = null, bool IdealTracking = false);
 
 /// <summary>Constraints from section 04.</summary>
 public sealed record MissionThresholds(double MinBatteryPct, double MinCommsPct);
@@ -22,6 +26,29 @@ public sealed record SimulationResult
     public int[] Sun { get; init; } = [];
     public int[] Earth { get; init; } = [];
     public double[] SocPct { get; init; } = [];
+    public double[] PowerW { get; init; } = [];          // solar production per step
+    public double[] SunElevDeg { get; init; } = [];      // empty when the file has no elevation series
+
+    // ---- Panels and energy ----
+    /// <summary>True when fixed body-mounted panels were simulated (Lambert incidence), false for ideal tracking.</summary>
+    public bool FixedPanels { get; init; }
+    /// <summary>Lander heading at touchdown used for the panels (null for ideal tracking).</summary>
+    public double? HeadingDeg { get; init; }
+    public bool HeadingAuto { get; init; }
+    public double EnergyProducedWh { get; init; }        // gross solar output (before the battery is full)
+    public double EnergyIdealWh { get; init; }           // the same with ideal Sun tracking
+    public double EnergyLoadWh { get; init; }
+    /// <summary>Produced / ideal (0..1): how much the incidence angle costs. NaN when the Sun never shows.</summary>
+    public double PanelEfficiency { get; init; } = double.NaN;
+
+    // ---- Sky geometry (NaN when the data file lacks the series) ----
+    public double SunElevMinDeg { get; init; } = double.NaN;
+    public double SunElevMaxDeg { get; init; } = double.NaN;
+    public double SunElevMeanDeg { get; init; } = double.NaN;
+    public double EarthElevMinDeg { get; init; } = double.NaN;
+    public double EarthElevMaxDeg { get; init; } = double.NaN;
+    public double LongestLitH { get; init; }
+    public double LongestCommsGapH { get; init; }
 
     public double MinSocPct { get; init; }
     public int MinSocStep { get; init; }
@@ -49,8 +76,10 @@ public static class MissionSimulator
 
     /// <summary>
     /// Simulate from <paramref name="landingUtc"/> for <paramref name="durationDays"/>.
-    /// Each step: production = solarArrayW × sunFraction/100; load = dayLoadW when lit,
+    /// Each step: production = solarArrayW × sunFraction/100 × incidence factor (1 for ideal tracking,
+    /// Lambert cosine on fixed panels — see <see cref="SolarGeometry"/>); load = dayLoadW when lit,
     /// otherwise survivalLoadW; the battery starts full and is clamped to [0, batteryWh].
+    /// Fixed panels fall back to ideal tracking when the data file has no Sun elevation/azimuth series.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">The mission does not fit in the data.</exception>
     public static SimulationResult Run(IlluminationSeries series, LanderInputs lander, DateTime landingUtc,
@@ -70,20 +99,56 @@ public static class MissionSimulator
         var earth = recordSeries ? new int[steps] : [];
         var socPct = recordSeries ? new double[steps] : [];
 
+        // ---- Panels: fixed facets with Lambert incidence, or ideal tracking ----
+        var model = lander.IdealTracking || !series.HasSunGeometry ? null : PanelModel.For(lander.Panels);
+        double? heading = null;
+        Span<double> cosPhi = stackalloc double[model?.FacetCount ?? 0];
+        Span<double> sinPhi = stackalloc double[model?.FacetCount ?? 0];
+        double[] cosEl = [], sinEl = [], cosAz = [], sinAz = [];
+        double invK = 1;
+        if (model is not null)
+        {
+            heading = lander.HeadingDeg is { } h ? ((h % 360) + 360) % 360 : SolarGeometry.BestHeading(series, start, steps, model);
+            model.FacetAzimuths(heading.Value, cosPhi, sinPhi);
+            (cosEl, sinEl, cosAz, sinAz) = series.SunTrig();
+            invK = 1 / model.Normalization;
+        }
+        var power = recordSeries ? new double[steps] : [];
+        var hasElev = series.HasSunGeometry;
+        var sunElev = recordSeries && hasElev ? new double[steps] : [];
+
         double soc = lander.BatteryWh;
         double minSocPct = 100;
         int minSocStep = 0;
         int belowSteps = 0, earthSteps = 0, litSteps = 0;
         double darkRunH = 0, longestDarkH = 0, darkRunAtDepletion = 0;
+        double litRunH = 0, longestLitH = 0, gapRunH = 0, longestGapH = 0;
+        double energyProduced = 0, energyIdeal = 0, energyLoad = 0;
+        double elMin = double.PositiveInfinity, elMax = double.NegativeInfinity, elSum = 0;
         int? depletedAt = null;
         bool depletedInDarkness = false;
+        double factorAtDepletion = 1;
 
         for (var i = 0; i < steps; i++)
         {
-            var sf = series.SunFraction[start + i];
+            var t = start + i;
+            var sf = series.SunFraction[t];
             var lit = sf >= LitThresholdPct;
-            var production = lander.SolarArrayW * sf / 100.0;
+            var ideal = lander.SolarArrayW * sf / 100.0;
+            var production = model is null || sf <= 0
+                ? ideal
+                : ideal * model.Raw(cosEl[t], sinEl[t], cosAz[t], sinAz[t], cosPhi, sinPhi) * invK;
             var load = lit ? lander.DayLoadW : lander.SurvivalLoadW;
+            energyProduced += production * dt;
+            energyIdeal += ideal * dt;
+            energyLoad += load * dt;
+            if (hasElev)
+            {
+                var el = series.SunElevCentiDeg[t] / 100.0;
+                elMin = Math.Min(elMin, el); elMax = Math.Max(elMax, el); elSum += el;
+                if (recordSeries) sunElev[i] = el;
+            }
+            if (recordSeries) power[i] = production;
 
             soc += (production - load) * dt;
             if (soc <= 1e-9)
@@ -93,6 +158,7 @@ public static class MissionSimulator
                 {
                     depletedAt = i;
                     depletedInDarkness = !lit;
+                    factorAtDepletion = ideal > 0 ? production / ideal : 1;
                     darkRunAtDepletion = lit ? 0 : darkRunH + dt;
                 }
             }
@@ -104,10 +170,23 @@ public static class MissionSimulator
 
             var e = series.EarthVisible[start + i];
             earthSteps += e;
-            if (lit) { litSteps++; darkRunH = 0; }
-            else { darkRunH += dt; longestDarkH = Math.Max(longestDarkH, darkRunH); }
+            if (lit) { litSteps++; darkRunH = 0; litRunH += dt; longestLitH = Math.Max(longestLitH, litRunH); }
+            else { darkRunH += dt; longestDarkH = Math.Max(longestDarkH, darkRunH); litRunH = 0; }
+            if (e == 1) gapRunH = 0;
+            else { gapRunH += dt; longestGapH = Math.Max(longestGapH, gapRunH); }
 
             if (recordSeries) { sun[i] = sf; earth[i] = e; socPct[i] = pct; }
+        }
+
+        double earthMin = double.NaN, earthMax = double.NaN;
+        if (series.HasEarthElevation)
+        {
+            earthMin = double.PositiveInfinity; earthMax = double.NegativeInfinity;
+            for (var t = start; t < start + steps; t++)
+            {
+                var el = series.EarthElevCentiDeg[t] / 100.0;
+                earthMin = Math.Min(earthMin, el); earthMax = Math.Max(earthMax, el);
+            }
         }
 
         var commsPct = 100.0 * earthSteps / steps;
@@ -120,6 +199,22 @@ public static class MissionSimulator
             Sun = sun,
             Earth = earth,
             SocPct = socPct,
+            PowerW = power,
+            SunElevDeg = sunElev,
+            FixedPanels = model is not null,
+            HeadingDeg = heading,
+            HeadingAuto = model is not null && lander.HeadingDeg is null,
+            EnergyProducedWh = energyProduced,
+            EnergyIdealWh = energyIdeal,
+            EnergyLoadWh = energyLoad,
+            PanelEfficiency = energyIdeal > 0 ? energyProduced / energyIdeal : double.NaN,
+            SunElevMinDeg = hasElev ? elMin : double.NaN,
+            SunElevMaxDeg = hasElev ? elMax : double.NaN,
+            SunElevMeanDeg = hasElev ? elSum / steps : double.NaN,
+            EarthElevMinDeg = earthMin,
+            EarthElevMaxDeg = earthMax,
+            LongestLitH = longestLitH,
+            LongestCommsGapH = longestGapH,
             MinSocPct = minSocPct,
             MinSocStep = minSocStep,
             HoursBelowThreshold = belowSteps * dt,
@@ -131,17 +226,51 @@ public static class MissionSimulator
             BasedOn = lander.WeakestKind,
         };
 
-        var (verdict, reason) = Judge(result, thresholds, depletedInDarkness, darkRunAtDepletion);
+        var (verdict, reason) = Judge(result, thresholds, depletedInDarkness, darkRunAtDepletion, factorAtDepletion);
         return result with { Verdict = verdict, Reason = reason };
     }
 
-    private static (Verdict, string) Judge(SimulationResult r, MissionThresholds t, bool depletedInDarkness, double darkRunAtDepletion)
+    /// <summary>
+    /// Longest surface stay (days, one-step resolution) from <paramref name="landingUtc"/> that the battery survives.
+    /// Every candidate length is simulated on its own, with its own AUTO heading (or the manual heading), so this
+    /// answers "how long could this landing last". Capped at <paramref name="capDays"/> and at the end of the data.
+    /// Binary search: survival is treated as monotonic in mission length.
+    /// </summary>
+    public static double MaxSurvivableDays(IlluminationSeries series, LanderInputs lander, DateTime landingUtc,
+                                           MissionThresholds thresholds, double capDays = 30)
+    {
+        var start = series.IndexOf(landingUtc);
+        if (start < 0) return 0;
+        var dt = series.StepHours;
+        var capSteps = Math.Min((int)Math.Floor(capDays * 24 / dt + 1e-9), series.Count - start);
+        var landing = series.TimeAt(start);
+        bool Survives(int n) => Run(series, lander, landing, n * dt / 24.0, thresholds, recordSeries: false).Survived;
+
+        if (capSteps <= 0 || !Survives(1)) return 0;
+        if (Survives(capSteps)) return capSteps * dt / 24.0;
+        int lo = 1, hi = capSteps;   // lo survives, hi does not
+        while (hi - lo > 1)
+        {
+            var mid = (lo + hi) / 2;
+            if (Survives(mid)) lo = mid; else hi = mid;
+        }
+        return lo * dt / 24.0;
+    }
+
+    /// <summary>Below this share of the ideal output, a daytime depletion is blamed on the panel geometry.</summary>
+    public const double GeometryBlameFactor = 0.8;
+
+    private static (Verdict, string) Judge(SimulationResult r, MissionThresholds t, bool depletedInDarkness,
+                                           double darkRunAtDepletion, double factorAtDepletion)
     {
         if (r.DepletedAtStep is { } d)
         {
             var day = r.MissionDay(d);
-            return depletedInDarkness
-                ? (Verdict.NotFeasible, $"battery depleted after {darkRunAtDepletion:0} h of darkness on day {day}")
+            if (depletedInDarkness)
+                return (Verdict.NotFeasible, $"battery depleted after {darkRunAtDepletion:0} h of darkness on day {day}");
+            return r.FixedPanels && factorAtDepletion < GeometryBlameFactor
+                ? (Verdict.NotFeasible,
+                   $"battery depleted on day {day} — the Sun has moved out of the fixed panels' view (output {factorAtDepletion * 100:0}% of ideal)")
                 : (Verdict.NotFeasible, $"battery depleted on day {day} — daytime load exceeds solar output");
         }
         if (r.MinSocPct < t.MinBatteryPct)

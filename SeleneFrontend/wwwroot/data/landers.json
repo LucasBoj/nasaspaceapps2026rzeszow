@@ -11,6 +11,18 @@
       "note": "3 panels, ~1 lunar day of operations",
       "sourceUrl": "https://www.astronomy.com/space-exploration/intuitive-machines-preps-im-2-mission-for-moon-launch-this-week/"
     },
+    "panels": {
+      "mode": "fixed",
+      "facets": [
+        { "name": "top deck", "azOffsetDeg": 0, "normalElevDeg": 90, "share": 1 },
+        { "name": "side wall A", "azOffsetDeg": -30, "normalElevDeg": 0, "share": 1 },
+        { "name": "side wall B", "azOffsetDeg": 30, "normalElevDeg": 0, "share": 1 }
+      ],
+      "unit": "",
+      "kind": "assumption",
+      "note": "Team description: 3 fixed panels, 1 on the top deck and 2 on side walls of the hexagonal body, no Sun tracking (tip-overs of IM-1 and IM-2 cut their power). Assumed: the two walls are adjacent (60° apart) and the 3 panels share the output equally.",
+      "sourceUrl": ""
+    },
     "batteryWh": {
       "value": 700,
       "unit": "Wh",
@@ -69,6 +81,18 @@
       "note": "up to 400 W from 3 panels",
       "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
     },
+    "panels": {
+      "mode": "fixed",
+      "facets": [
+        { "name": "top deck", "azOffsetDeg": 0, "normalElevDeg": 90, "share": 1 },
+        { "name": "side wall A", "azOffsetDeg": -90, "normalElevDeg": 0, "share": 1 },
+        { "name": "side wall B", "azOffsetDeg": 90, "normalElevDeg": 0, "share": 1 }
+      ],
+      "unit": "",
+      "kind": "assumption",
+      "note": "Team description: 3 fixed panels on the top deck and the side walls, at different angles, powering the lander from sunrise to sunset without rotating mechanisms (Blue Ghost M1). Assumed: the side panels face opposite directions and the 3 panels share the output equally.",
+      "sourceUrl": ""
+    },
     "batteryWh": {
       "value": 600,
       "unit": "Wh",
@@ -115,6 +139,16 @@
       "unit": "W",
       "kind": "assumption",
       "note": "class estimate",
+      "sourceUrl": ""
+    },
+    "panels": {
+      "mode": "fixed",
+      "facets": [
+        { "name": "side panel", "azOffsetDeg": 0, "normalElevDeg": 0, "share": 1 }
+      ],
+      "unit": "",
+      "kind": "assumption",
+      "note": "Team description: one large fixed panel on one side, optimised for polar missions; the lander yaws before touchdown so the panel faces the Sun. Assumed: the panel is vertical (tilt not public; at the pole the Sun stays a few degrees above the horizon).",
       "sourceUrl": ""
     },
     "batteryWh": {
@@ -172,6 +206,14 @@
       "note": "solar arrays confirmed, output not public — class estimate",
       "sourceUrl": "https://www.americaspace.com/2023/12/01/spacexs-new-design-for-lunar-starship-unveiled/"
     },
+    "panels": {
+      "mode": "ideal",
+      "facets": [],
+      "unit": "",
+      "kind": "assumption",
+      "note": "Solar array layout not public — simulated as ideal Sun tracking (upper bound).",
+      "sourceUrl": ""
+    },
     "batteryWh": {
       "value": 200000,
       "unit": "Wh",
@@ -226,6 +268,14 @@
       "kind": "assumption",
       "note": "solar panels confirmed, output not public",
       "sourceUrl": "https://www.collectspace.com/news/news-051923a-nasa-artemis-5-blue-moon-lunar-lander-selection.html"
+    },
+    "panels": {
+      "mode": "ideal",
+      "facets": [],
+      "unit": "",
+      "kind": "assumption",
+      "note": "Solar array layout not public — simulated as ideal Sun tracking (upper bound).",
+      "sourceUrl": ""
     },
     "batteryWh": {
       "value": 150000,

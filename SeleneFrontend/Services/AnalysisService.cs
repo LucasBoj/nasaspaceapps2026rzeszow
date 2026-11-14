@@ -61,8 +61,9 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         if (l?.DayLoadW is null || solar is null || battery is null || survival is null) return null;
 
         var kind = state.HasWhatIf ? ParamKind.WhatIf
-            : ParamKind.Weakest(l.SolarArrayW, l.BatteryWh, l.DayLoadW, l.SurvivalLoadW);
-        return new LanderInputs(solar.Value, battery.Value, l.DayLoadW.Value, survival.Value, kind);
+            : ParamKind.Weakest(l.SolarArrayW, l.Panels, l.BatteryWh, l.DayLoadW, l.SurvivalLoadW);
+        return new LanderInputs(solar.Value, battery.Value, l.DayLoadW.Value, survival.Value, kind,
+            l.Panels, state.HeadingOverrideDeg, state.IdealTracking);
     }
 
     private MissionThresholds Thresholds => new(state.MinBatteryPercent, state.MinCommsPercent);
@@ -71,6 +72,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     {
         var l = BuildLanderInputs();
         return string.Join("|", state.SelectedLander?.Id, l?.SolarArrayW, l?.BatteryWh, l?.DayLoadW, l?.SurvivalLoadW,
+            l?.HeadingDeg?.ToString(CultureInfo.InvariantCulture) ?? "auto", l?.IdealTracking,
             state.MissionDurationDays.ToString(CultureInfo.InvariantCulture), state.MinBatteryPercent, state.MinCommsPercent,
             state.WindowStart.ToString("yyyy-MM-dd"), state.WindowEnd.ToString("yyyy-MM-dd"));
     }
@@ -180,9 +182,16 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         Notify();
     }
 
+    /// <summary>Cap for <see cref="MaxSurvivableDays"/> (about one lunar day plus the following night).</summary>
+    public const double MaxSurvivableCapDays = 30;
+
+    /// <summary>Longest stay the selected landing survives (each length with its own AUTO heading).</summary>
+    public double? MaxSurvivableDays { get; private set; }
+
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
     {
         Mission = MissionSimulator.Run(site.Series, lander, landingUtc, state.MissionDurationDays, Thresholds);
+        MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander, landingUtc, Thresholds, MaxSurvivableCapDays);
         MissionSiteId = site.Id;
         MissionSiteName = site.Name;
         ThresholdBatteryPct = state.MinBatteryPercent;

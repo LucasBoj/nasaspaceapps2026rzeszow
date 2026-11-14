@@ -47,6 +47,36 @@ public sealed class BoolParam : LanderParam
     public bool Value { get; set; }
 }
 
+/// <summary>One flat solar panel fixed to the lander body (no tracking mechanism).</summary>
+public sealed class PanelFacet
+{
+    public string Name { get; set; } = "";
+
+    /// <summary>Azimuth of the panel normal relative to the lander heading, degrees clockwise (seen from above).</summary>
+    public double AzOffsetDeg { get; set; }
+
+    /// <summary>Elevation of the panel normal: 0 = vertical panel facing the horizon, 90 = top-deck panel facing up.</summary>
+    public double NormalElevDeg { get; set; }
+
+    /// <summary>Relative share of the array output; shares are normalised to sum to 1.</summary>
+    public double Share { get; set; } = 1;
+}
+
+/// <summary>
+/// How the solar array is mounted. <c>fixed</c>: body-mounted facets, output follows the Lambert cosine of the
+/// Sun's incidence angle on each facet. <c>ideal</c>: the array always faces the Sun (upper bound, the pre-2026-11-14 model).
+/// </summary>
+public sealed class PanelLayout : LanderParam
+{
+    public const string FixedMode = "fixed";
+    public const string IdealMode = "ideal";
+
+    public string Mode { get; set; } = IdealMode;
+    public List<PanelFacet> Facets { get; set; } = [];
+
+    public bool IsFixed => Mode == FixedMode && Facets.Count > 0 && Facets.Sum(f => Math.Max(0, f.Share)) > 0;
+}
+
 /// <summary>A read-only lander preset; every figure carries its provenance.</summary>
 public class LanderPreset
 {
@@ -64,6 +94,9 @@ public class LanderPreset
     public NumberParam? Crew { get; set; }
     public NumberParam? PayloadKg { get; set; }
 
+    /// <summary>Solar array mounting (fixed facets or ideal tracking); null = ideal tracking.</summary>
+    public PanelLayout? Panels { get; set; }
+
     /// <summary>Optional glTF/GLB model for the 3D view (visualisation only; falls back to primitives).</summary>
     public string? ModelUri { get; set; }
 
@@ -72,7 +105,7 @@ public class LanderPreset
 
     /// <summary>All present parameters, in display order.</summary>
     public IEnumerable<LanderParam> AllParams =>
-        new LanderParam?[] { SolarArrayW, BatteryWh, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg }
+        new LanderParam?[] { SolarArrayW, Panels, BatteryWh, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg }
             .OfType<LanderParam>();
 
     public int CountKind(string kind) => AllParams.Count(p => p.Kind == kind);
