@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 17:50 CET
+**Ostatnia aktualizacja:** 2026-11-14 17:57 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -58,6 +58,7 @@
 - [x] Walidacja efemeryd z JPL Horizons: `pipeline/validate_horizons.py`, 9 miejsc × 24 epoki 2027–28, Słońce i Ziemia; Horizons podaje współrzędne miejsca w układzie Mean-Earth (jak nasz `MOON_ME_DE421`), różnica ~0,04″ (pipeline) i ≤ 0,005° (pliki JSON, zaokrąglenie 0,01°); snapshoty odpowiedzi w `pipeline/data/horizons/`, test offline `tests/test_horizons.py`, tabela w `pipeline/README.md`. Pytest 46 passed, 1 skipped (DEM) — 2026-11-14 17:30 CET — `a1e76c6` — AI: Claude Code (osobna sesja)
 - [x] Oświetlenie sceny z efemeryd (P2 „Animacja cieni”) — było zrobione w `345d6f8` (`setSunLight`); usunięta martwa zaślepka `setSunDirection`, README frontendu poprawione; `CLAUDE.md`: sekcja o modelu energii i nowe pułapki — 2026-11-14 17:50 CET — commit z tym wpisem — AI: Claude Code
 - [x] CI: diagnoza nieużywalnego `MIKRUS_SSH_KEY` (klucz `.pub`, PuTTY, brak BEGIN/END, hasło; klucz nigdy nie trafia do logu, przy sukcesie widać odcisk), naprawa białych znaków po wklejeniu klucza (CRLF, wcięcia, złamane linie), adresy `PREVIEW_URL`/`STABLE_URL` bez `https://` uzupełniane z ostrzeżeniem (np. `selene.byst.re` dawało względny `og:image`), przycinanie sekretów host/port/user; README: pełne adresy, osobny adres na cel. Sprawdzone lokalnie na 8 wariantach klucza testowego i 4 wariantach adresu — 2026-11-14 17:40 — `db381a6` — AI: Claude Code
+- [x] Ocena bez remisów (P1 „ocena się nasyca”): nowy składnik zapasu nad horyzontem terenu, `15 × (½ m(min. zapas Słońca) + ½ m(min. zapas Ziemi))`, m(c) = 1 − e^(−c/2°). Mierzy odporność światła i łączności na błędy modelu terenu 120 m. Wagi: 35 SoC + 20 łączność + 10 światło + 20 nadwyżka + 15 zapas. Wcześniej przy IDEAL każdy region miał najlepszą ocenę dokładnie 86,667 (56–153 dni remisu), a Griffin mieścił się w 0,1 pkt. Teraz (7 d) każdy region ma jeden najlepszy dzień: Nova-C 71,2–83,2, Blue Ghost 50,5–81,4, IDEAL 78,9–86,5. Oceny z jednym miejscem po przecinku (COMPARE, najlepsze daty, tooltip), zapas nad terenem w kaflach. Testy 33/33, sprawdzone w przeglądarce — 2026-11-14 17:56 CET — `f64a3fa` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -90,8 +91,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 - [ ] **Źródła geometrii paneli i obciążeń dziennych** — przy stałych panelach to one decydują o wykonalności. Potrzebne: które ściany Nova-C mają panele i podział mocy, rozmieszczenie paneli Blue Ghost, nachylenie panelu Griffina, obciążenia dzienne CLPS (dziś ASSUMPTION, 70–75% mocy szczytowej) oraz źródło dla „~450 W nominalnie / 650 W szczytowo” Blue Ghost (w danych 400 W SOURCED) — zespół
   - Gotowe, gdy: wartości w `landers.json → panels` / `dayLoadW` mają `sourceUrl` albo jawne uzasadnienie.
-- [ ] **Ocena optymalizatora — sprawdzić Blue Ghost i COMPARE** — z nadwyżką energii (`4ccf12e`) Nova-C ma oceny 79–83 zamiast 100, ale w COMPARE trzy najlepsze regiony mają po zaokrągleniu po 83, a w trybie IDEAL wszystkie 87. Sprawdzić Blue Ghost i ewentualnie pokazywać ocenę z jednym miejscem po przecinku albo dodać rozstrzygnięcie (np. MAX STAY) — B
-  - Gotowe, gdy: dla Nova-C i Blue Ghost najlepsze okna różnią się widocznie oceną.
 - [ ] **Kurs w animacji lądowania** — lądownik w `landingAnimation.js` ląduje z kursem 0°; mógłby lądować z kursem z analizy (AUTO), żeby panele w 3D patrzyły tam, gdzie liczy symulacja. Wymaga ustalenia, gdzie jest „przód” modelu GLB — C
 
 - [ ] **Wykres „nasze vs NASA”**: porównanie naszego oświetlenia z opublikowanymi mapami oświetlenia LOLA (PGDA / LROC) — A
@@ -132,6 +131,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — model stałych paneli z kątem padania (Lambert), kurs AUTO, metryki mocy i łączności, maksymalna długość pobytu, testy xUnit, analiza wykonalności na prawdziwych danych
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — ocena z nadwyżką energii, kafle POWER & COMMS, tryby mapy ciepła, panele w SPECS / what-if / róży, testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5, osobna sesja) — walidacja efemeryd z JPL Horizons (skrypt, snapshoty, test offline, ustalenie układu Mean-Earth)
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — analiza remisów oceny na prawdziwych danych (Nova-C, Blue Ghost, Griffin; FIXED i IDEAL), składnik zapasu nad terenem, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — automatyczne wdrażanie: workflow GitHub Actions, przeróbka `deploy.sh` pod CI, smoke test, skrypt użytkownika `deploy`, instrukcja po polsku, lokalne testy skryptów (w tym wykrycie błędów: kodowanie Pythona na Windows, CRLF w skryptach, nazwa skryptu Blazor z importmapy)
 - 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
 - 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)

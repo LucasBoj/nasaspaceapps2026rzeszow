@@ -58,7 +58,7 @@ Time for sample `i` is `start + i × stepHours`.
 - **AUTO heading** maximises the mission's solar energy. It uses per-heading prefix sums (10° grid, built once per series and layout, ~20 MB for 9 sites) and a parabolic refinement. The what-ifs are a manual heading and `IDEAL` tracking (the old model, an upper bound).
 - Fixed panels need `sunElevCentiDeg` and `sunAzCentiDeg`. Files without them fall back to ideal tracking. **The data contract is unchanged.**
 - At the pole the Sun's azimuth moves ~12°/day, so fixed-panel CLPS landers survive only ~7–8 days from one landing. QUICK DEMO uses 7 days (`UiService.RecommendedMissionDays`).
-- Score = `40·minSoC + 25·comms + 15·light + 20·clamp(produced/used − 1, 0, 1)` (`WindowOptimizer.Score`).
+- Score = `35·minSoC + 20·comms + 10·light + 20·clamp(produced/used − 1, 0, 1) + 15·terrainMargin` (`WindowOptimizer.Score`). `terrainMargin = ½·m(min Sun clearance) + ½·m(min Earth clearance)` with `m(c) = 1 − e^(−max(c,0)/2°)`. Clearance is the height above the LOLA horizon, from `IlluminationSeries.SunClearanceDeg()` / `EarthClearanceDeg()`. Without this term every fully lit, fully connected window scored the same (ties across all 9 regions with ideal tracking). Do not cap it linearly: a cap brings the ties back.
 
 ## Commands
 
