@@ -285,8 +285,14 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         if (LandingAnimationEnabled && !ViewerReady) await Task.WhenAny(_viewerReady.Task, Task.Delay(15000));
         await ConfirmLandingAsync(highlightBest: true);
         if (!AnalystMode && VerdictRequested) { FullAnalysisHint = true; Notify(); }
-        // The demo ends with the mission played back (can be skipped from its HUD).
-        if (Landed && CanPlayMission) await PlayMissionAsync();
+        // The demo ends with the mission played back (can be skipped from its HUD), after the verdict
+        // has been on screen for a moment. Anything the user does meanwhile (new landing, another
+        // lander, Play mission) wins.
+        if (Landed && CanPlayMission)
+        {
+            await Task.Delay(ReducedMotion ? 0 : 2500);
+            if (Landed && CanPlayMission && !ReplayPlaying && ReplayOutcome is null) await PlayMissionAsync();
+        }
     }
 
     // ------------------------------------------------------------------ mission replay
