@@ -9,32 +9,47 @@
     <div class="top-bar-left">
         <div class="app-title">
             <h1>SELENE OPS</h1>
-            <p>Lunar Landing Window Planner</p>
+            <p>Find when and where a lunar lander can survive at the Moon's south pole</p>
         </div>
         <button type="button" class="btn-primary quick-demo top" disabled="@(!MissionState.IsLoaded)"
-                title="Pick the recommended site and lander, run the analysis and show the best window" @onclick="Ui.QuickDemoAsync">
-            ▶ QUICK DEMO
+                title="Pick the recommended site and lander, land and show the verdict" @onclick="Ui.QuickDemoAsync">
+            @(MissionState.IsLoaded ? "▶ Quick demo" : "Loading data…")
         </button>
     </div>
 
     <div class="top-bar-right">
-        <div class="status-indicators">
-            <div class="status-item" title="Precomputed site, lander and illumination data">
-                <span class="status-dot @DataDot"></span>
-                <span>DATA: @DataText</span>
-            </div>
-            @if (Ui.ViewMode is { } mode)
-            {
-                <div class="status-item" title="Moon view">
-                    <span class="status-dot ok"></span>
-                    <span>@mode</span>
+        @if (Ui.AnalystMode)
+        {
+            <div class="status-indicators">
+                <div class="status-item" title="Precomputed site, lander and illumination data">
+                    <span class="status-dot @DataDot"></span>
+                    <span>DATA: @DataText</span>
                 </div>
-            }
-        </div>
-        <div class="utc-clock" aria-label="Current UTC time">
-            <span class="utc-time">@utcTime</span>
-        </div>
-        <button type="button" class="help-btn" aria-label="Help and glossary" title="Help and glossary" @onclick="() => Ui.SetHelp(true)">?</button>
+                @if (Ui.ViewMode is { } mode)
+                {
+                    <div class="status-item" title="Moon view">
+                        <span class="status-dot ok"></span>
+                        <span>@mode</span>
+                    </div>
+                }
+            </div>
+            <div class="utc-clock" aria-label="Current UTC time">
+                <span class="utc-time">@utcTime</span>
+            </div>
+        }
+        else
+        {
+            <span class="status-dot solo @DataDot" role="img" tabindex="0"
+                  aria-label="@($"Data {DataText.ToLowerInvariant()}{(Ui.ViewMode is { } v ? $", {v.ToLowerInvariant()}" : "")}")"
+                  title="@($"Data {DataText.ToLowerInvariant()}{(Ui.ViewMode is { } v2 ? $" · {v2.ToLowerInvariant()}" : "")}")"></span>
+        }
+        <label class="analyst-toggle" title="Show the timeline, heatmap, comparison, specs and every number">
+            <input type="checkbox" role="switch" aria-label="Analyst mode" checked="@Ui.AnalystMode" aria-checked="@(Ui.AnalystMode ? "true" : "false")"
+                   @onchange="@((ChangeEventArgs e) => Ui.SetAnalystMode(e.Value is true))" />
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            <span>Analyst mode</span>
+        </label>
+        <button type="button" class="help-btn" aria-label="What is this? Show the welcome card" title="What is this?" @onclick="Ui.ShowWelcome">?</button>
     </div>
 </header>
 
@@ -63,7 +78,7 @@
             while (await timer.WaitForNextTickAsync(cts.Token))
             {
                 UpdateTime();
-                await InvokeAsync(StateHasChanged);
+                if (Ui.AnalystMode) await InvokeAsync(StateHasChanged);
             }
         }
         catch (OperationCanceledException) { }

@@ -13,6 +13,9 @@
     <!-- Trimming (Blazor default) verified safe: JSON models, JS-interop DTOs and analysis all work
          on the published build (deploy/README.md → test checklist). -->
     <PublishTrimmed>true</PublishTrimmed>
+    <!-- Original (unoptimised, ~64 MB) lander models: input of tools/optimize-models only. Never built,
+         served or published; git-ignored. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);wwwroot\models\source\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <!-- The local Cesium ion token lives in this git-ignored file. Never ship it: published files are public. -->

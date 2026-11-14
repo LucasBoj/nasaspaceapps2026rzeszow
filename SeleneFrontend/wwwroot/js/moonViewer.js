@@ -36,6 +36,20 @@ function ambientCoefficients(level) {
 }
 let reducedMotion = false;
 let selectedSiteId = null;
+let locked = false;          // a lander is on the surface: site picking is off until NEW LANDING
+let enhance = true;          // visual-only brightening (ambient + light intensity)
+let flying = 0;              // camera flights in progress (the camera guard leaves them alone)
+let lastSunAzDeg = null;     // for the landed shot: look across the long shadow
+let clickTimer = 0;          // single click waits briefly so a double click can zoom instead
+let guardSample = { t: 0, ground: null, carto: null };
+
+// Camera limits (free navigation; the landing animation's orbit has its own, smaller clearance).
+const MIN_CLEARANCE_M = 300;                 // never closer to the terrain than this
+const TILE_MARGIN_M = 25;                    // terrain tiles refine under the camera (tens of metres): keep a margin
+const MAX_ZOOM_M = 6_000_000;                // whole southern hemisphere in view
+const PITCH_MAX_DEG = -10;                   // never flatter than this (no looking into empty space)
+const PITCH_MIN_DEG = -89;                   // never exactly straight down (heading would flip)
+const LOCKED_TITLE = "Landed — start a new landing to change the site";
 let hoveredId = null;
 let pendingHoverPos = null;
 let hoverFrame = 0;
@@ -117,10 +131,165 @@ export async function initViewer(elementId, token, dotNetReference) {
     destination: Cesium.Cartesian3.fromDegrees(0, -35, 9000000, Cesium.Ellipsoid.MOON),
     orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
   });
-  viewer.screenSpaceEventHandler.setInputAction(onLeftClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  viewer.screenSpaceEventHandler.setInputAction(onClickDeferred, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  viewer.screenSpaceEventHandler.setInputAction(onDoubleClick, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   viewer.screenSpaceEventHandler.setInputAction(onMouseMove, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  setupCameraControls();
 
   return { terrainLoaded, hasToken };
+}
+
+// ---- Camera: no inertia, bounded zoom and tilt, never under the terrain ----
+
+function setupCameraControls() {
+  const scene = viewer.scene;
+  const ssc = scene.screenSpaceCameraController;
+  ssc.inertiaSpin = 0;
+  ssc.inertiaTranslate = 0;
+  ssc.inertiaZoom = 0;
+  ssc.maximumZoomDistance = MAX_ZOOM_M;
+  ssc.minimumZoomDistance = 1;            // the landed close-up orbits a 2 m lander; the guard keeps free flight higher
+  ssc.enableCollisionDetection = true;   // globe (2D mode) only
+  // Not Cesium3DTileset.enableCollision: its per-frame raycasts against the terrain tiles stalled rendering
+  // for seconds at start-up (1 fps, measured 2026-11-14). guardCamera() keeps the clearance instead.
+  scene.preRender.addEventListener(guardCamera);
+  document.addEventListener("keydown", onKeyDown);
+}
+
+function onKeyDown(e) {
+  if (e.key !== "Home" || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+  const t = e.target;
+  if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
+  e.preventDefault();
+  resetView(true);
+}
+
+/** Track our own camera flights so the guard does not fight them. */
+function fly(options) {
+  flying++;
+  let done = false;
+  const end = () => { if (!done) { done = true; flying = Math.max(0, flying - 1); } };
+  viewer.camera.flyTo({ ...options, complete: () => { end(); options.complete?.(); }, cancel: () => { end(); options.cancel?.(); } });
+  setTimeout(end, ((options.duration ?? 3) + 1) * 1000);   // safety net
+}
+
+/**
+ * Terrain height under a point: globe (2D mosaic) or the rendered 3D tiles. sampleHeight on 3D tiles is a
+ * render pass, so it runs at most every 250 ms (the last value is reused in between, even while moving) and
+ * only near the surface — above 30 km no lunar terrain can reach the camera.
+ */
+const GUARD_SAMPLE_MS = 250;
+const GUARD_NEAR_M = 30_000;
+function groundUnder(carto) {
+  const scene = viewer.scene;
+  if (carto.height > GUARD_NEAR_M) return null;
+  if (scene.globe.show) return scene.globe.getHeight(carto) ?? 0;
+  const now = performance.now();
+  // Close to the limit (or no sample yet) the terrain is re-sampled almost every frame; higher up, every 250 ms.
+  const near = guardSample.ground == null || carto.height - guardSample.ground < 1500;
+  if (now - guardSample.t < (near ? 60 : GUARD_SAMPLE_MS)) return guardSample.ground;
+  let h = null;
+  if (scene.sampleHeightSupported) {
+    try { h = scene.sampleHeight(carto); } catch { h = null; }
+  }
+  guardSample = { t: now, ground: Number.isFinite(h) ? h : guardSample.ground, carto: null };
+  return guardSample.ground;
+}
+
+let lastGoodView = null;   // { destination, orientation } of the last frame with a valid camera
+
+const finite = (c) => Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z);
+
+function guardCamera() {
+  if (!viewer || viewer.isDestroyed()) return;
+  const camera = viewer.camera;
+  // Safety: input fighting the clearance limit at the floor can drive the camera to NaN in some engines
+  // (seen in WebKit), which stops Cesium rendering. Restore the last valid view before this frame renders.
+  if (!finite(camera.positionWC) || !Number.isFinite(camera.pitch)) {
+    camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    if (lastGoodView) camera.setView(lastGoodView); else resetView(false);
+    return;
+  }
+  if (flying > 0) return;
+  const lockedOrbit = !Cesium.Matrix4.equals(camera.transform, Cesium.Matrix4.IDENTITY);
+  if (!lockedOrbit) {
+    lastGoodView = {
+      destination: Cesium.Cartesian3.clone(camera.positionWC),
+      orientation: { heading: camera.heading, pitch: camera.pitch, roll: 0 },
+    };
+  }
+  if (lockedOrbit) {
+    viewer.scene.screenSpaceCameraController.minimumZoomDistance = 1;   // close-up orbit of a 2–50 m lander
+    // Orbit around the landed lander (lookAt): the landing module owns it while it animates.
+    if (landingModule?.isAnimating?.()) return;
+    const min = landingModule?.orbitClearanceM?.() ?? 3;
+    const carto = Cesium.Cartographic.fromCartesian(camera.positionWC, Cesium.Ellipsoid.MOON);
+    const ground = carto && groundUnder(carto);
+    if (ground == null || carto.height - ground >= min) return;
+    // Too low: tilt the orbit down a little (keeps the target in the middle, no jump).
+    const pitch = Math.max(camera.pitch - Cesium.Math.toRadians(2), Cesium.Math.toRadians(-80));
+    const range = Cesium.Cartesian3.magnitude(camera.position);
+    const center = Cesium.Matrix4.getTranslation(camera.transform, new Cesium.Cartesian3());
+    camera.lookAt(center, new Cesium.HeadingPitchRange(camera.heading, pitch, range));
+    return;
+  }
+
+  const carto = Cesium.Cartographic.fromCartesian(camera.positionWC, Cesium.Ellipsoid.MOON);
+  if (!carto) return;
+  // 1) Tilt: flatter views are allowed only near the surface. From far away the centre of the view must
+  //    stay on the Moon's disk (depression ≥ 90° − its angular radius), so the Moon never leaves the frame.
+  const R = Cesium.Ellipsoid.MOON.maximumRadius;
+  const half = Cesium.Math.toDegrees(Math.asin(R / (R + Math.max(carto.height, 1))));
+  const maxPitch = Math.min(PITCH_MAX_DEG, -(90 - half));
+  const pitchDeg = Cesium.Math.toDegrees(camera.pitch);
+  const clampedPitch = Math.max(PITCH_MIN_DEG, Math.min(maxPitch, pitchDeg));
+  // 2) Height: at least MIN_CLEARANCE_M above the terrain under the camera.
+  const ground = groundUnder(carto);
+  const minH = ground == null ? -Infinity : ground + MIN_CLEARANCE_M + TILE_MARGIN_M;
+  const tooLow = carto.height < minH;
+  // Near the floor, let Cesium stop zooming by itself instead of fighting it every frame.
+  viewer.scene.screenSpaceCameraController.minimumZoomDistance =
+    ground != null && carto.height - ground < 3 * MIN_CLEARANCE_M ? MIN_CLEARANCE_M : 1;
+  if (Math.abs(clampedPitch - pitchDeg) < 0.01 && !tooLow) return;
+  camera.setView({
+    destination: tooLow ? Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, minH, Cesium.Ellipsoid.MOON) : camera.positionWC,
+    orientation: { heading: camera.heading, pitch: Cesium.Math.toRadians(clampedPitch), roll: 0 },
+  });
+}
+
+/** Double click on the terrain: smooth zoom towards that point (does not pick a site). */
+function onDoubleClick(click) {
+  if (clickTimer) { clearTimeout(clickTimer); clickTimer = 0; }
+  if (!viewer || !Cesium.Matrix4.equals(viewer.camera.transform, Cesium.Matrix4.IDENTITY)) return;
+  let target = viewer.scene.pickPositionSupported ? viewer.scene.pickPosition(click.position) : undefined;
+  if (!Cesium.defined(target)) target = viewer.camera.pickEllipsoid(click.position, Cesium.Ellipsoid.MOON);
+  if (!Cesium.defined(target)) return;
+  const cam = viewer.camera.positionWC;
+  const destination = Cesium.Cartesian3.lerp(target, cam, 0.4, new Cesium.Cartesian3());
+  fly({ destination, orientation: { heading: viewer.camera.heading, pitch: viewer.camera.pitch, roll: 0 },
+        duration: reducedMotion ? 0 : 0.6, easingFunction: Cesium.EasingFunction.QUADRATIC_OUT });
+}
+
+function onClickDeferred(click) {
+  if (clickTimer) clearTimeout(clickTimer);
+  const position = Cesium.Cartesian2.clone(click.position);
+  clickTimer = setTimeout(() => { clickTimer = 0; onLeftClick({ position }); }, 250);
+}
+
+/** LANDED locks site picking; ENHANCE brightens the scene (visual only). */
+export function setViewerFlags(isLocked, isEnhanced) {
+  if (!viewer) return;
+  locked = !!isLocked;
+  const enhanceChanged = enhance !== !!isEnhanced;
+  enhance = !!isEnhanced;
+  viewer.scene.canvas.title = locked ? LOCKED_TITLE : "";
+  if (locked && hoveredId) { const prev = hoveredId; hoveredId = null; restylePin(prev); }
+  viewer.scene.canvas.style.cursor = "";
+  // While landed only the selected site keeps its label: the others must not cover the lander.
+  for (const e of viewer.entities.values) {
+    if (entityKind(e) === "site" && e.label) e.label.show = !locked || e.id === selectedSiteId;
+  }
+  if (enhanceChanged && lastSun) { sunLightKey = null; setSunLight(...lastSun); }
 }
 
 /** Resolve true when the globe has finished loading its visible tiles, false after timeoutMs. */
@@ -148,7 +317,7 @@ export function introFlight() {
   releaseCamera();
   if (reducedMotion) { resetView(false); return; }
   const view = southPoleView();
-  viewer.camera.flyTo({
+  fly({
     ...view,
     duration: 3.2,
     easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT,
@@ -168,7 +337,8 @@ export function resetView(animate = false) {
   releaseCamera();
   const view = southPoleView();
   if (animate && !reducedMotion) {
-    viewer.camera.flyTo({ ...view, duration: FLY_DURATION_S });
+    viewer.camera.cancelFlight();
+    fly({ ...view, duration: FLY_DURATION_S, easingFunction: Cesium.EasingFunction.QUADRATIC_OUT });
   } else {
     viewer.camera.setView(view);
   }
@@ -189,6 +359,7 @@ function updateHover() {
   hoverFrame = 0;
   if (!viewer || viewer.isDestroyed() || !pendingHoverPos) return;
 
+  if (locked) return;   // landed: no hover feedback, plain cursor (the canvas title explains why)
   const picked = viewer.scene.pick(pendingHoverPos);
   const entity = Cesium.defined(picked) && picked.id instanceof Cesium.Entity ? picked.id : undefined;
   const nextId = entity && isPin(entity) ? entity.id : null;
@@ -222,6 +393,7 @@ function entityKind(entity) {
 }
 
 function onLeftClick(click) {
+  if (!viewer || viewer.isDestroyed() || locked) return;   // landed: the site cannot change until NEW LANDING
   const picked = viewer.scene.pick(click.position);
   const entity = Cesium.defined(picked) ? picked.id : undefined;
 
@@ -468,10 +640,11 @@ export function flyToSite(siteId) {
   const entity = viewer.entities.getById(siteId);
   if (!entity) return;
   // Fly to an offset above the site — flying to the surface point puts the camera into the ground.
+  flying++;
   viewer.flyTo(entity, {
     duration: FLY_DURATION_S,
     offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-50), 90000),
-  });
+  }).finally(() => { flying = Math.max(0, flying - 1); });
 }
 
 // ---- Landing animation (isolated module) ----
@@ -479,8 +652,17 @@ export function flyToSite(siteId) {
 /** Play the landing animation; resolves with { status, fps, simplified }. */
 export async function playLanding(options, hudHost) {
   if (!viewer) return { status: "unavailable" };
-  landingModule ??= await import("./landingAnimation.js");
-  return landingModule.play(viewer, { ...options, hudHost });
+  const m = await landing();
+  return m.play(viewer, { ...options, hudHost, sunAzDeg: lastSunAzDeg });
+}
+
+/** The landing module, loaded once; lander-model load states are forwarded to the HUD (MoonPanel.OnModelStatus). */
+async function landing() {
+  if (!landingModule) {
+    landingModule = await import("./landingAnimation.js");
+    landingModule.onModelStatus((uri, status) => dotNetRef?.invokeMethodAsync("OnModelStatus", uri, status).catch(() => {}));
+  }
+  return landingModule;
 }
 
 /**
@@ -497,14 +679,26 @@ window.__seleneLanderPose = () => landingModule?.getPose() ?? null;
 
 /**
  * Load the animation module and sample the site's ground height ahead of CONFIRM LANDING SITE.
- * A lander model (GLB, several MB) is fetched a few seconds later so it never competes with
- * the first page load.
+ * The selected lander's model (GLB, ~1 MB) is fetched a moment later so it never competes with
+ * the site's terrain tiles.
  */
-export async function prefetchLanding(lat, lon, modelUri, modelHeightM) {
+export async function prefetchLanding(lat, lon, model) {
   if (!viewer) return;
-  landingModule ??= await import("./landingAnimation.js");
-  if (modelUri) setTimeout(() => landingModule.prefetchModel(viewer, modelUri, modelHeightM), 4000);
-  await landingModule.prefetchGround(viewer, lat, lon);
+  const m = await landing();
+  if (model?.uri) setTimeout(() => m.prefetchModel(viewer, model), 1500);
+  await m.prefetchGround(viewer, lat, lon);
+}
+
+/**
+ * Background preload of every lander model after start-up, one after another in the given order
+ * (the QUICK DEMO lander first), so the first landing of any lander does not wait for a download.
+ */
+export async function preloadModels(models, delayMs) {
+  if (!viewer || !models?.length) return;
+  await new Promise((r) => setTimeout(r, delayMs ?? 0));
+  if (!viewer) return;
+  const m = await landing();
+  await m.preloadModels(viewer, models);
 }
 
 // ---- Sunlight from the precomputed ephemeris ----
@@ -516,9 +710,13 @@ let sunLightKey = null;
  * illumination/{siteId}.json), converted from the site's east-north-up frame to the Moon-fixed frame. Soft shadows on.
  * If the Sun is hidden (sunFraction 0) a weak, cool fill light from above keeps models visible.
  */
+let lastSun = null;
+
 export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
   if (!viewer || viewer.isDestroyed()) return;
-  const key = `${lat.toFixed(4)},${lon.toFixed(4)},${azDeg.toFixed(1)},${elDeg.toFixed(1)},${sunPct > 0}`;
+  lastSun = [lat, lon, azDeg, elDeg, sunPct];
+  lastSunAzDeg = azDeg;
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)},${azDeg.toFixed(1)},${elDeg.toFixed(1)},${sunPct > 0},${enhance}`;
   if (key === sunLightKey) return;
   sunLightKey = key;
 
@@ -532,7 +730,7 @@ export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
   if (sunPct > 0) {
     viewer.scene.light = new Cesium.DirectionalLight({
       direction: Cesium.Cartesian3.negate(toSun, new Cesium.Cartesian3()),   // light travels from the Sun
-      intensity: 2.2,
+      intensity: enhance ? 3.0 : 2.2,
     });
   } else {
     // Sun hidden: weak fill light, mostly from overhead with a hint of the Sun's bearing.
@@ -541,12 +739,13 @@ export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
       Cesium.Cartesian3.multiplyByScalar(toSun, 0.2, new Cesium.Cartesian3()), new Cesium.Cartesian3()), new Cesium.Cartesian3());
     viewer.scene.light = new Cesium.DirectionalLight({
       direction: Cesium.Cartesian3.negate(fill, new Cesium.Cartesian3()),
-      intensity: 0.6,
+      intensity: enhance ? 0.9 : 0.6,
       color: Cesium.Color.fromCssColorString("#a9c6e0"),
     });
   }
   if (terrainTileset && !terrainTileset.isDestroyed()) {
-    terrainTileset.imageBasedLighting.sphericalHarmonicCoefficients = ambientCoefficients(sunPct > 0 ? 0.55 : 0.35);
+    // ENHANCE: more ambient (regolith bounce light) so the grazing-lit terrain reads on a screen.
+    terrainTileset.imageBasedLighting.sphericalHarmonicCoefficients = ambientCoefficients((sunPct > 0 ? 0.55 : 0.35) + (enhance ? 0.25 : 0));
   }
   viewer.shadows = true;
   viewer.shadowMap.softShadows = true;
@@ -565,6 +764,8 @@ export function clearLandingMarker() {
 
 export function dispose() {
   clearLandingMarker();
+  document.removeEventListener("keydown", onKeyDown);
+  if (clickTimer) clearTimeout(clickTimer);
   if (hoverFrame) cancelAnimationFrame(hoverFrame);
   hoverFrame = 0;
   pendingHoverPos = null;

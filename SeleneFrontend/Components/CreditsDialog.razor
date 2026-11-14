@@ -1,0 +1,51 @@
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject UiService Ui
+
+@if (Ui.CreditsOpen)
+{
+    <div class="dialog-backdrop" @onclick="Close">
+        <div class="dialog credits" role="dialog" aria-modal="true" aria-labelledby="credits-title" tabindex="-1"
+             @onclick:stopPropagation="true" @onkeydown="OnKey">
+            <header class="dialog-header">
+                <h2 id="credits-title">Credits and data sources</h2>
+                <button type="button" class="welcome-close" @ref="closeBtn" aria-label="Close credits" @onclick="Close">×</button>
+            </header>
+            <div class="dialog-body">
+                <ul class="credits-list">
+                    <li>Imagery: <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA/JPL Moon Trek</a> (LRO WAC mosaic)</li>
+                    <li>Terrain: <a href="https://pds-geosciences.wustl.edu/missions/lro/lola.htm" target="_blank" rel="noopener">NASA LRO LOLA</a> (ldem_75s_120m_float, PDS Geosciences Node)</li>
+                    <li>Ephemerides: <a href="https://naif.jpl.nasa.gov/naif/" target="_blank" rel="noopener">JPL/NAIF DE421</a> and lunar orientation kernels, computed with Skyfield</li>
+                    <li>Illumination check: <a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noopener">NASA PGDA LOLA maps</a> (Mazarico et al. 2011)</li>
+                    <li>Landing sites: <a href="https://doi.org/10.1029/2025JE009434" target="_blank" rel="noopener">Wueller et al. 2026</a>, JGR Planets, data via <a href="https://doi.org/10.5281/zenodo.17084058" target="_blank" rel="noopener">Zenodo</a> (CC BY 4.0)</li>
+                    <li>3D: <a href="https://cesium.com/" target="_blank" rel="noopener">CesiumJS / Cesium ion</a> (Cesium Moon Terrain)</li>
+                    <li>Lander models: concept images <a href="https://www.meshy.ai/" target="_blank" rel="noopener">Meshy AI</a> · 3D <a href="https://github.com/microsoft/TRELLIS.2" target="_blank" rel="noopener">Microsoft TRELLIS.2</a> (MIT) · stylized, not manufacturer CAD</li>
+                    <li>Fonts: IBM Plex Sans and IBM Plex Mono (SIL Open Font License 1.1)</li>
+                </ul>
+                <p class="dialog-small">Lander figures and their sources are listed under Analyst mode → Choose a lander → Specs.
+                    Not affiliated with or endorsed by NASA.</p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ElementReference closeBtn;
+    private bool wasOpen;
+
+    protected override void OnInitialized() => Ui.OnChanged += Refresh;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Ui.CreditsOpen && !wasOpen)
+        {
+            try { await closeBtn.FocusAsync(); } catch { /* not rendered */ }
+        }
+        wasOpen = Ui.CreditsOpen;
+    }
+
+    private void Close() => Ui.SetCredits(false);
+    private void OnKey(KeyboardEventArgs e) { if (e.Key == "Escape") Close(); }
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Ui.OnChanged -= Refresh;
+}

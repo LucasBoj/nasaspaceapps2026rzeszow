@@ -16,7 +16,23 @@
     double? earthAz = series.EarthAzCentiDeg.Length > index ? series.EarthAzCentiDeg[index] / 100.0 : null;
     var sunPct = series.SunFraction[index];
     var earthOn = series.EarthVisible[index] == 1;
-    <div class="compass" role="group" aria-label="@AriaText(sunAz, sunEl, sunPct, earthAz, earthEl, earthOn)">
+    @if (!Ui.AnalystMode && !simpleOpen)
+    {
+        <button type="button" class="compass-toggle" aria-expanded="false" aria-label="Show where the Sun and Earth are"
+                title="Where are the Sun and Earth?" @onclick="() => simpleOpen = true">
+            <svg viewBox="-12 -12 24 24" aria-hidden="true">
+                <circle r="10" class="compass-edge" />
+                <circle cx="@F(Math.Sin(sunAz * Math.PI / 180) * 6)" cy="@F(-Math.Cos(sunAz * Math.PI / 180) * 6)" r="3" class="compass-sun @(sunPct > 0 ? "" : "hidden")" />
+                @if (earthAz is { } ea)
+                {
+                    <circle cx="@F(Math.Sin(ea * Math.PI / 180) * 6)" cy="@F(-Math.Cos(ea * Math.PI / 180) * 6)" r="2.2" class="compass-earth @(earthOn ? "" : "hidden")" />
+                }
+            </svg>
+        </button>
+    }
+    else
+    {
+    <div class="compass @(Ui.AnalystMode ? "" : "simple")" role="group" aria-label="@AriaText(sunAz, sunEl, sunPct, earthAz, earthEl, earthOn)">
         <svg viewBox="-60 -60 120 120" class="compass-svg" aria-hidden="true">
             <circle r="@F(R(MinEl))" class="compass-edge" />
             <path d="@HorizonPath()" class="compass-terrain" />
@@ -27,7 +43,7 @@
             <text x="53" y="3" class="compass-cardinal">E</text>
             <text x="0" y="57" class="compass-cardinal">S</text>
             <text x="-53" y="3" class="compass-cardinal">W</text>
-            @if (PanelState() is { } ps)
+            @if (Ui.AnalystMode && PanelState() is { } ps)
             {
                 @* Fixed panels: wall normals from the lander (centre) out to the horizon ring; lander front as a dot. *@
                 @foreach (var f in ps.Layout.Facets.Where(f => f.Share > 0 && f.NormalElevDeg < 60))
@@ -46,6 +62,17 @@
             @{ var (sx, sy) = Polar(sunAz, sunEl); }
             <circle cx="@F(sx)" cy="@F(sy)" r="5" class="compass-sun @(sunPct > 0 ? "" : "hidden")" />
         </svg>
+        @if (!Ui.AnalystMode)
+        {
+            <div class="compass-text">
+                <div class="compass-time">@VerdictText.Date(moment), @moment.ToString("HH:mm") UTC</div>
+                <div><span class="dot sun"></span>Sun: @(sunPct >= 50 ? "shining on the site" : sunPct > 0 ? "partly behind the terrain" : "below the horizon")</div>
+                <div><span class="dot earth"></span>Earth: @(earthOn ? "in view — radio contact" : "hidden — no direct contact")</div>
+            </div>
+            <button type="button" class="welcome-close compass-close" aria-label="Hide the Sun and Earth directions" @onclick="() => simpleOpen = false">×</button>
+        }
+        else
+        {
         <div class="compass-text">
             <div class="compass-time">@moment.ToString("yyyy-MM-dd HH:mm") UTC</div>
             <div><span class="dot sun"></span>SUN az @F0(sunAz)° · el @F1(sunEl)° · horizon @F1(HorizonAt(sunAz))° → @sunPct% disk</div>
@@ -56,11 +83,14 @@
                 <div><span class="dot panel"></span>PANELS hdg @F0(p.Heading)°@(p.Auto ? " (AUTO)" : "") → @F0(output)% of peak</div>
             }
         </div>
+        }
     </div>
+    }
 }
 
 @code {
     private const double MinEl = -5, MaxEl = 15;     // radial scale: edge = −5°, centre = +15°
+    private bool simpleOpen;                         // SIMPLE mode: collapsed to an icon until clicked
     private IlluminationSeries? series;
     private string? loadedFor;
     private int index = -1;

@@ -21,10 +21,19 @@ public sealed class NasaSiteCheck
 {
     public string SiteId { get; set; } = "";
     public double NasaSunPct { get; set; }           // NASA 120 m map (same DEM resolution as ours)
+    /// <summary>[min, max] of the NASA 120 m map over the 3×3 pixels around the point (±120 m): landing-accuracy spread.</summary>
+    public double[]? NasaSunRangePct { get; set; }
     public double? NasaSunPct60 { get; set; }        // NASA 60 m map, south of −85° only
     public double OursSunPct18y { get; set; }
     public double OursSunPct2027 { get; set; }
     public double DeltaSunPct { get; set; }          // ours 18.6 y − NASA 120 m, percentage points
     public double NasaEarthPct { get; set; }
     public double OursEarthAnyPct18y { get; set; }
+
+    /// <summary>Lowest NASA sunlit share within ±1 pixel (120 m); NaN when the file has no range.</summary>
+    public double NasaSunMinNearPct => NasaSunRangePct is [var lo, ..] ? lo : double.NaN;
+    public double NasaSunMaxNearPct => NasaSunRangePct is [_, var hi, ..] ? hi : double.NaN;
+
+    /// <summary>Sunlight lost (pp) on the NASA map if the lander lands one pixel (120 m) off in the worst direction.</summary>
+    public double NearLossPp => NasaSunRangePct is [var lo, ..] ? Math.Max(0, NasaSunPct - lo) : double.NaN;
 }

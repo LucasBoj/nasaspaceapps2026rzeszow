@@ -1,1 +1,5 @@
 out/
+
+# Original lander models (~64 MB, input of tools/optimize-models): kept out of the public repo, see tools/optimize-models/README.md
+SeleneFrontend/wwwroot/models/source/
+tools/optimize-models/node_modules/

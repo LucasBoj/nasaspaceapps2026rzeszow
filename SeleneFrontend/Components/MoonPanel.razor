@@ -27,15 +27,38 @@
     {
         <div class="viewer-hud">
             <div class="viewer-hud-buttons">
-                <button type="button" class="hud-btn" @onclick="SouthPoleViewAsync">SOUTH POLE VIEW</button>
-                <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)" @onclick="ZoomToSiteAsync">ZOOM TO SITE</button>
-                <button type="button" class="hud-btn" aria-expanded="@(settingsOpen ? "true" : "false")" aria-controls="hud-settings"
-                        title="Viewer settings" @onclick="() => settingsOpen = !settingsOpen">⚙</button>
-                <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
-                        disabled="@(!HasRegionSelected)" title="Show all evaluated candidate landing sites in this region"
-                        @onclick="Ui.ToggleCandidates">CANDIDATES</button>
+                <button type="button" class="hud-btn" aria-label="Back to the south pole view (Home key)" title="Back to the south pole view (Home)"
+                        @onclick="SouthPoleViewAsync">⌂ View</button>
+                <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)"
+                        aria-describedby="@(MissionState.SelectedSite is null ? "zoom-reason" : null)" @onclick="ZoomToSiteAsync">Zoom to site</button>
+                @if (Ui.Landed || Ui.LandingInProgress)
+                {
+                    <button type="button" class="hud-btn new-landing" disabled="@Ui.LandingInProgress"
+                            aria-describedby="@(Ui.LandingInProgress ? "newlanding-reason" : null)" @onclick="Ui.NewLanding">New landing</button>
+                }
+                @if (Ui.AnalystMode)
+                {
+                    <button type="button" class="hud-btn" aria-label="Viewer settings" aria-expanded="@(settingsOpen ? "true" : "false")" aria-controls="hud-settings"
+                            title="Viewer settings" @onclick="() => settingsOpen = !settingsOpen">⚙</button>
+                    <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
+                            disabled="@(!HasRegionSelected)" aria-describedby="@(HasRegionSelected ? null : "cand-reason")"
+                            title="Show all evaluated candidate landing sites in this region"
+                            @onclick="Ui.ToggleCandidates">Candidates</button>
+                }
             </div>
-            @if (settingsOpen)
+            @if (MissionState.SelectedSite is null)
+            {
+                <p class="hud-reason" id="zoom-reason">Choose a site to zoom to it.</p>
+            }
+            else if (Ui.AnalystMode && !HasRegionSelected)
+            {
+                <p class="hud-reason" id="cand-reason">Candidates are shown for the 9 regions — choose one.</p>
+            }
+            @if (Ui.LandingInProgress)
+            {
+                <p class="hud-reason" id="newlanding-reason">New landing is available after touchdown.</p>
+            }
+            @if (settingsOpen && Ui.AnalystMode)
             {
                 <div class="hud-settings" id="hud-settings">
                     <label>
@@ -47,11 +70,32 @@
                     {
                         <small>Reduced motion is on — the landing shows as a short fade.</small>
                     }
+                    <label>
+                        <input type="checkbox" checked="@Ui.EnhanceView"
+                               @onchange="@((ChangeEventArgs e) => Ui.SetEnhanceView(e.Value is true))" />
+                        Enhance view
+                    </label>
+                    <small>Brighter on screen only. The pole really is this dark — the Sun stays a few degrees above the horizon. Light direction from JPL ephemerides.</small>
                 </div>
             }
-            @if (badgeText is not null)
+            @if (badgeText is not null && Ui.AnalystMode)
             {
                 <div class="viewer-badge mode" title="@badgeTitle">@badgeText</div>
+            }
+            @if (Ui.LandingAnimationEnabled && MissionState.SelectedLander is { Model: { } model } lander
+                 && (Ui.AnalystMode || modelStatus.GetValueOrDefault(model.Uri) == "loading"))
+            {
+                var state = modelStatus.GetValueOrDefault(model.Uri);
+                <div class="viewer-badge model-status @state" tabindex="0" role="status"
+                     title="@($"{lander.Name} 3D model (visualisation only). {model.Credit}")">
+                    @(state switch
+                    {
+                        "loading" => $"LOADING 3D MODEL · {lander.Name.ToUpperInvariant()}…",
+                        "failed" => "SCHEMATIC MODEL (3D model unavailable)",
+                        "ready" => $"3D MODEL · {lander.Name.ToUpperInvariant()} · STYLIZED",
+                        _ => $"3D MODEL · {lander.Name.ToUpperInvariant()} · QUEUED",
+                    })
+                </div>
             }
             @if (Ui.CandidatesOn && HasRegionSelected)
             {
@@ -68,12 +112,12 @@
                     }
                 </div>
             }
-            @if (Analysis.IsRunning)
+            @if (Analysis.IsRunning && (Ui.VerdictRequested || Ui.AnalystMode))
             {
                 <div class="hud-progress" role="progressbar" aria-label="Analysis progress"
                      aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)(Analysis.Progress * 100))">
                     <div class="hud-progress-bar" style="width: @((int)(Analysis.Progress * 100))%"></div>
-                    <span>ANALYZING · @((int)(Analysis.Progress * 100))%</span>
+                    <span>Analyzing all 9 sites · @((int)(Analysis.Progress * 100))%</span>
                 </div>
             }
         </div>
@@ -82,12 +126,9 @@
     {
         <div class="viewer-compass"><SunEarthCompass /></div>
     }
-    @if (Ui.ContactText is { } contact && !Ui.LandingInProgress)
+    @if (!Ui.AnalystMode)
     {
-        <div class="contact-banner" role="status">
-            <span>@contact</span>
-            <button type="button" class="welcome-close" aria-label="Dismiss" @onclick="Ui.ClearContact">×</button>
-        </div>
+        <VerdictCard />
     }
     <WelcomeCard />
     @if (initError is not null)
@@ -111,6 +152,8 @@
     private bool settingsOpen;
     private string? landedKey;      // "siteId|landerId" of the lander on the surface (or descending)
     private string? prefetchedFor;  // site whose landing module + ground height are already warm
+    private bool modelPreloadStarted;
+    private readonly Dictionary<string, string> modelStatus = new();   // model uri → loading | ready | failed
 
     private sealed class LandingResult
     {
@@ -144,6 +187,7 @@
         Ui.OnChanged += HandleUiChanged;
         Ui.IntroRequested += HandleIntro;
         Ui.LandingRequested += HandleLandingRequested;
+        Ui.NewLandingRequested += HandleNewLanding;
         Ui.HoverTimeChanged += HandleHoverTime;
     }
 
@@ -164,7 +208,7 @@
                 {
                     lat = req.Lat, lon = req.Lon, landerClass = req.LanderClass,
                     landerName = req.LanderName, siteName = req.SiteName, reducedMotion = req.ReducedMotion,
-                    modelUri = req.ModelUri, modelHeightM = req.ModelHeightM,
+                    model = req.Model,
                     panels = req.Panels?.Select(f => new { f.AzOffsetDeg, f.NormalElevDeg, f.Share }).ToArray(),
                     // Usually still null here: the analysis answers ~1 s into the descent (SyncLanderHeadingAsync).
                     headingDeg = mission is { FixedPanels: true } ? mission.HeadingDeg : null,
@@ -234,7 +278,29 @@
         catch (JSDisconnectedException) { }
     }
 
-    private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); StateHasChanged(); });
+    private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); await SyncViewerFlagsAsync(); StateHasChanged(); });
+
+    /// <summary>NEW LANDING: remove the landed model and give the camera back.</summary>
+    private void HandleNewLanding() => _ = InvokeAsync(async () =>
+    {
+        landedKey = null;
+        if (moonModule is null) return;
+        try { await moonModule.InvokeVoidAsync("clearLandingMarker"); }
+        catch (JSDisconnectedException) { }
+    });
+
+    private (bool Locked, bool Enhance)? sentFlags;
+
+    /// <summary>LANDED locks site picking on the Moon; ENHANCE brightens the scene. Sent only when they change.</summary>
+    private async Task SyncViewerFlagsAsync()
+    {
+        if (!moonLoaded || moonModule is null) return;
+        var flags = (Ui.Landed, Ui.EnhanceView);
+        if (sentFlags == flags) return;
+        sentFlags = flags;
+        try { await moonModule.InvokeVoidAsync("setViewerFlags", flags.Item1, flags.Item2); }
+        catch (JSDisconnectedException) { }
+    }
 
     private void HandleIntro()
     {
@@ -269,6 +335,7 @@
             }
 
             moonLoaded = true;
+            await SyncViewerFlagsAsync();
             Ui.SetViewerReady(result.TerrainLoaded);
             await SyncViewerAsync();
             if (introPending)
@@ -322,6 +389,8 @@
 
         try
         {
+            StartModelPreload();
+
             // Sites may arrive after the viewer started; only re-send when the list actually changed.
             if (!ReferenceEquals(loadedSites, MissionState.AvailableSites))
             {
@@ -333,13 +402,12 @@
             if (selected is not null && !selected.Id.StartsWith("CUSTOM", StringComparison.Ordinal))
             {
                 await moonModule.InvokeVoidAsync("selectSite", selected.Id);
-                var modelUri = MissionState.SelectedLander?.ModelUri;
-                var prefetchKey = $"{selected.Id}|{modelUri}";
+                var model = MissionState.SelectedLander?.Model;
+                var prefetchKey = $"{selected.Id}|{model?.Uri}";
                 if (Ui.LandingAnimationEnabled && prefetchedFor != prefetchKey)
                 {
                     prefetchedFor = prefetchKey;
-                    _ = moonModule.InvokeVoidAsync("prefetchLanding", selected.Lat, selected.Lon, modelUri,
-                        MissionState.SelectedLander?.ModelHeightM).AsTask();
+                    _ = moonModule.InvokeVoidAsync("prefetchLanding", selected.Lat, selected.Lon, model).AsTask();
                 }
                 await SyncSunLightAsync(selected);
             }
@@ -442,6 +510,29 @@
         }
     }
 
+    /// <summary>
+    /// Once per session: preload every lander model in the background (QUICK DEMO lander first, then the
+    /// selected one, then the rest), a few seconds after start so it does not slow the first view.
+    /// </summary>
+    private void StartModelPreload()
+    {
+        if (modelPreloadStarted || moonModule is null || !Ui.LandingAnimationEnabled || MissionState.AllLanders.Count == 0) return;
+        modelPreloadStarted = true;
+        var models = MissionState.AllLanders
+            .OrderBy(l => l.Id == UiService.RecommendedLanderId ? 0 : l.Id == MissionState.SelectedLander?.Id ? 1 : 2)
+            .Select(l => l.Model).OfType<LanderModelSpec>().ToList();
+        _ = moonModule.InvokeVoidAsync("preloadModels", models, 3000).AsTask();
+    }
+
+    /// <summary>Load state of a lander model ("loading", "ready", "failed"), shown in the viewer HUD.</summary>
+    [JSInvokable]
+    public Task OnModelStatus(string uri, string status)
+    {
+        if (modelStatus.TryGetValue(uri, out var old) && old == status) return Task.CompletedTask;
+        modelStatus[uri] = status;
+        return InvokeAsync(StateHasChanged);
+    }
+
     [JSInvokable]
     public Task OnSiteSelected(string siteId)
     {
@@ -471,6 +562,7 @@
         Ui.OnChanged -= HandleUiChanged;
         Ui.IntroRequested -= HandleIntro;
         Ui.LandingRequested -= HandleLandingRequested;
+        Ui.NewLandingRequested -= HandleNewLanding;
         Ui.HoverTimeChanged -= HandleHoverTime;
 
         if (moonModule is not null)

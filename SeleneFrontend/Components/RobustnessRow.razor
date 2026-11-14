@@ -1,0 +1,70 @@
+@using System.Globalization
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+
+@* How much the verdict trusts its inputs: load uncertainty (simulated) and landing accuracy (NASA map, ±1 pixel). *@
+<div class="robustness" role="group" aria-label="Verdict robustness">
+    @if (Load is { } s)
+    {
+        <div class="robust-item">
+            <span class="robust-label"><Term Key="loadsens">LOAD ±@Pct0(s.DeltaFraction * 100)</Term></span>
+            <span class="robust-badge @(s.Robust ? "ok" : "warn")">@(s.Robust ? "ROBUST" : "SENSITIVE")</span>
+            <span class="robust-detail">
+                −@Pct0(s.DeltaFraction * 100):
+                <span class="@VerdictClass(s.Low)">@VerdictLabel(s.Low)</span> (min @Pct0(s.MinSocLowPct))
+                · +@Pct0(s.DeltaFraction * 100):
+                <span class="@VerdictClass(s.High)">@VerdictLabel(s.High)</span> (min @Pct0(s.MinSocHighPct))
+                · @BreakEven(s)
+            </span>
+        </div>
+    }
+    @if (Nasa is { } n && !double.IsNaN(n.NearLossPp))
+    {
+        <div class="robust-item">
+            <span class="robust-label"><Term Key="pointspread">LANDING ±120 m</Term></span>
+            <span class="robust-badge @(n.NearLossPp >= SpreadWarnPp ? "warn" : "ok")">@(n.NearLossPp >= SpreadWarnPp ? "POINT-SENSITIVE" : "STABLE")</span>
+            <span class="robust-detail">
+                NASA LOLA map, sunlit time: this point @Pct1(n.NasaSunPct), within one 120 m pixel
+                @Pct1(n.NasaSunMinNearPct)–@Pct1(n.NasaSunMaxNearPct)
+                @if (n.NearLossPp >= SpreadWarnPp)
+                {
+                    <text> · a landing 120 m off can lose up to @Pp1(n.NearLossPp) of sunlight</text>
+                }
+            </span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public LoadSensitivity? Load { get; set; }
+    [Parameter] public NasaSiteCheck? Nasa { get; set; }
+
+    /// <summary>Sunlight lost within one pixel above which a site counts as point-sensitive (pp).</summary>
+    private const double SpreadWarnPp = 10;
+
+    private static string BreakEven(LoadSensitivity s) => s.FeasibleUpToFactor switch
+    {
+        null => "not FEASIBLE at any load (Earth contact or limits)",
+        { } f when f >= s.MaxFactor => $"FEASIBLE even at {Pct0(s.MaxFactor * 100)} of nominal load",
+        { } f when f >= 1 => $"FEASIBLE up to +{Pct0((f - 1) * 100)} load",
+        { } f => $"FEASIBLE only below −{Pct0((1 - f) * 100)} load",
+    };
+
+    private static string VerdictLabel(Verdict v) => v switch
+    {
+        Verdict.Feasible => "FEASIBLE",
+        Verdict.Marginal => "MARGINAL",
+        _ => "NOT FEASIBLE",
+    };
+
+    private static string VerdictClass(Verdict v) => v switch
+    {
+        Verdict.Feasible => "v-feasible",
+        Verdict.Marginal => "v-marginal",
+        _ => "v-nogo",
+    };
+
+    private static string Pct0(double v) => Math.Round(v).ToString("0", CultureInfo.InvariantCulture) + "%";
+    private static string Pp1(double v) => v.ToString("0.0", CultureInfo.InvariantCulture) + " pp";
+    private static string Pct1(double v) => v.ToString("0.0", CultureInfo.InvariantCulture) + "%";
+}

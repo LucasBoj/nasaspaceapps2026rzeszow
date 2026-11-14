@@ -64,9 +64,9 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         if (l?.DayLoadW is null || solar is null || battery is null || survival is null) return null;
 
         var kind = state.HasWhatIf ? ParamKind.WhatIf
-            : ParamKind.Weakest(l.SolarArrayW, l.Panels, l.BatteryWh, l.DayLoadW, l.SurvivalLoadW);
+            : ParamKind.Weakest(l.SolarArrayW, l.Panels, l.BatteryWh, l.BatteryRoundTripEff, l.DayLoadW, l.SurvivalLoadW);
         return new LanderInputs(solar.Value, battery.Value, l.DayLoadW.Value, survival.Value, kind,
-            l.Panels, state.HeadingOverrideDeg, state.IdealTracking);
+            l.Panels, state.HeadingOverrideDeg, state.IdealTracking, state.BatteryRoundTripEff);
     }
 
     private MissionThresholds Thresholds => new(state.MinBatteryPercent, state.MinCommsPercent);
@@ -76,6 +76,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         var l = BuildLanderInputs();
         return string.Join("|", state.SelectedLander?.Id, l?.SolarArrayW, l?.BatteryWh, l?.DayLoadW, l?.SurvivalLoadW,
             l?.HeadingDeg?.ToString(CultureInfo.InvariantCulture) ?? "auto", l?.IdealTracking,
+            l?.BatteryRoundTripEff.ToString(CultureInfo.InvariantCulture),
             state.MissionDurationDays.ToString(CultureInfo.InvariantCulture), state.MinBatteryPercent, state.MinCommsPercent,
             state.WindowStart.ToString("yyyy-MM-dd"), state.WindowEnd.ToString("yyyy-MM-dd"));
     }
@@ -193,6 +194,9 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     /// <summary>Longest stay the selected landing survives (each length with its own AUTO heading).</summary>
     public double? MaxSurvivableDays { get; private set; }
 
+    /// <summary>Verdict at loads ±20% and the break-even load for the shown mission (null before the first run).</summary>
+    public LoadSensitivity? LoadSensitivity { get; private set; }
+
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
     {
         Mission = MissionSimulator.Run(site.Series, lander, landingUtc, state.MissionDurationDays, Thresholds);
@@ -200,6 +204,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         // Same heading as the shown mission, so "max stay" and the verdict describe the same landing.
         MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
             landingUtc, Thresholds, MaxSurvivableCapDays);
+        LoadSensitivity = SensitivityAnalysis.ForLoad(site.Series, lander, Mission, Thresholds);
         MissionSiteId = site.Id;
         MissionSiteName = site.Name;
         ThresholdBatteryPct = state.MinBatteryPercent;

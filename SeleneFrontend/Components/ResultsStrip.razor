@@ -9,35 +9,30 @@
     <button type="button" class="results-header" aria-expanded="@(expanded ? "true" : "false")" aria-controls="results-content"
             @onclick="() => expanded = !expanded">
         <span class="toggle-icon" aria-hidden="true">@(expanded ? "▼" : "▶")</span>
+        <span class="results-title">Analysis details</span>
         @if (Ui.LandingInProgress)
         {
-            <span class="results-title">RESULTS — awaiting touchdown…</span>
+            <span class="results-status">waiting for touchdown…</span>
+        }
+        else if (Analysis.IsRunning)
+        {
+            <span class="results-status">analyzing all 9 sites… <span class="num">@((int)(Analysis.Progress * 100))%</span></span>
+        }
+        else if (Analysis.Mission is not null)
+        {
+            <span class="results-status results-summary">@Analysis.MissionSiteName · timeline, landing-window heatmap, comparison</span>
+        }
+        else if (!MissionState.IsLoaded)
+        {
             <span class="skeleton-inline" style="width: 220px"></span>
-        }
-        else if (Analysis.Mission is { } m)
-        {
-            <span class="results-title">RESULTS —</span>
-            <span class="results-summary @VerdictClass(m.Verdict)">@VerdictLabel(m.Verdict)</span>
-            <span class="results-title results-summary-detail">
-                @Analysis.MissionSiteName · land @m.LandingUtc.ToString("yyyy-MM-dd") · min battery @m.MinSocPct.ToString("0")% · Earth @m.CommsPct.ToString("0")%
-            </span>
-            @if (!expanded)
-            {
-                <span class="results-expand-hint">show timeline &amp; heatmap</span>
-            }
-        }
-        else if (Analysis.IsRunning || !MissionState.IsLoaded)
-        {
-            <span class="results-title">RESULTS —</span>
-            <span class="skeleton-inline" style="width: 260px"></span>
         }
         else
         {
-            <span class="results-title">RESULTS — pick a site and a lander, then RUN ANALYSIS</span>
+            <span class="results-status">choose a site and a lander, then run the analysis</span>
         }
         @if (Analysis.IsOutdated)
         {
-            <span class="outdated-badge">RESULTS OUTDATED — re-run</span>
+            <span class="outdated-badge">Results are out of date — settings changed</span>
         }
     </button>
 
@@ -55,14 +50,13 @@
             }
             else if (Analysis.Mission is { } mission)
             {
+                <VerdictCard Inline="true" />
                 <div class="results-toolbar">
-                    <div class="sr-only" role="status">@VerdictLabel(mission.Verdict) for @Analysis.MissionSiteName, landing @mission.LandingUtc.ToString("yyyy-MM-dd"): @mission.Reason.</div>
-                    <div class="verdict-line @VerdictClass(mission.Verdict)">
-                        @VerdictLabel(mission.Verdict) — @Analysis.MissionSiteName · land @mission.LandingUtc.ToString("yyyy-MM-dd")
-                        · min battery <CountUp Value="Math.Round(mission.MinSocPct)" />%
-                        · Earth comms <CountUp Value="Math.Round(mission.CommsPct)" />%
-                        · based on: @ParamKind.Label(mission.BasedOn)
-                    </div>
+                    <p class="verdict-reason">
+                        <span class="num">@Analysis.MissionSiteName · @mission.LandingUtc.ToString("yyyy-MM-dd") · @mission.DurationDays.ToString("0.#") d</span> —
+                        @mission.Reason. <Term Key="soc">Battery</Term> · <Term Key="earth">Earth comms</Term> · <Term Key="verdict">Verdict</Term>
+                        · lander data: <KindBadge Kind="@mission.BasedOn" />
+                    </p>
                     <div class="results-tabs" role="tablist" aria-label="Result views">
                         <button type="button" role="tab" class="results-tab @(Ui.ResultsTab == "mission" ? "active" : "")"
                                 aria-selected="@(Ui.ResultsTab == "mission" ? "true" : "false")" @onclick="@(() => Ui.SetResultsTab("mission"))">MISSION</button>
@@ -70,9 +64,6 @@
                                 aria-selected="@(Ui.ResultsTab == "compare" ? "true" : "false")" @onclick="@(() => Ui.SetResultsTab("compare"))">COMPARE</button>
                     </div>
                 </div>
-                <p class="verdict-reason">
-                    @Capitalize(mission.Reason). <Term Key="soc">Battery</Term> · <Term Key="earth">Earth comms</Term> · <Term Key="verdict">Verdict</Term>
-                </p>
 
                 @if (Ui.ResultsTab == "compare")
                 {
@@ -80,9 +71,10 @@
                 }
                 else
                 {
+                    <RobustnessRow Load="Analysis.LoadSensitivity" Nasa="MissionState.NasaCheckFor(Analysis.MissionSiteId)" />
                     <PowerCommsTiles M="mission" MaxStayDays="Analysis.MaxSurvivableDays" />
                     <div class="results-grid">
-                        <section class="results-panel" aria-label="Mission timeline">
+                        <section class="results-panel" aria-label="Mission timeline" id="results-timeline">
                             <h3>MISSION TIMELINE · @mission.DurationDays.ToString("0.#") d</h3>
                             <MissionTimeline Result="mission" ThresholdPct="Analysis.ThresholdBatteryPct" OnHoverTime="Ui.SetHoverTime" />
                         </section>
@@ -144,22 +136,6 @@
     private int seenExpand;
     private int pulseConsumed;
 
-    private static string VerdictLabel(Verdict v) => v switch
-    {
-        Verdict.Feasible => "FEASIBLE",
-        Verdict.Marginal => "MARGINAL",
-        _ => "NOT FEASIBLE",
-    };
-
-    private static string VerdictClass(Verdict v) => v switch
-    {
-        Verdict.Feasible => "v-feasible",
-        Verdict.Marginal => "v-marginal",
-        _ => "v-nogo",
-    };
-
-    private static string Capitalize(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
-
     /// <summary>Hand the heatmap a pulse token only once per request (re-created canvases must not pulse again).</summary>
     private int PulseToken()
     {
@@ -174,6 +150,9 @@
     protected override void OnInitialized()
     {
         pulseConsumed = Analysis.HighlightBestToken;
+        // Created when Analyst mode turns on: open straight away if there is something to show.
+        seenExpand = Analysis.ExpandToken;
+        expanded = Analysis.HasResults || Analysis.IsRunning;
         Analysis.OnChanged += HandleChanged;
         MissionState.OnStateChanged += Refresh;   // outdated badge
         Ui.OnChanged += Refresh;                   // tabs

@@ -13,7 +13,7 @@ public sealed record BootLine(string Text, BootStatus Status, string Detail = ""
 /// <param name="MissionVersion"><see cref="AnalysisService.MissionVersion"/> before this landing's analysis started:
 /// only missions newer than that may set the lander's heading.</param>
 public sealed record LandingRequest(string SiteId, double Lat, double Lon, string SiteName, string LanderId, string LanderClass, string LanderName,
-    bool ReducedMotion, string? ModelUri, double? ModelHeightM, IReadOnlyList<PanelFacet>? Panels, int MissionVersion);
+    bool ReducedMotion, LanderModelSpec? Model, IReadOnlyList<PanelFacet>? Panels, int MissionVersion);
 
 /// <summary>
 /// First impression and presentation state: boot sequence, welcome card, recommended
@@ -24,9 +24,11 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     private const string BootSeenKey = "selene.bootSeen.v1";
     private const string LandingAnimKey = "selene.landingAnimation.v1";
     private const string WelcomeDismissedKey = "selene.welcomeDismissed.v1";
+    private const string AnalystModeKey = "selene.analystMode.v1";
+    private const string EnhanceKey = "selene.enhanceView.v1";
     public const string RecommendedLanderId = "nova_c";
     public const double RecommendedMissionDays = 7;
-    public static readonly TimeSpan BootMax = TimeSpan.FromMilliseconds(2500);
+    public static readonly TimeSpan BootMax = TimeSpan.FromMilliseconds(1500);   // Moon + welcome card within 3 s of opening the link (all 3 engines)
 
     public event Action? OnChanged;
 
@@ -38,6 +40,34 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
 
     /// <summary>The 3D viewer should play the landing animation (MoonPanel answers with NotifyLandingFinished).</summary>
     public event Action<LandingRequest>? LandingRequested;
+
+    /// <summary>NEW LANDING: the viewer removes the landed model and unlocks site picking.</summary>
+    public event Action? NewLandingRequested;
+
+    // ------------------------------------------------------------------ presentation mode
+
+    /// <summary>SIMPLE (default) shows the Moon, the three steps and one verdict card; ANALYST adds every detail.</summary>
+    public bool AnalystMode { get; private set; }
+
+    /// <summary>Visual-only brightening of the polar scene (ambient + exposure); the Sun's direction is unchanged.</summary>
+    public bool EnhanceView { get; private set; } = true;
+
+    /// <summary>A lander stands on the surface: site picking on the Moon is locked until NEW LANDING.</summary>
+    public bool Landed { get; private set; }
+    private string? _landedLanderId;
+
+    /// <summary>The user (or QUICK DEMO) asked for a result; until then SIMPLE shows the welcome card, not a verdict.</summary>
+    public bool VerdictRequested { get; private set; }
+    public bool VerdictDismissed { get; private set; }
+
+    /// <summary>Shown once after QUICK DEMO in SIMPLE mode: "See the full analysis →".</summary>
+    public bool FullAnalysisHint { get; private set; }
+
+    public bool CreditsOpen { get; private set; }
+
+    /// <summary>Step the setup panel should open (1 site, 2 lander, 3 run); bumped by NEW LANDING and the steps themselves.</summary>
+    public int OpenStep { get; private set; } = 3;
+    public int OpenStepRevision { get; private set; }
 
     /// <summary>Feature flag <c>features:landingAnimation</c> (appsettings.json), overridable in the HUD settings.</summary>
     public bool LandingAnimationEnabled { get; private set; } = true;
@@ -92,6 +122,9 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         LandingAnimationEnabled = !bool.TryParse(config["features:landingAnimation"], out var flag) || flag;
         if (LandingAnimationEnabled && await ui.InvokeAsync<string?>("getItem", LandingAnimKey) == "0") LandingAnimationEnabled = false;
         BootVisible = await ui.InvokeAsync<string?>("getItem", BootSeenKey) is null;
+        AnalystMode = await ui.InvokeAsync<string?>("getItem", AnalystModeKey) == "1";
+        EnhanceView = await ui.InvokeAsync<string?>("getItem", EnhanceKey) != "0";
+        state.OnStateChanged += OnSelectionChanged;
         WelcomeVisible = await ui.InvokeAsync<string?>("getItem", WelcomeDismissedKey) is null;
         if (BootVisible) await ui.InvokeVoidAsync("setItem", BootSeenKey, "1");
         Notify();
@@ -99,6 +132,25 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         var bootClock = System.Diagnostics.Stopwatch.StartNew();
         var bootTimeout = Task.Delay(BootMax);
 
+        // The loading work runs on its own; the boot screen closes when it is done or at BootMax,
+        // whichever comes first, so the Moon and the welcome card are up within ~3 s of opening the link.
+        Task? analysisTask = null;
+        var work = LoadAndPrepareAsync(ui, bootTimeout, t => analysisTask = t);
+        await Task.WhenAny(work, bootTimeout);
+
+        if (BootVisible && work.IsCompleted)
+        {
+            var remaining = BootMax - bootClock.Elapsed;
+            var linger = TimeSpan.FromMilliseconds(ReducedMotion ? 150 : 350);
+            if (remaining > TimeSpan.Zero) await Task.Delay(remaining < linger ? remaining : linger);
+        }
+        CloseBoot();
+        await work;
+        if (analysisTask is not null) await analysisTask;
+    }
+
+    private async Task LoadAndPrepareAsync(IJSObjectReference ui, Task bootTimeout, Action<Task> analysisStarted)
+    {
         // 1) Catalog
         var catalog = AddLine("LOADING SITE & LANDER CATALOG");
         await state.LoadData();
@@ -108,7 +160,6 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         // 2) Recommended scenario + its precomputed series (LOLA horizons + JPL DE421 tracks live in that file)
         var terrain = AddLine("LOADING LOLA TERRAIN HORIZONS");
         var ephem = AddLine("LOADING JPL EPHEMERIS (DE421, PRECOMPUTED)");
-        Task? analysisTask = null;
         try
         {
             RecommendedSiteId = await PickRecommendedSiteAsync();
@@ -116,13 +167,12 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
             SetLine(terrain, RecommendedSiteId is null ? BootStatus.Failed : BootStatus.Ok);
             SetLine(ephem, RecommendedSiteId is null ? BootStatus.Failed : BootStatus.Ok);
 
-            // Start the recommended analysis now, behind the boot screen, so the result is
-            // ready when the screen closes (no camera fly — the intro flight handles the camera).
+            // Pre-select the recommended scenario and compute it in the background (no camera fly —
+            // the intro flight handles the camera). The verdict card shows only when the user asks.
             if (RecommendedSiteId is not null && state.SelectedLander is null)
             {
                 await ApplyRecommendedScenarioAsync(fly: false);
-                var tall = await ui.InvokeAsync<int>("viewportHeight") >= 860;
-                analysisTask = analysis.RunAsync(expand: tall);
+                analysisStarted(analysis.RunAsync(expand: false));
             }
         }
         catch (Exception ex)
@@ -142,16 +192,6 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
             SetLine(mosaic, done == tilesTask && tilesTask.Result ? BootStatus.Ok : BootStatus.Pending,
                 done == tilesTask ? "" : "STREAMING");
         }
-
-        // Close the boot screen: shortly after the last line, never later than BootMax.
-        if (BootVisible)
-        {
-            var remaining = BootMax - bootClock.Elapsed;
-            var linger = TimeSpan.FromMilliseconds(ReducedMotion ? 150 : 350);
-            if (remaining > TimeSpan.Zero) await Task.Delay(remaining < linger ? remaining : linger);
-        }
-        CloseBoot();
-        if (analysisTask is not null) await analysisTask;
     }
 
     private async Task<bool> WaitViewerAndTilesAsync()
@@ -240,6 +280,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         ResultsTab = "mission";
         Notify();
         await ConfirmLandingAsync(highlightBest: true);
+        if (!AnalystMode && VerdictRequested) { FullAnalysisHint = true; Notify(); }
     }
 
     // ------------------------------------------------------------------ landing
@@ -259,6 +300,9 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         var site = state.SelectedSite!;
         var lander = state.SelectedLander!;
         ContactText = null;
+        VerdictRequested = true;
+        VerdictDismissed = false;
+        FullAnalysisHint = false;
         var missionVersion = analysis.MissionVersion;
         var panels = state.HasFixedPanels && !state.IdealTracking ? lander.Panels!.Facets : null;
         var analysisTask = analysis.RunAsync(expand: false, highlightBest: highlightBest);
@@ -269,10 +313,16 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
             _landingDone = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             Notify();
             LandingRequested.Invoke(new LandingRequest(site.Id, site.Lat, site.Lon, site.Name, lander.Id, lander.Class, lander.Name,
-                ReducedMotion, lander.ModelUri, lander.ModelHeightM, panels, missionVersion));
+                ReducedMotion, lander.Model, panels, missionVersion));
             var status = await _landingDone.Task;
             LandingInProgress = false;
             if (status == "cancelled") { Notify(); return; }   // site or lander changed mid-descent
+            if (status is "landed" or "skipped" or "reduced")
+            {
+                Landed = true;
+                _landedLanderId = lander.Id;
+                OpenStep = 3;
+            }
         }
         else
         {
@@ -313,6 +363,127 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         try { await (await Ui()).InvokeVoidAsync("setItem", key, value); }
         catch (JSDisconnectedException) { }
     }
+
+    // ------------------------------------------------------------------ modes and the landed state
+
+    public void SetAnalystMode(bool on)
+    {
+        if (AnalystMode == on) return;
+        AnalystMode = on;
+        if (on) FullAnalysisHint = false;
+        _ = PersistValueAsync(AnalystModeKey, on ? "1" : "0");
+        Notify();
+    }
+
+    public void SetEnhanceView(bool on)
+    {
+        EnhanceView = on;
+        _ = PersistValueAsync(EnhanceKey, on ? "1" : "0");
+        Notify();
+    }
+
+    /// <summary>"See the full analysis" / "Show on timeline": ANALYST mode with the results panel open at the timeline.</summary>
+    public async Task ShowFullAnalysisAsync()
+    {
+        SetAnalystMode(true);
+        ResultsTab = "mission";
+        analysis.RequestExpand();
+        Notify();
+        await Task.Delay(60);   // let the results panel render before scrolling to it
+        await ScrollToAsync("results-timeline");
+    }
+
+    /// <summary>NEW LANDING: remove the landed model, unlock site picking and go back to step 1.</summary>
+    public void NewLanding()
+    {
+        Landed = false;
+        _landedLanderId = null;
+        ContactText = null;
+        VerdictDismissed = true;
+        FullAnalysisHint = false;
+        SetOpenStep(1);
+        NewLandingRequested?.Invoke();
+        Notify();
+    }
+
+    /// <summary>
+    /// Changing the lander works like NEW LANDING (the model on the surface no longer matches). The verdict card
+    /// stays, marked out of date, so the user sees why the main button now says "Update results".
+    /// </summary>
+    private void OnSelectionChanged()
+    {
+        if (Landed && !LandingInProgress && state.SelectedLander?.Id != _landedLanderId)
+        {
+            Landed = false;
+            _landedLanderId = null;
+            Notify();
+        }
+    }
+
+    // ------------------------------------------------------------------ why an action is unavailable
+
+    /// <summary>One missing piece before "Land &amp; analyze" can run; Step 1/2 links to that step, 0 = no link.</summary>
+    public sealed record Blocker(int Step, string Text, bool NearestRegion = false);
+
+    public static bool IsCustom(Site? s) => s is not null && s.Id.StartsWith("CUSTOM", StringComparison.Ordinal);
+
+    /// <summary>Everything that keeps the main button disabled, in plain language (empty = it can run).</summary>
+    public IReadOnlyList<Blocker> LandBlockers()
+    {
+        var list = new List<Blocker>();
+        if (!state.IsLoaded) { list.Add(new(0, "Loading the site and lander data…")); return list; }
+        if (LandingInProgress) { list.Add(new(0, "Landing in progress — wait for touchdown")); return list; }
+        var site = state.SelectedSite;
+        if (site is null) list.Add(new(1, "Choose one of the 9 landing regions"));
+        else if (IsCustom(site)) list.Add(new(1, "Custom points can't be analysed yet — choose one of the 9 regions", NearestRegion: true));
+        else if (!state.AvailableSites.Any(a => a.Id == site.Id)) list.Add(new(1, "Choose one of the 9 landing regions"));
+        if (state.SelectedLander is null) list.Add(new(2, "Choose a lander"));
+        return list;
+    }
+
+    /// <summary>The closest of the 9 regions to a point (great-circle distance on the Moon).</summary>
+    public Site? NearestRegion(Site? point)
+    {
+        if (point is null || state.AvailableSites.Count == 0) return null;
+        static double Rad(double d) => d * Math.PI / 180;
+        double Dist(Site s)
+        {
+            var dLat = Rad(s.Lat - point.Lat);
+            var dLon = Rad(s.Lon - point.Lon);
+            var a = Math.Pow(Math.Sin(dLat / 2), 2) + Math.Cos(Rad(point.Lat)) * Math.Cos(Rad(s.Lat)) * Math.Pow(Math.Sin(dLon / 2), 2);
+            return 2 * Math.Asin(Math.Min(1, Math.Sqrt(a)));
+        }
+        return state.AvailableSites.OrderBy(Dist).First();
+    }
+
+    /// <summary>"Nearest region": replace a custom point with the closest analysable region.</summary>
+    public async Task SelectNearestRegionAsync()
+    {
+        if (NearestRegion(state.SelectedSite) is { } near) await state.SelectSite(near.Id);
+    }
+
+    public void SetOpenStep(int step)
+    {
+        OpenStep = step;
+        OpenStepRevision++;
+        Notify();
+    }
+
+    public void DismissFullAnalysisHint() { FullAnalysisHint = false; Notify(); }
+
+    /// <summary>RUN ANALYSIS without a landing (Analyst mode): the verdict card shows the new result.</summary>
+    public Task RunAnalysisAsync()
+    {
+        VerdictRequested = true;
+        VerdictDismissed = false;
+        Notify();
+        return analysis.RunAsync();
+    }
+
+    public void SetCredits(bool open) { CreditsOpen = open; Notify(); }
+
+    /// <summary>"?" in the top bar: show the welcome card again.</summary>
+    public void ShowWelcome() { WelcomeVisible = true; Notify(); }
 
     // ------------------------------------------------------------------ small UI state
 

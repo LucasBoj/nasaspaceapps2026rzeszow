@@ -1,0 +1,111 @@
+@using System.Globalization
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject UiService Ui
+@inject AnalysisService Analysis
+@inject MissionConfigState MissionState
+
+@* The one place the verdict is shown (both modes): floats at the bottom of the Moon view. *@
+@if (Visible && Analysis.Mission is { } m)
+{
+    var cls = VerdictText.CssClass(m.Verdict);
+    <section class="verdict-card @cls @(Inline ? "inline" : "overlay") @(Outdated ? "outdated" : "")" aria-labelledby="verdict-title">
+        @if (Outdated)
+        {
+            <div class="verdict-outdated" role="status">
+                <span>Results are out of date — settings changed.</span>
+                @if (Ui.CanConfirmLanding)
+                {
+                    <button type="button" class="btn-secondary small" @onclick="() => Ui.ConfirmLandingAsync()">Update results</button>
+                }
+                else
+                {
+                    <span>@string.Join(" · ", Ui.LandBlockers().Select(b => b.Text)).</span>
+                }
+            </div>
+        }
+        <div class="verdict-main" role="status" aria-live="polite" aria-atomic="true">
+            <h2 id="verdict-title" class="verdict-big">
+                <span class="verdict-icon" aria-hidden="true">@VerdictText.Icon(m.Verdict)</span>
+                @VerdictText.Label(m.Verdict)
+            </h2>
+            <p class="verdict-sentence">@VerdictText.Sentence(m, Analysis.MissionSiteName, MissionState.MinBatteryPercent, MissionState.MinCommsPercent)</p>
+        </div>
+
+        <dl class="verdict-numbers">
+            <div>
+                <dt>Sunlight</dt>
+                <dd>@P(m.SunPct)<small>%</small></dd>
+            </div>
+            <div class="@(m.MinSocPct < MissionState.MinBatteryPercent ? "low" : "")">
+                <dt>Lowest battery</dt>
+                <dd>@P(m.MinSocPct)<small>%</small></dd>
+            </div>
+            <div>
+                <dt>Earth contact</dt>
+                <dd>@P(m.CommsPct)<small>%</small></dd>
+            </div>
+            <div>
+                <dt>@(Analysis.Heatmap is not null ? "Best landing date" : "Landing date")</dt>
+                <dd class="date">@VerdictText.Date(m.LandingUtc)</dd>
+            </div>
+        </dl>
+
+        <div class="verdict-foot">
+            <span class="verdict-basis">
+                <Term Key="basedon" AriaLabel="What does 'based on' mean?">ⓘ</Term>
+                based on @BasisText(m.BasedOn) lander values
+            </span>
+            <span class="verdict-actions">
+                @if (Ui.FullAnalysisHint)
+                {
+                    <button type="button" class="link-btn full-analysis-hint" @onclick="Ui.ShowFullAnalysisAsync">See the full analysis →</button>
+                }
+                else
+                {
+                    <button type="button" class="btn-secondary small" @onclick="Ui.ShowFullAnalysisAsync">Show on timeline</button>
+                }
+                <button type="button" class="btn-secondary small new-landing" @onclick="Ui.NewLanding">New landing</button>
+            </span>
+        </div>
+    </section>
+}
+
+@code {
+    /// <summary>true: top of the Analyst results panel; false: floating over the Moon (SIMPLE).</summary>
+    [Parameter] public bool Inline { get; set; }
+
+    /// <summary>Only after the user (or QUICK DEMO) asked for a result, never mid-descent, and for the selected site.</summary>
+    private bool Visible =>
+        (Ui.VerdictRequested || Inline) && !Ui.VerdictDismissed && !Ui.LandingInProgress
+        && Analysis.Mission is not null;
+
+    /// <summary>Settings (site, lander, dates, limits, what-if) changed since this result was computed.</summary>
+    private bool Outdated => Analysis.IsOutdated || Analysis.MissionSiteId != MissionState.SelectedSite?.Id;
+
+    private static string P(double v) => Math.Round(v).ToString("0", CultureInfo.InvariantCulture);
+
+    private static string BasisText(string kind) => kind switch
+    {
+        ParamKind.Sourced => "published",
+        ParamKind.Derived => "derived",
+        _ => "estimated",
+    };
+
+    protected override void OnInitialized()
+    {
+        Ui.OnChanged += Refresh;
+        Analysis.OnChanged += Refresh;
+        MissionState.OnStateChanged += Refresh;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Ui.OnChanged -= Refresh;
+        Analysis.OnChanged -= Refresh;
+        MissionState.OnStateChanged -= Refresh;
+    }
+}

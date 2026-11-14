@@ -4,8 +4,9 @@
 @implements IAsyncDisposable
 @inject MissionConfigState MissionState
 @inject IJSRuntime JS
+@inject UiService Ui
 
-<div class="segmented" role="group" aria-label="Spacecraft class">
+<div class="segmented" role="group" aria-label="Lander type">
     @foreach (var (cls, label) in Classes)
     {
         var active = MissionState.SelectedLanderClass == cls;
@@ -14,9 +15,12 @@
     }
 </div>
 
-<p class="class-help"><Term Key="clps">CLPS</Term> robotic delivery landers · <Term Key="hls">HLS</Term> crewed Artemis landers</p>
+@if (Ui.AnalystMode)
+{
+    <p class="class-help"><Term Key="clps">CLPS</Term> robotic delivery landers · <Term Key="hls">HLS</Term> crewed Artemis landers</p>
+}
 
-<div class="lander-grid" role="radiogroup" aria-label="Spacecraft model" @ref="gridRef">
+<div class="lander-grid" role="radiogroup" aria-label="Lander" @ref="gridRef">
     @{ var landers = MissionState.FilteredLanders; var tabStop = TabStopId(landers); }
     @foreach (var lander in landers)
     {
@@ -25,20 +29,30 @@
                 tabindex="@(lander.Id == tabStop ? 0 : -1)"
                 class="lander-card @(selected ? "selected" : "")"
                 @key="lander.Id" @onclick="() => SelectLander(lander.Id)">
-            @if (selected)
-            {
-                <span class="lander-card-tag">SELECTED</span>
-            }
             <LanderSilhouette Kind="@lander.Id" />
             <span class="lander-card-name">@lander.Name</span>
             <span class="lander-card-maker">@lander.Manufacturer</span>
-            <span class="lander-card-class">@ClassLabel(lander.Class)</span>
-            <span class="lander-card-data">@DataSummary(lander)</span>
+            <span class="lander-card-quality" title="@QualityTitle(lander)">
+                <span class="quality-dot" aria-hidden="true" style="--q: @QualityShare(lander)"></span>@QualityText(lander)
+            </span>
         </button>
     }
 </div>
 
-@if (MissionState.SelectedLander is { } sel)
+@if (MissionState.SelectedLander is { } simple && !Ui.AnalystMode)
+{
+    <dl class="lander-keys" aria-label="@($"{simple.Name} key figures")">
+        @foreach (var (label, value) in KeyFacts(simple))
+        {
+            <div><dt>@label</dt><dd>@value</dd></div>
+        }
+    </dl>
+    <p class="lander-keys-note">
+        <Term Key="quality" AriaLabel="About data quality">ⓘ</Term>
+        @QualityTitle(simple)
+    </p>
+}
+@if (MissionState.SelectedLander is { } sel && Ui.AnalystMode)
 {
     <div class="lander-detail" @key="sel.Id">
         <div class="lander-detail-title">SPECS · @sel.Name.ToUpperInvariant()</div>
@@ -123,6 +137,24 @@
                                @oninput="e => OnSlider(slider.Key, e)" />
                     </div>
                 }
+                @if (sel.BatteryRoundTripEff is { } eff)
+                {
+                    var idealBattery = MissionState.IdealBattery;
+                    <div class="whatif-row">
+                        <span class="whatif-label" id="whatif-battery-label"><Term Key="batteff">Battery losses</Term></span>
+                        <span class="whatif-value">@(idealBattery ? "NONE (100%)" : $"{Fmt(Math.Round(eff.Value * 100))}% round trip")</span>
+                        @if (idealBattery)
+                        {
+                            <span class="kind-badge whatif">WHAT-IF</span>
+                        }
+                        <div class="segmented whatif-segmented" role="group" aria-labelledby="whatif-battery-label">
+                            <button type="button" class="segmented-option @(!idealBattery ? "active" : "")" aria-pressed="@(!idealBattery ? "true" : "false")"
+                                    @onclick="() => MissionState.ClearWhatIf(MissionConfigState.WhatIfIdealBattery)">REAL (data)</button>
+                            <button type="button" class="segmented-option @(idealBattery ? "active" : "")" aria-pressed="@(idealBattery ? "true" : "false")"
+                                    @onclick="() => MissionState.SetWhatIf(MissionConfigState.WhatIfIdealBattery, 1)">IDEAL (no losses)</button>
+                        </div>
+                    </div>
+                }
                 @if (MissionState.HasFixedPanels)
                 {
                     var ideal = MissionState.IdealTracking;
@@ -160,7 +192,12 @@
                         </div>
                     }
                 }
+                @if (!MissionState.HasWhatIf)
+                {
+                    <p class="reason" id="whatif-reset-reason">Nothing to reset — the sliders show the lander data.</p>
+                }
                 <button type="button" class="btn-secondary whatif-reset" disabled="@(!MissionState.HasWhatIf)"
+                        aria-describedby="@(MissionState.HasWhatIf ? null : "whatif-reset-reason")"
                         @onclick="MissionState.ResetWhatIf">Reset to data</button>
             </div>
         </details>
@@ -170,9 +207,32 @@
 @code {
     private static readonly (string Class, string Label)[] Classes =
     [
-        ("clps", "CLPS · ROBOTIC"),
-        ("hls", "HLS · CREWED"),
+        ("clps", "Robotic"),
+        ("hls", "Crewed"),
     ];
+
+    // ---- data quality ("● 4/7 sourced") and plain-language key facts (SIMPLE mode)
+
+    private static int Total(LanderPreset l) => l.AllParams.Count();
+    private static string QualityText(LanderPreset l) => $"{l.CountKind(ParamKind.Sourced)}/{Total(l)} sourced";
+    private static string QualityShare(LanderPreset l) =>
+        (Total(l) == 0 ? 0 : (double)l.CountKind(ParamKind.Sourced) / Total(l)).ToString("0.00", CultureInfo.InvariantCulture);
+
+    private static string QualityTitle(LanderPreset l)
+    {
+        var total = Total(l);
+        var parts = new List<string> { $"{l.CountKind(ParamKind.Sourced)} of {total} values come from a published source" };
+        if (l.CountKind(ParamKind.Derived) is var d and > 0) parts.Add($"{d} derived from published figures");
+        if (l.CountKind(ParamKind.Assumption) is var a and > 0) parts.Add($"{a} {(a == 1 ? "is a class estimate" : "are class estimates")}");
+        return string.Join(", ", parts) + ".";
+    }
+
+    private static IEnumerable<(string Label, string Value)> KeyFacts(LanderPreset l)
+    {
+        if (l.SolarArrayW is { } a) yield return ("Solar power", $"{Fmt(a.Value)} W");
+        if (l.BatteryWh is { } b) yield return ("Battery", $"{Fmt(b.Value)} Wh");
+        if (l.MissionDurationDays is { } m) yield return ("Built to last", VerdictText.Days(m.Value));
+    }
 
     private ElementReference gridRef;
     private IJSObjectReference? gridModule;
@@ -182,23 +242,11 @@
     private record ImpactRow(string Label, string Value, string? Basis, bool WhatIf, string Tone = "");
     private record Slider(string Key, string Label, string Unit, double Data, double Min, double Max, double Step);
 
-    private static string ClassLabel(string cls) => cls == "hls" ? "HLS · CREWED" : "CLPS · ROBOTIC";
-
     /// <summary>Invariant number formatting; thousands separators for display, plain for attributes.</summary>
     private static string Fmt(double v, bool raw = false)
     {
         if (raw) return v.ToString("0.###", CultureInfo.InvariantCulture);
         return v.ToString(Math.Abs(v % 1) < 1e-9 ? "#,0" : "#,0.0", CultureInfo.InvariantCulture);
-    }
-
-    private static string DataSummary(LanderPreset l)
-    {
-        var parts = new List<string>();
-        void Add(int n, string label) { if (n > 0) parts.Add($"{n} {label}"); }
-        Add(l.CountKind(ParamKind.Sourced), "SOURCED");
-        Add(l.CountKind(ParamKind.Derived), "DERIVED");
-        Add(l.CountKind(ParamKind.Assumption), "ASSUMED");
-        return "DATA: " + string.Join(" · ", parts);
     }
 
     private static IEnumerable<SpecRow> SpecRows(LanderPreset l)
@@ -207,6 +255,7 @@
         if (l.SolarArrayW is { } a) yield return new("solar", "Solar array", a, Num(a));
         if (l.Panels is { } pl) yield return new("panels", "Panels", pl, PanelsText(pl));
         if (l.BatteryWh is { } b) yield return new("battery", "Battery", b, Num(b));
+        if (l.BatteryRoundTripEff is { } e) yield return new("batteff", "Battery efficiency", e, $"{Fmt(Math.Round(e.Value * 100))}% round trip");
         if (l.DayLoadW is { } d) yield return new("dayload", "Day load", d, Num(d));
         if (l.SurvivalLoadW is { } s) yield return new("survival", "Survival load", s, Num(s));
         if (l.MissionDurationDays is { } m) yield return new("duration", "Mission duration", m, Num(m));
@@ -242,8 +291,10 @@
         if (battery is > 0 && survival is > 0)
         {
             var whatIf = MissionState.IsWhatIf(MissionConfigState.WhatIfBatteryWh) || MissionState.IsWhatIf(MissionConfigState.WhatIfSurvivalLoadW);
-            yield return new("Survives darkness", $"≈ {Fmt(Math.Round(battery.Value / survival.Value, 1))} h",
-                Weakest(l.BatteryWh, l.SurvivalLoadW), whatIf);
+            // Usable energy after discharge losses (√η of the round-trip efficiency).
+            var usable = battery.Value * Math.Sqrt(MissionState.BatteryRoundTripEff);
+            yield return new("Survives darkness", $"≈ {Fmt(Math.Round(usable / survival.Value, 1))} h",
+                Weakest(l.BatteryWh, l.BatteryRoundTripEff, l.SurvivalLoadW), whatIf || MissionState.IdealBattery);
         }
 
         if (solar is not null && l.DayLoadW is { } day)

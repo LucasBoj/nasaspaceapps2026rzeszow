@@ -60,7 +60,7 @@ Na Mikrusie publiczny dostęp po IPv4 zwykle nie trafia na port 80 Twojego serwe
 2. sprawdza `index.html` (w tym `importmap` i skrypt Blazor), `_framework`, `data/illumination/index.json` i `appsettings.json`,
 3. **przerywa**, jeśli w publikacji znalazłby się `appsettings.Development.json` z lokalnym tokenem,
 4. wstrzykuje `CESIUM_ION_TOKEN` (jeśli ustawiony) **tylko** do opublikowanej kopii `appsettings.json`; ostrzega, gdy token jest pusty (wtedy strona działa w trybie 2D),
-5. wpisuje pełny adres do `og:image` i kompresuje `nova_c.glb` (13,3 MB → 8,6 MB `.gz`),
+5. wpisuje pełny adres do `og:image` i kompresuje modele `*.glb` (5 lądowników, łącznie 9,3 MB → 8,4 MB `.gz`; są już skompresowane meshopt, zob. `tools/optimize-models`),
 6. wypisuje rozmiar i 10 największych plików,
 7. robi `rsync` (`--delete-after --delay-updates`: nowe pliki wchodzą razem na końcu, więc odwiedzający nie trafią na pół-wgraną wersję; uprawnienia zawsze 755/644, bez właściciela, więc działa jako `root` i jako `deploy`),
 8. uruchamia `smoke-test.sh` na adresie celu (lokalnie tylko ostrzeżenie, gdy coś nie gra).
@@ -199,7 +199,7 @@ Postęp: zakładka **Actions** → przebieg „Deploy …”. Na stronie przebie
 ## Rozmiary (pomiar 2026-11-14)
 
 - `out/publish/wwwroot` na dysku: **56 MB** (z wariantami `.gz`/`.br`), w tym lokalne CesiumJS (`lib/cesium-1.120`, 13 MB bez kompresji) od 2026-11-14 18:05.
-- Największe pliki: `models/nova_c.glb` 13,3 MB (8,6 MB po gzip), `dotnet.native.wasm` 2,9 MB (1,2 MB gzip), `System.Private.CoreLib.wasm` 1,5 MB (0,6 MB gzip).
+- Największe pliki: `lib/cesium-1.120/Cesium.js` 4,8 MB, `dotnet.native.wasm` 2,9 MB (1,2 MB gzip), `System.Private.CoreLib.wasm` 1,5 MB (0,6 MB gzip); modele lądowników 1,3–2,6 MB każdy (ładowane w tle po starcie, nie blokują pierwszego widoku).
 - Pierwsza wizyta przesyła ok. 3–4 MB (`Cesium.js` to 1,4 MB po gzip, tyle samo co wcześniej z CDN, ale z naszego serwera). Model Nova-C (8,6 MB) pobiera się w tle dopiero po kilku sekundach.
 
 ## Wycofanie wersji (ręcznie)
