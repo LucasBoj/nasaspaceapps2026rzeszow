@@ -72,6 +72,13 @@ jobs:
             deploy=true
           fi
           if [[ "$TARGET" == stable ]]; then url="$STABLE_URL"; var=STABLE_URL; else url="$PREVIEW_URL"; var=PREVIEW_URL; fi
+          url="$(printf '%s' "$url" | tr -d '[:space:]')"
+          # Same rule as deploy.sh: an address without a scheme gets https://, and a trailing slash.
+          if [[ -n "$url" && "$url" != *://* ]]; then
+            echo "::warning title=URL without scheme::$var is '$url'; using https://$url/. Set the full address (https://…/) in Settings → Variables."
+            url="https://$url"
+          fi
+          [[ -z "$url" || "$url" == */ ]] || url="$url/"
           [[ -n "$url" ]] || echo "::warning title=No site URL::Repository variable $var is not set: no smoke test, og:image uses the default address from deploy.sh."
           [[ "$HAS_TOKEN" == true ]] || echo "::notice title=2D mode::Secret CESIUM_ION_TOKEN is not set: the site runs in 2D MOSAIC MODE (no 3D terrain)."
           { echo "deploy=$deploy"; echo "site_url=$url"; echo "url_var=$var"; } >> "$GITHUB_OUTPUT"
@@ -111,13 +118,37 @@ jobs:
           MIKRUS_PORT: ${{ secrets.MIKRUS_PORT }}
         run: |
           install -d -m 700 ~/.ssh
-          # tr: a key pasted on Windows may carry CR line endings, which OpenSSH rejects.
-          printf '%s\n' "$MIKRUS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          if ! ssh-keygen -y -P '' -f ~/.ssh/id_ed25519 > /dev/null 2>&1; then
-            echo "::error title=MIKRUS_SSH_KEY::Not a private key without a passphrase. Paste the whole ~/.ssh/mikrus_deploy file, BEGIN/END lines included."
+          key=~/.ssh/id_ed25519
+          # Normalise whitespace from copy-paste: CR (Windows), indented or blank lines, line breaks
+          # turned into spaces. The armor lines stay; the base64 body is re-split on whitespace.
+          MIKRUS_SSH_KEY="$MIKRUS_SSH_KEY" python3 - "$key" <<'PY'
+          import os, re, sys
+          text = os.environ["MIKRUS_SSH_KEY"].replace("\r", "")
+          m = re.fullmatch(r"\s*(-----BEGIN [A-Z0-9 ]+-----)\s*(.*?)\s*(-----END [A-Z0-9 ]+-----)\s*", text, re.S)
+          if m:
+              text = m.group(1) + "\n" + "\n".join(m.group(2).split()) + "\n" + m.group(3) + "\n"
+          elif not text.endswith("\n"):
+              text += "\n"
+          fd = os.open(sys.argv[1], os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+          with os.fdopen(fd, "w", newline="\n") as f:
+              f.write(text)
+          PY
+          chmod 600 "$key"
+          # Say WHY a key is unusable, without ever printing it.
+          if ! err="$(ssh-keygen -y -P '' -f "$key" 2>&1 > /dev/null)"; then
+            lines="$(grep -c . "$key" || true)"
+            if grep -qE '^(ssh-|ecdsa-|sk-)' "$key"; then hint="this is the PUBLIC key (.pub). Paste the private file ~/.ssh/mikrus_deploy, without .pub"
+            elif grep -q 'PuTTY-User-Key-File' "$key"; then hint="PuTTY .ppk format. Generate an OpenSSH key with ssh-keygen (deploy/README.md, step 1)"
+            elif ! grep -q -- '-----BEGIN ' "$key"; then hint="no -----BEGIN ... PRIVATE KEY----- line. Paste the whole file"
+            elif ! grep -q -- '-----END ' "$key"; then hint="no -----END ... PRIVATE KEY----- line (cut off?). Paste the whole file"
+            elif grep -qi passphrase <<< "$err"; then hint="the key has a passphrase. CI needs a key made with ssh-keygen -N \"\""
+            else hint="ssh-keygen: ${err##*: }"
+            fi
+            echo "::error title=MIKRUS_SSH_KEY::Not usable: $hint. (${lines} non-empty lines; the key itself is never printed.)"
             exit 1
           fi
+          # Public fingerprint, to compare with: ssh-keygen -l -f ~/.ssh/mikrus_deploy.pub
+          echo "SSH key OK: $(ssh-keygen -l -f "$key" | awk '{ print $2, $NF }')"
           if [[ -n "$MIKRUS_KNOWN_HOSTS" ]]; then
             printf '%s\n' "$MIKRUS_KNOWN_HOSTS" | tr -d '\r' >> ~/.ssh/known_hosts
           else

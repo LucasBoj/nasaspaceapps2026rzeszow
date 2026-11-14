@@ -15,11 +15,14 @@
 # Exit codes: 0 all checks passed · 1 a check failed · 2 wrong usage · 3 missing tool
 set -euo pipefail
 
-URL="${1:-}"
+URL="$(printf '%s' "${1:-}" | tr -d '[:space:]')"
 LOCAL_INDEX="${2:-}"
-if [[ ! "$URL" =~ ^https?:// ]]; then
+if [[ -z "$URL" ]]; then
   echo "Usage: $0 <http(s)://site-url/> [local index.html]" >&2; exit 2
 fi
+# Same rule as deploy.sh: no scheme → https://
+[[ "$URL" == *://* ]] || URL="https://$URL"
+[[ "$URL" =~ ^https?:// ]] || { echo "Only http:// and https:// URLs are supported, got: $URL" >&2; exit 2; }
 [[ -z "$LOCAL_INDEX" || -f "$LOCAL_INDEX" ]] || { echo "No such file: $LOCAL_INDEX" >&2; exit 2; }
 command -v curl >/dev/null 2>&1 || { echo "missing tool: curl" >&2; exit 3; }
 

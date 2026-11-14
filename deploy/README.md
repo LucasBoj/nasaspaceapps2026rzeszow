@@ -142,7 +142,7 @@ Zakładka **Secrets** → *New repository secret*:
 | `CESIUM_ION_TOKEN` | token z ograniczeniem do adresów strony (krok 5 wyżej); bez niego tryb 2D | opcjonalny |
 | `MIKRUS_KNOWN_HOSTS` | wynik `ssh-keyscan -p 10177 kamil177.mikrus.xyz` (przypięty klucz hosta zamiast pobierania go przy każdym wdrożeniu) | opcjonalny |
 
-Zakładka **Variables** → *New repository variable*: `PREVIEW_URL` i `STABLE_URL`, pełne adresy z krokiem 3 wyżej, np. `http://kamil177.mikrus.xyz:8080/` i `http://kamil177.mikrus.xyz/` (albo subdomena z panelu). Bez nich wdrożenie działa, ale smoke test jest pomijany (z ostrzeżeniem), a `og:image` dostaje domyślny adres z `deploy.sh`.
+Zakładka **Variables** → *New repository variable*: `PREVIEW_URL` i `STABLE_URL`, **pełne** adresy razem z `https://` (krok 3 wyżej), np. `https://selene.byst.re/`. Każdy cel potrzebuje własnego adresu: subdomena z panelu Mikrusa wskazuje na jeden port, czyli albo na stable (80), albo na preview (8080). Adres bez `https://` workflow uzupełni sam (z ostrzeżeniem). Bez zmiennych wdrożenie działa, ale smoke test jest pomijany (z ostrzeżeniem), a `og:image` dostaje domyślny adres z `deploy.sh`.
 
 To samo z [GitHub CLI](https://cli.github.com/) (wartości nie lądują w historii powłoki):
 
@@ -223,7 +223,7 @@ git checkout main
 | 401 z `api.cesium.com` | Adres strony nie jest w Allowed URLs tokena albo token jest zły. Strona działa wtedy dalej w 2D. |
 | Actions: ostrzeżenie „Deploy skipped” | Brak sekretu `MIKRUS_SSH_KEY` (krok 3). Testy i build przeszły, nic nie wysłano. |
 | Sekrety dodane, a kroki SSH/rsync dalej „skipped” | Przebieg wystartował przed dodaniem sekretów; samo dodanie sekretu nie uruchamia workflow. **Actions → Deploy → Run workflow** albo kolejny push. |
-| Actions: `MIKRUS_SSH_KEY … not a private key` / `Load key: invalid format` | Wklejono `.pub` albo niepełny plik. Wklej całe `~/.ssh/mikrus_deploy`, z liniami `BEGIN`/`END`. |
+| Actions: `MIKRUS_SSH_KEY: Not usable: …` | Komunikat mówi, co jest nie tak: klucz publiczny (`.pub`), format PuTTY, brak linii `BEGIN`/`END`, klucz z hasłem. Sprawdź plik lokalnie: `ssh-keygen -y -P "" -f ~/.ssh/mikrus_deploy` musi wypisać klucz publiczny bez pytania o hasło. Skopiuj go dokładnie: `cat ~/.ssh/mikrus_deploy \| clip` (Git Bash) i wklej jako nową wartość sekretu. Spacje, CRLF i wcięcia workflow poprawia sam. Po udanym kroku log pokazuje odcisk klucza; porównaj z `ssh-keygen -l -f ~/.ssh/mikrus_deploy.pub`. |
 | Actions: `No SSH host key from the server` | Zły `MIKRUS_HOST`/`MIKRUS_PORT` albo serwer nie odpowiada; z laptopa: `ssh-keyscan -p 10177 kamil177.mikrus.xyz`. |
 | Actions: `Host key verification failed` | Zmienił się klucz hosta (np. reinstalacja serwera). Zaktualizuj `MIKRUS_KNOWN_HOSTS` albo usuń ten sekret. |
 | Actions: `Permission denied (publickey)` | Klucz `.pub` nie trafił do `authorized_keys` właściwego użytkownika (krok 2) albo `MIKRUS_USER` jest inny niż ten, któremu go dodano. |
