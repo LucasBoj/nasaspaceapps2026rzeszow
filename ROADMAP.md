@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 15:20 CET
+**Ostatnia aktualizacja:** 2026-11-14 16:30 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -48,6 +48,7 @@
 - [x] Dopracowanie i odporność: tokeny odstępów i ruchu, stany hover/active/focus, animowane liczby, skeletony, neutralna plakietka „2D MOSAIC MODE”, statusy na żywo, baner błędu ładowania, stopka z atrybucją i zastrzeżeniem „Not affiliated…”, favicon, meta + Open Graph + `og.png`; źródło miejsca w sekcji 01; zsynchronizowana lista miejsc; usunięte pole „Time Step” — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
 - [x] Responsywność: bez `min-width`, układ kolumnowy < 1024 px, 1366×768 bez ucinania; sprawdzone w Chromium, Firefox i WebKit (23/23 w każdej) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
 - [x] Wydajność i deploy: brakujący `importmap` w `index.html` (bez niego aplikacja nie startowała na statycznym hostingu), Cesium `defer` + `preconnect`, `InvariantGlobalization`, token wykluczony z publikacji. Release + Brotli: wynik po 2,3 s (szybkie łącze) / 3,7 s (20 Mbit/s) — 2026-11-14 15:10 — `2885f11` — AI: Claude Code
+- [x] Animacja lądowania (P2 „Animacja lądowania”): osobny moduł `landingAnimation.js`, własny schematyczny model z prymitywów Cesium (CLPS / HLS), opadanie z 15 km z krzywą hamowania, kamera pościgowa i orbita, pierścień pyłu i błysk; HUD „SIMULATED DESCENT” z ALT, V/S, RANGE i fazami z tej samej krzywej; przycisk CONFIRM LANDING SITE i QUICK DEMO z analizą liczoną równolegle; pomijanie (klik, SKIP, Esc); flaga `features.landingAnimation` + przełącznik w HUD; tryb ograniczonego ruchu; wysokość z terenu 3D z fallbackiem na elipsoidę. Testy: Chromium 3D/2D, Firefox, WebKit — 22/22 — 2026-11-14 16:25 — `c726269` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -79,6 +80,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - [ ] **Pitch na lokalne jury**: slajdy, scenariusz demo offline, odpowiedzi na trudne pytania — wszyscy
   - Gotowe, gdy: jest próba generalna na czas z demo uruchomionym bez internetu.
 - [ ] **Hostować Cesium u siebie (z Brotli)** — dziś ~1,45 MB z CDN; potrzebne też do trybu offline i może zejść poniżej 3 s na łączu 20 Mbit/s — C
+- [ ] **Zmierzyć fps animacji lądowania na prawdziwym laptopie** (Chrome/Firefox/Safari, z GPU) — w testach headless z programowym WebGL było 11–44 fps i model się upraszczał; cel ≥ 30 fps bez uproszczeń — C
 - [ ] **Sprawdzić prawdziwego Firefoksa** — w headless Firefox (programowe WebGL) mapa ciepła po QUICK DEMO liczy się ~10 s; werdykt pojawia się od razu — C
 - [ ] **Alternatywy miejsca w sekcji 01** (`alternatives` z `sites.json`) do przełączania jednym kliknięciem — C
 - [ ] **Warstwa Moon Trek w odwzorowaniu polarnym** (South Polar Stereographic) zamiast mozaiki walcowej, która przy biegunie jest rozmazana — C
@@ -89,7 +91,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - [ ] Animacja cieni w 3D sterowana efemerydami (`scene.light = DirectionalLight`; zaślepka `setSunDirection` już istnieje) — C
 - [ ] Raport misji do druku/PDF — C
 - [ ] Dane partnera: JAXA Kaguya (SELENE) DEM jako druga warstwa terenu — A
-- [ ] Animacja lądowania — C
 
 ## 💡 Ideas / Backlog
 
@@ -109,6 +110,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — wybór lądownika tylko do odczytu (SPECS z pochodzeniem danych, LANDER IMPACT, what-if), weryfikacja dostępności linków źródłowych, testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — animacja lądowania (moduł, HUD, integracja z analizą), diagnoza błędu renderowania Cesium (lot kamery vs `lookAt`), testy w 4 konfiguracjach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — pierwsze wrażenie i dopracowanie frontu: ekran startowy, QUICK DEMO, porównanie miejsc, róża Słońca/Ziemi, nakładka kandydatów, słowniczek, responsywność, metadane i `og.png`, poprawki wdrożeniowe, pomiary wydajności, testy w 3 przeglądarkach
 
 ## ⚠️ Known issues / ryzyka
@@ -132,5 +134,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - ~~Drobne błędy UI~~ — lista miejsc, favicon i statusy naprawione w `2885f11`; `[class.expanded]` w `1e7a604`.
 - **Czas ładowania** — wynik po 3,7 s na łączu 20 Mbit/s (cel ≤ 3 s spełniony tylko na szybkim łączu); ograniczeniem jest transfer runtime'u .NET (~2 MB) i Cesium (~1,45 MB).
 - **Zgłaszane przesunięcie terenu Cesium Moon (~2,5 km względem LOLA, niepotwierdzone)** — pinezki są przypięte do terenu 3D, a horyzonty i wyniki liczone są z LOLA, więc wizualizacja może się minimalnie różnić od obliczeń.
+- **Animacja lądowania jest ilustracyjna** — telemetria (ALT, V/S, RANGE) wynika z krzywej animacji przeskalowanej do ~10 minut opadania, a nie z dynamiki lotu; model jest schematyczny i ~10× powiększony. Na pitchu mówić „simulated, illustrative” (tak jak plakietka).
+- **Teren Cesium Moon leży wysoko nad elipsoidą** — w Nobile Rim 1 próbkowanie daje +6,76 km. Lądownik siada na terenie 3D, ale obliczenia oświetlenia nadal pochodzą z LOLA (spójne z `pipeline/`).
 - **`InvariantTimezone` wymaga workloadu `wasm-tools`** — nie włączone; opcjonalna dalsza oszczędność rozmiaru.
 - **GitHub Pages** — `<base href="/">` nie zadziała pod podścieżką repo.

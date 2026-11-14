@@ -87,6 +87,10 @@ python -m pytest -q
 - `wwwroot/appsettings.Development.json` (token) is excluded from publish in the csproj. Keep it that way: published files are public.
 - CesiumJS is loaded with `defer`. Code touching `Cesium` must wait for `UiService.WhenCesiumReadyAsync()` (MoonPanel does).
 - Editing anything in `wwwroot` makes a running `dotnet watch` rebuild. A second `dotnet run --no-build` instance then serves a stale manifest (MIME errors), so restart it.
+- Cesium camera: call `camera.cancelFlight()` before `camera.lookAt()`. A running `flyTo` (intro, fly-to-site) plus `lookAt` drives the camera to NaN, and Cesium stops rendering with "Invalid array length". Release a `lookAt` lock with `lookAtTransform(Matrix4.IDENTITY)` before other camera moves (`releaseCamera()` in moonViewer.js).
+- Never sample the clock twice for related geometry (e.g. ellipse semi-axes): compute once per frame. Invalid geometry stops the Cesium render loop. `moonViewer.js` has a render-error safety net, so check `window.__seleneRenderErrors` in tests.
+- JS modules (`moonViewer.js`, `landingAnimation.js`…) are fingerprinted with `integrity` through the importmap. After editing JS, rebuild or restart the dev server, or the browser blocks the module.
+- The landing animation is optional (`features.landingAnimation`). Nothing outside `landingAnimation.js` may depend on it, and `moonViewer.js` only imports it lazily.
 - UI state that many components share (boot, welcome, help, compare, compass time) lives in `UiService`. Timeline hover uses its own `HoverTimeChanged` event so the whole UI does not re-render on mouse move.
 - `sites.json` is **generated** by `pipeline/select_sites.py` from Wueller et al. (2026) candidates (Zenodo, CC-BY-4.0). Do not edit coordinates by hand; re-run the pipeline. Their shapefile projection has true scale at −70°, unlike the DEM (−90°), so always reproject with the shipped `.prj`.
 - "Lit" has two definitions: `index.json → pctSunlit` uses `sunFraction > 0`, while site selection and the 6.5-day test use `≥ 50`.
