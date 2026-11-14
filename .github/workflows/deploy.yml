@@ -164,7 +164,8 @@ jobs:
           DEPLOY: ${{ steps.cfg.outputs.deploy }}
           SITE_URL: ${{ steps.cfg.outputs.site_url }}
           URL_VAR: ${{ steps.cfg.outputs.url_var }}
-          CANCELLED: ${{ cancelled() }}
+          # Status functions such as cancelled() are only allowed in `if:`; job.status works here.
+          JOB_STATUS: ${{ job.status }}
           TESTS: ${{ steps.tests.outcome }}
           BUILD: ${{ steps.build.outcome }}
           UPLOAD: ${{ steps.upload.outcome }}
@@ -182,8 +183,8 @@ jobs:
         run: |
           if [[ "$UPLOAD" == success && "$SMOKE_RESULT" == passed ]]; then status="✅ Deployed and verified (smoke test passed)"
           elif [[ "$UPLOAD" == success && "$SMOKE_RESULT" == skipped ]]; then status="✅ Deployed — ⚠️ smoke test skipped (no URL variable)"
-          elif [[ "$UPLOAD" == success && "$CANCELLED" != true ]]; then status="❌ Deployed, but the smoke test FAILED"
-          elif [[ "$CANCELLED" == true ]]; then status="⏹️ Cancelled (usually: a newer run for the same target took over)"
+          elif [[ "$UPLOAD" == success && "$JOB_STATUS" != cancelled ]]; then status="❌ Deployed, but the smoke test FAILED"
+          elif [[ "$JOB_STATUS" == cancelled ]]; then status="⏹️ Cancelled (usually: a newer run for the same target took over)"
           elif [[ "$UPLOAD" == failure ]]; then status="❌ Upload failed — with rsync --delay-updates the site most likely still serves the previous version; fix and re-run the job"
           elif [[ "$CFG" == failure ]]; then status="❌ Deploy configuration incomplete (see the error annotation) — the site was not changed"
           elif [[ "$DEPLOY" == false && "$BUILD" == success ]]; then status="⚠️ Not deployed: secret MIKRUS_SSH_KEY is not set (tests and build only)"
