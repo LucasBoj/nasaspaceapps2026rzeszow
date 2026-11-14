@@ -28,7 +28,7 @@
 - [x] Panel konfiguracji przewija się zamiast ucinać sekcje — 2026-11-14 12:20 — `7dc6e0e` — AI: Claude Code
 - [x] Pipeline Python: maska horyzontu z LOLA, efemerydy Skyfield, `illumination/{siteId}.json` dla 9 miejsc + `index.json`, 22 testy — 2026-11-14 12:32 — `780cf1b` — AI: Claude Code. ⚠️ Wyniki dotyczą przybliżonych współrzędnych (patrz Known issues).
 - [x] Walidacja liczbowa metody: najlepszy punkt grzbietu Shackleton–de Gerlache wychodzi 89,7% czasu w świetle (2027–28), literatura podaje ~89–92%. Opis w `pipeline/README.md` — 2026-11-14 12:32 — `780cf1b` — AI: Claude Code
-- [x] `CLAUDE.md` (kontekst projektu) i `ROADMAP.md` — 2026-11-14 12:45 — commit „Add CLAUDE.md and ROADMAP.md” — AI: Claude Code
+- [x] `CLAUDE.md` (kontekst projektu) i `ROADMAP.md` — 2026-11-14 12:45 — `754bafc` — AI: Claude Code
 
 ## 🔄 In progress
 
