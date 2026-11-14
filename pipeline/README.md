@@ -154,6 +154,55 @@ Other assumptions:
   (Mazarico et al. 2011, Icarus 211; Gläser et al. 2014), computed over different time
   spans and DEM resolutions.
 
+## Validation vs JPL Horizons
+
+`validate_horizons.py` checks the Sun and Earth positions against
+[NASA/JPL Horizons](https://ssd.jpl.nasa.gov/horizons/), which is an independent
+implementation running a newer ephemeris (DE441). The check covers all 9 sites at 24
+epochs (2027-02-01, 2027-08-15, 2028-03-20 and 2028-10-05, 00–05 UTC hourly). Each
+query asks for the apparent azimuth and elevation (`QUANTITIES='4'`) as seen from
+`CENTER='coord@301'`, `COORD_TYPE='GEODETIC'`, `SITE_COORD='lon,lat,0'`. The raw
+responses are stored in `data/horizons/`, so the check and `tests/test_horizons.py` run
+offline.
+
+```bash
+python validate_horizons.py            # compare using the stored snapshots
+python validate_horizons.py --refresh  # re-query the API (sends only public site coordinates)
+```
+
+**Conventions.** These were read from the Horizons response headers and confirmed by the
+numbers below.
+
+* The site coordinates are east longitude and latitude in the lunar **Mean-Earth (ME)**
+  frame (`Center pole/equ : MEAN_ME (high precision)`). That is the same frame as our
+  `MOON_ME_DE421`.
+* The reference surface is a sphere with R = 1737.4 km, as in our model.
+* Azimuth is measured clockwise from north. Elevation is airless (no refraction) and
+  apparent.
+* Times are UTC.
+
+No conversion is needed. If the site is placed in the Principal-Axis frame instead, the
+residuals grow by a factor of about 2000.
+
+Results (pipeline or shipped JSON minus Horizons, absolute values, 216 samples per row):
+
+| Comparison | Elevation range | max \|Δel\| | mean \|Δel\| | max \|Δaz\| | mean \|Δaz\| |
+|---|---:|---:|---:|---:|---:|
+| Sun: pipeline (DE421, `MOON_ME_DE421`) | −7.6° … 6.2° | 0.000010° (0.036″) | 0.000005° (0.018″) | 0.000008° (0.028″) | 0.000004° (0.013″) |
+| Earth: pipeline (DE421, `MOON_ME_DE421`) | −8.5° … 11.4° | 0.000010° (0.035″) | 0.000007° (0.024″) | 0.000009° (0.032″) | 0.000005° (0.017″) |
+| Sun: shipped `illumination/*.json` (0.01° steps) | −7.6° … 6.2° | 0.0050° | 0.0025° | 0.0050° | 0.0025° |
+| Earth: shipped `illumination/*.json` (0.01° steps) | −8.4° … 11.4° | 0.0050° | 0.0027° | 0.0050° | 0.0024° |
+| *Sun: site in `MOON_PA_DE421` (wrong frame)* | | *0.0227°* | *0.0138°* | *0.0211°* | *0.0190°* |
+| *Earth: site in `MOON_PA_DE421` (wrong frame)* | | *0.0236°* | *0.0219°* | *0.0211°* | *0.0185°* |
+
+The pipeline agrees with Horizons to about 0.04″. The shipped files agree to within their
+0.01° rounding. The test uses a tolerance of **0.001°** for the pipeline. That is about
+100× the observed residual, which leaves headroom if Horizons moves to a newer ephemeris.
+It is still 20× tighter than the ME↔PA offset, so a frame or convention error fails the
+test. The tolerance for the shipped JSON is **0.006°**: half a rounding step plus the
+pipeline tolerance. The reasoning is written out in the test's docstring. For scale, the
+horizon mask uses 1° azimuth steps and the solar radius is 0.267°.
+
 ## Validation vs NASA statement
 
 NASA's 2022 release states that *"All 13 regions contain sites that provide continuous

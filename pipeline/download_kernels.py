@@ -39,11 +39,28 @@ KERNELS: dict[str, str] = {
 DEFAULT_DIR = Path(__file__).resolve().parent / "kernels"
 
 
+def _mark(ok: bool, stream=None) -> str:
+    """'✓'/'✗', or 'OK'/'FAIL' if the console encoding (e.g. Windows cp1250) cannot show them."""
+    symbol = "✓" if ok else "✗"
+    try:
+        symbol.encode((stream or sys.stdout).encoding or "ascii")
+    except (UnicodeEncodeError, LookupError):
+        return "OK" if ok else "FAIL"
+    return symbol
+
+
+def _make_console_safe() -> None:
+    """Never crash on characters the console encoding lacks (e.g. dashes in --help on cp852)."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+
+
 def download(name: str, url: str, target_dir: Path) -> bool:
     """Download one kernel unless it already exists. Returns True on success."""
     target = target_dir / name
     if target.exists() and target.stat().st_size > 0:
-        print(f"  ✓ {name} (already present)")
+        print(f"  {_mark(True)} {name} (already present)")
         return True
 
     tmp = target.with_suffix(target.suffix + ".part")
@@ -53,16 +70,17 @@ def download(name: str, url: str, target_dir: Path) -> bool:
             while chunk := resp.read(1 << 20):
                 out.write(chunk)
         tmp.replace(target)
-        print(f"  ✓ {name} ({target.stat().st_size / 1e6:.1f} MB)")
+        print(f"  {_mark(True)} {name} ({target.stat().st_size / 1e6:.1f} MB)")
         return True
     except (urllib.error.URLError, OSError) as exc:
         tmp.unlink(missing_ok=True)
         reason = getattr(exc, "code", None) or getattr(exc, "reason", None) or exc
-        print(f"  ✗ {name}: download failed ({reason})\n      URL: {url}", file=sys.stderr)
+        print(f"  {_mark(False, sys.stderr)} {name}: download failed ({reason})\n      URL: {url}", file=sys.stderr)
         return False
 
 
 def main() -> int:
+    _make_console_safe()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--dir", type=Path, default=DEFAULT_DIR, help="target directory (default: ./kernels)")
     args = parser.parse_args()
