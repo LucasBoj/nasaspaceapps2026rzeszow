@@ -20,7 +20,12 @@ const PANEL = "#1d3557";          // our own schematic solar plates (from lander
 // Front of a glTF model after Cesium's axis correction: glTF +Z ("front" by the glTF spec) becomes
 // the local +X axis, i.e. east in an east-north-up modelMatrix. Azimuth in degrees clockwise from north.
 const GLB_FRONT_AZ_DEG = 90;
-const YAW_MIN_RATE = Math.PI / 3; // rad/s: slowest yaw manoeuvre (60°/s); faster if touchdown is close
+const YAW_MIN_RATE = Math.PI / 3; // rad/s: slowest yaw manoeuvre (60°/s); faster when the deadline is close
+// Yaw window: starts below YAW_START_ALT_M and must be finished by YAW_DONE_ALT_M, i.e. about one
+// animation second before touchdown, so the lander is already aligned when it touches the ground.
+const YAW_START_ALT_M = 3000;
+const YAW_DONE_ALT_M = 300;
+const YAW_LATE_RATE = (4 * Math.PI) / 3;   // rad/s (240°/s): fastest yaw; catch-up rate for a late heading
 
 let active = null;     // running animation state
 let marker = [];       // entities of the landed model (kept after touchdown)
@@ -224,6 +229,9 @@ async function loadModel(viewer, spec, timeoutMs) {
 function altitude(u) {
   return START_ALT_M * Math.pow(1 - u, 2.6);
 }
+
+/** Animation second at which the descent passes YAW_DONE_ALT_M (inverse of altitude()): the yaw deadline. */
+const YAW_DONE_S = DESCENT_S * (1 - Math.pow(YAW_DONE_ALT_M / START_ALT_M, 1 / 2.6));
 
 /** Horizontal offset in the local east/north frame (m): drift towards the site plus a late correction. */
 function offset(u) {
@@ -832,11 +840,15 @@ export async function play(viewer, options) {
       current = pathAt(s);
       // Yaw manoeuvre: from the terminal phase on, turn towards the analysis heading so the turn
       // ends around touchdown (at least 60°/s; faster when little time is left).
-      if (yaw.target !== null && altitude(u) < 1500) {
+      if (yaw.target !== null && altitude(u) < YAW_START_ALT_M) {
         const diff = angleDiff(yaw.heading, yaw.target);
         if (Math.abs(diff) > 1e-4) {
-          const left = Math.max(0.15, (DESCENT_S + SETTLE_S * 0.5) - s);
-          const step = Math.max(YAW_MIN_RATE, Math.abs(diff) / left) * (dt / 1000);
+          // Before the deadline (altitude YAW_DONE_ALT_M) the rate is chosen so the turn ends exactly
+          // at the deadline (the last frame snaps); a target that arrives after it is caught up at a
+          // fixed fast rate. No exponential tail, so the lander is aligned well before touchdown.
+          const left = YAW_DONE_S - s;
+          const rate = left > 0 ? Math.min(YAW_LATE_RATE, Math.max(YAW_MIN_RATE, Math.abs(diff) / left)) : YAW_LATE_RATE;
+          const step = rate * (dt / 1000);
           yaw.heading += Math.sign(diff) * Math.min(Math.abs(diff), step);
         }
       }
