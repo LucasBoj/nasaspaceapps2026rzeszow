@@ -13,7 +13,7 @@
         </div>
         <button type="button" class="btn-primary quick-demo top" disabled="@(!MissionState.IsLoaded)"
                 title="Pick the recommended site and lander, land and show the verdict" @onclick="Ui.QuickDemoAsync">
-            ▶ Quick demo
+            @(MissionState.IsLoaded ? "▶ Quick demo" : "Loading data…")
         </button>
     </div>
 

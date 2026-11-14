@@ -174,7 +174,12 @@
                         </div>
                     }
                 }
+                @if (!MissionState.HasWhatIf)
+                {
+                    <p class="reason" id="whatif-reset-reason">Nothing to reset — the sliders show the lander data.</p>
+                }
                 <button type="button" class="btn-secondary whatif-reset" disabled="@(!MissionState.HasWhatIf)"
+                        aria-describedby="@(MissionState.HasWhatIf ? null : "whatif-reset-reason")"
                         @onclick="MissionState.ResetWhatIf">Reset to data</button>
             </div>
         </details>

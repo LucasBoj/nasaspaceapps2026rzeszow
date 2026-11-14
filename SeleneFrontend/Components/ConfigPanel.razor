@@ -10,7 +10,7 @@
 <div class="config-panel-content">
     <ol class="steps" aria-label="Plan a landing in three steps">
         @* ---------------------------------------------------------------- 1 site *@
-        <li class="step-item @StepState(1)">
+        <li class="step-item @StepState(1)" id="step-1">
             <h2 class="step-head">
                 <button type="button" aria-expanded="@(open == 1 ? "true" : "false")" aria-controls="step-body-1" @onclick="() => Toggle(1)">
                     <span class="step-num" aria-hidden="true">@(Done(1) && open != 1 ? "✓" : "1")</span>
@@ -45,9 +45,16 @@
                             </button>
                         }
                     </div>
-                    @if (MissionState.SelectedSite is { } custom && custom.Id.StartsWith("CUSTOM", StringComparison.Ordinal))
+                    @if (UiService.IsCustom(MissionState.SelectedSite) && MissionState.SelectedSite is { } custom)
                     {
-                        <p class="step-note">Custom point @Coords(custom) — no precomputed data here. Pick one of the sites above to analyze.</p>
+                        <div class="reason custom-reason" role="status">
+                            <p>Custom points can't be analysed yet — our sunlight data is precomputed for the 9 Artemis regions
+                                (you clicked <span class="num">@Coords(custom)</span>). Pick a region, or click ‘Nearest region’.</p>
+                            @if (Ui.NearestRegion(custom) is { } near)
+                            {
+                                <button type="button" class="btn-secondary small nearest-region" @onclick="Ui.SelectNearestRegionAsync">Nearest region: @near.Name</button>
+                            }
+                        </div>
                     }
                     @if (Ui.AnalystMode && MissionState.SelectedSite is { } sel)
                     {
@@ -74,16 +81,25 @@
                                     <a href="@nasa.Url" target="_blank" rel="noopener">Mazarico et al. 2011</a>
                                 </p>
                             }
-                            <button class="btn-secondary small" disabled="@(!MissionState.CanFlyTo)" @onclick="MissionState.RequestFlyTo">Fly to</button>
+                            <button class="btn-secondary small" disabled="@(!MissionState.CanFlyTo)" aria-describedby="@(MissionState.CanFlyTo ? null : "flyto-reason")" @onclick="MissionState.RequestFlyTo">Fly to</button>
+                            @if (!MissionState.CanFlyTo)
+                            {
+                                <p class="reason" id="flyto-reason">Fly to works for the 9 regions — use Zoom to site for a custom point.</p>
+                            }
                         </div>
                     }
-                    <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedSite is null)" @onclick="() => Open(2)">Next: choose a lander</button>
+                    <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedSite is null)"
+                            aria-describedby="@(MissionState.SelectedSite is null ? "next1-reason" : null)" @onclick="() => Open(2)">Next: choose a lander</button>
+                    @if (MissionState.SelectedSite is null)
+                    {
+                        <p class="reason" id="next1-reason">Choose a site above (or click a pin on the Moon) first.</p>
+                    }
                 </div>
             }
         </li>
 
         @* ---------------------------------------------------------------- 2 lander *@
-        <li class="step-item @StepState(2)">
+        <li class="step-item @StepState(2)" id="step-2">
             <h2 class="step-head">
                 <button type="button" aria-expanded="@(open == 2 ? "true" : "false")" aria-controls="step-body-2" @onclick="() => Toggle(2)">
                     <span class="step-num" aria-hidden="true">@(Done(2) && open != 2 ? "✓" : "2")</span>
@@ -98,13 +114,18 @@
             {
                 <div class="step-body" id="step-body-2">
                     <LanderPicker />
-                    <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedLander is null)" @onclick="() => Open(3)">Next: run the analysis</button>
+                    <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedLander is null)"
+                            aria-describedby="@(MissionState.SelectedLander is null ? "next2-reason" : null)" @onclick="() => Open(3)">Next: run the analysis</button>
+                    @if (MissionState.SelectedLander is null)
+                    {
+                        <p class="reason" id="next2-reason">Choose a lander card above first.</p>
+                    }
                 </div>
             }
         </li>
 
         @* ---------------------------------------------------------------- 3 run *@
-        <li class="step-item @StepState(3)">
+        <li class="step-item @StepState(3)" id="step-3">
             <h2 class="step-head">
                 <button type="button" aria-expanded="@(open == 3 ? "true" : "false")" aria-controls="step-body-3" @onclick="() => Toggle(3)">
                     <span class="step-num" aria-hidden="true">@(Done(3) && open != 3 ? "✓" : "3")</span>
@@ -180,18 +201,48 @@
     </ol>
 
     <div class="panel-actions">
+        @{ var blockers = Ui.LandBlockers(); var outdated = Analysis.IsOutdated && Ui.VerdictRequested; }
         <button type="button" class="btn-primary confirm-landing run-main" disabled="@(!Ui.CanConfirmLanding)"
-                title="@(Ui.CanConfirmLanding ? (Ui.LandingAnimationEnabled ? "Land at the site and simulate every landing day" : "Fly to the site and simulate every landing day") : "Choose one of the 9 sites and a lander first")"
+                aria-describedby="@(blockers.Count > 0 ? "run-blockers" : null)"
                 @onclick="() => Ui.ConfirmLandingAsync()">
-            @(Ui.LandingInProgress ? "Landing…" : Analysis.IsRunning && Ui.VerdictRequested ? $"Analyzing… {Analysis.Progress * 100:0}%" : "Run analysis")
+            @(Ui.LandingInProgress ? "Landing…" : outdated ? "Update results" : Analysis.IsRunning && Ui.VerdictRequested ? $"Analyzing… {Analysis.Progress * 100:0}%" : "Land & analyze")
         </button>
+        @if (blockers.Count > 0)
+        {
+            <p class="reason blockers" id="run-blockers" role="status">
+                <span>To continue:</span>
+                @foreach (var (b, i) in blockers.Select((b, i) => (b, i)))
+                {
+                    @if (i > 0) { <span aria-hidden="true"> · </span> }
+                    @if (b.Step > 0)
+                    {
+                        var step = b.Step;
+                        <button type="button" class="link-btn" @onclick="() => GoToStep(step)">@Circled(step) @b.Text</button>
+                    }
+                    else
+                    {
+                        <span>@b.Text</span>
+                    }
+                    @if (b.NearestRegion && Ui.NearestRegion(MissionState.SelectedSite) is { } near)
+                    {
+                        <span aria-hidden="true"> · </span>
+                        <button type="button" class="link-btn nearest-region" @onclick="Ui.SelectNearestRegionAsync">Nearest region: @near.Name</button>
+                    }
+                }
+            </p>
+        }
         @if (Ui.AnalystMode)
         {
             <div class="config-actions">
-                <button class="btn-secondary small" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? "Simulate every landing day for all 9 sites without the landing animation")"
-                        @onclick="Ui.RunAnalysisAsync">Analyze without landing</button>
+                <button class="btn-secondary small rerun" disabled="@(!Analysis.CanRun)" aria-describedby="@(Analysis.CanRun ? null : "rerun-reason")"
+                        title="Simulate every landing day for all 9 sites again, without the landing animation (e.g. after what-if or date changes)"
+                        @onclick="Ui.RunAnalysisAsync">Re-run analysis</button>
                 <button class="btn-secondary small" @onclick="@(() => MissionState.Reset())">Reset</button>
             </div>
+            @if (Analysis.CannotRunReason is { } why)
+            {
+                <p class="reason" id="rerun-reason">Re-run needs you to @why.</p>
+            }
         }
     </div>
 </div>
@@ -222,6 +273,17 @@
     private string StepState(int n) => n == open ? "active" : Done(n) ? "done" : "next";
 
     private void Toggle(int n) => open = open == n ? 0 : n;
+
+    private static string Circled(int n) => n switch { 1 => "①", 2 => "②", 3 => "③", _ => n.ToString() };
+
+    /// <summary>A "To continue" link: open that step and bring it into view.</summary>
+    private async Task GoToStep(int n)
+    {
+        open = n;
+        StateHasChanged();
+        await Task.Yield();
+        await Ui.ScrollToAsync($"step-{n}");
+    }
     private void Open(int n) => open = n;
 
     protected override async Task OnInitializedAsync()

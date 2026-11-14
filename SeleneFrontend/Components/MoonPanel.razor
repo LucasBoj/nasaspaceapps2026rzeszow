@@ -29,20 +29,35 @@
             <div class="viewer-hud-buttons">
                 <button type="button" class="hud-btn" aria-label="Back to the south pole view (Home key)" title="Back to the south pole view (Home)"
                         @onclick="SouthPoleViewAsync">⌂ View</button>
-                <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)" @onclick="ZoomToSiteAsync">Zoom to site</button>
-                @if (Ui.Landed)
+                <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)"
+                        aria-describedby="@(MissionState.SelectedSite is null ? "zoom-reason" : null)" @onclick="ZoomToSiteAsync">Zoom to site</button>
+                @if (Ui.Landed || Ui.LandingInProgress)
                 {
-                    <button type="button" class="hud-btn new-landing" @onclick="Ui.NewLanding">New landing</button>
+                    <button type="button" class="hud-btn new-landing" disabled="@Ui.LandingInProgress"
+                            aria-describedby="@(Ui.LandingInProgress ? "newlanding-reason" : null)" @onclick="Ui.NewLanding">New landing</button>
                 }
                 @if (Ui.AnalystMode)
                 {
                     <button type="button" class="hud-btn" aria-label="Viewer settings" aria-expanded="@(settingsOpen ? "true" : "false")" aria-controls="hud-settings"
                             title="Viewer settings" @onclick="() => settingsOpen = !settingsOpen">⚙</button>
                     <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
-                            disabled="@(!HasRegionSelected)" title="Show all evaluated candidate landing sites in this region"
+                            disabled="@(!HasRegionSelected)" aria-describedby="@(HasRegionSelected ? null : "cand-reason")"
+                            title="Show all evaluated candidate landing sites in this region"
                             @onclick="Ui.ToggleCandidates">Candidates</button>
                 }
             </div>
+            @if (MissionState.SelectedSite is null)
+            {
+                <p class="hud-reason" id="zoom-reason">Choose a site to zoom to it.</p>
+            }
+            else if (Ui.AnalystMode && !HasRegionSelected)
+            {
+                <p class="hud-reason" id="cand-reason">Candidates are shown for the 9 regions — choose one.</p>
+            }
+            @if (Ui.LandingInProgress)
+            {
+                <p class="hud-reason" id="newlanding-reason">New landing is available after touchdown.</p>
+            }
             @if (settingsOpen && Ui.AnalystMode)
             {
                 <div class="hud-settings" id="hud-settings">

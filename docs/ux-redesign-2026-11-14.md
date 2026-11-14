@@ -20,6 +20,24 @@ Cel: juror otwierający link po raz pierwszy w 10 s rozumie, co robi aplikacja, 
 - **Styl.** Rozmiary tekstu 28 / 18 / 14 / 12 px. Sans dla treści, Mono tylko dla liczb i dat. Mniej wersalików i ramek. Ruch 150–250 ms ease-out, przy `prefers-reduced-motion` tylko fade.
 - **Wydajność.** Ekran startowy trwa ≤ 1,5 s i zamyka się niezależnie od wczytywania. Usunięty `Cesium3DTileset.enableCollision`: jego raycasty zatrzymywały render na kilka sekund (1 kl./s zamiast ~48).
 
+## Sekcja 10: jeden główny przycisk i widoczne powody blokady
+
+- **Główny przycisk.** Jeden przycisk „Land & analyze” (lądowanie i analiza równolegle; z wyłączoną animacją: przelot i analiza). W ANALYST jest też drugorzędny „Re-run analysis” (bez animacji, np. po what-if lub zmianie dat).
+- **Widoczne powody.** Gdy przycisk jest nieaktywny, pod nim zawsze widać listę braków z linkami do kroków, np. „To continue: ① Choose one of the 9 landing regions · ② Choose a lander”. Łączy je `aria-describedby`. Jedno źródło prawdy: `UiService.LandBlockers()`.
+- **Punkt CUSTOM.** Komunikat „Custom points can't be analysed yet — our sunlight data is precomputed for the 9 Artemis regions…” i przycisk „Nearest region: …”, który wybiera najbliższy z 9 regionów (odległość po wielkim kole).
+- **Pozostałe nieaktywne akcje z widocznym powodem:**
+  - Zoom to site bez miejsca;
+  - Candidates poza 9 regionami;
+  - New landing w trakcie lądowania („available after touchdown”);
+  - Fly to dla punktu CUSTOM;
+  - „Next” w krokach 1–2;
+  - Re-run analysis;
+  - Reset to data (what-if);
+  - Quick demo w trakcie ładowania („Loading data…”).
+- **Zakładka COMPARE i okno dat.** COMPARE pokazuje się dopiero z wynikami. Okno dat poza zakresem danych jest przycinane z komunikatem „Dates adjusted — …”.
+- **Nieaktualne wyniki.** Po zmianie ustawień przycisk zmienia się na „Update results”. Karta werdyktu pokazuje „Results are out of date — settings changed” (stare liczby przyciemnione) z przyciskiem „Update results”. Zmiana lądownika nie chowa już karty.
+- **Testy:** `blockers.mjs` 16/16 w Chromium, Firefoksie i WebKicie. Obejmuje każdy warunek blokady z widocznym komunikatem i `aria-describedby`, CUSTOM → Nearest region, jeden przycisk główny w SIMPLE, „Update results” oraz axe bez błędów critical/serious. Regresja UX: 38/38.
+
 ## Zmienione teksty (wybór; jedno pojęcie = jedno słowo)
 
 | Było | Jest |
@@ -28,7 +46,8 @@ Cel: juror otwierający link po raz pierwszy w 10 s rozumie, co robi aplikacja, 
 | ▶ QUICK DEMO | ▶ Quick demo |
 | 01 TARGET SITE / 02 LANDER / 03 MISSION WINDOW / 04 CONSTRAINTS | 1 Choose a site / 2 Choose a lander / 3 Run analysis / Constraints (tylko Analyst) |
 | Pick a site · Pick a lander | Choose a site · Choose a lander |
-| ▼ CONFIRM LANDING SITE + RUN ANALYSIS | Run analysis (z lądowaniem) · Analyze without landing (Analyst) |
+| ▼ CONFIRM LANDING SITE + RUN ANALYSIS | Land & analyze (jeden główny) · Re-run analysis (Analyst) · Update results (po zmianie ustawień) |
+| RESULTS OUTDATED — re-run | Results are out of date — settings changed |
 | Landing Window Start / End (UTC) | Earliest / Latest landing date (UTC) |
 | Mission Duration [Earth days] | Days on the surface (Earth days) |
 | Window clipped — … | Dates adjusted — … |

@@ -401,16 +401,60 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         Notify();
     }
 
-    /// <summary>Changing the lander works like NEW LANDING (the model on the surface no longer matches).</summary>
+    /// <summary>
+    /// Changing the lander works like NEW LANDING (the model on the surface no longer matches). The verdict card
+    /// stays, marked out of date, so the user sees why the main button now says "Update results".
+    /// </summary>
     private void OnSelectionChanged()
     {
         if (Landed && !LandingInProgress && state.SelectedLander?.Id != _landedLanderId)
         {
             Landed = false;
             _landedLanderId = null;
-            VerdictDismissed = true;
             Notify();
         }
+    }
+
+    // ------------------------------------------------------------------ why an action is unavailable
+
+    /// <summary>One missing piece before "Land &amp; analyze" can run; Step 1/2 links to that step, 0 = no link.</summary>
+    public sealed record Blocker(int Step, string Text, bool NearestRegion = false);
+
+    public static bool IsCustom(Site? s) => s is not null && s.Id.StartsWith("CUSTOM", StringComparison.Ordinal);
+
+    /// <summary>Everything that keeps the main button disabled, in plain language (empty = it can run).</summary>
+    public IReadOnlyList<Blocker> LandBlockers()
+    {
+        var list = new List<Blocker>();
+        if (!state.IsLoaded) { list.Add(new(0, "Loading the site and lander data…")); return list; }
+        if (LandingInProgress) { list.Add(new(0, "Landing in progress — wait for touchdown")); return list; }
+        var site = state.SelectedSite;
+        if (site is null) list.Add(new(1, "Choose one of the 9 landing regions"));
+        else if (IsCustom(site)) list.Add(new(1, "Custom points can't be analysed yet — choose one of the 9 regions", NearestRegion: true));
+        else if (!state.AvailableSites.Any(a => a.Id == site.Id)) list.Add(new(1, "Choose one of the 9 landing regions"));
+        if (state.SelectedLander is null) list.Add(new(2, "Choose a lander"));
+        return list;
+    }
+
+    /// <summary>The closest of the 9 regions to a point (great-circle distance on the Moon).</summary>
+    public Site? NearestRegion(Site? point)
+    {
+        if (point is null || state.AvailableSites.Count == 0) return null;
+        static double Rad(double d) => d * Math.PI / 180;
+        double Dist(Site s)
+        {
+            var dLat = Rad(s.Lat - point.Lat);
+            var dLon = Rad(s.Lon - point.Lon);
+            var a = Math.Pow(Math.Sin(dLat / 2), 2) + Math.Cos(Rad(point.Lat)) * Math.Cos(Rad(s.Lat)) * Math.Pow(Math.Sin(dLon / 2), 2);
+            return 2 * Math.Asin(Math.Min(1, Math.Sqrt(a)));
+        }
+        return state.AvailableSites.OrderBy(Dist).First();
+    }
+
+    /// <summary>"Nearest region": replace a custom point with the closest analysable region.</summary>
+    public async Task SelectNearestRegionAsync()
+    {
+        if (NearestRegion(state.SelectedSite) is { } near) await state.SelectSite(near.Id);
     }
 
     public void SetOpenStep(int step)

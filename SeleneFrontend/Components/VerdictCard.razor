@@ -10,7 +10,21 @@
 @if (Visible && Analysis.Mission is { } m)
 {
     var cls = VerdictText.CssClass(m.Verdict);
-    <section class="verdict-card @cls @(Inline ? "inline" : "overlay")" aria-labelledby="verdict-title">
+    <section class="verdict-card @cls @(Inline ? "inline" : "overlay") @(Outdated ? "outdated" : "")" aria-labelledby="verdict-title">
+        @if (Outdated)
+        {
+            <div class="verdict-outdated" role="status">
+                <span>Results are out of date — settings changed.</span>
+                @if (Ui.CanConfirmLanding)
+                {
+                    <button type="button" class="btn-secondary small" @onclick="() => Ui.ConfirmLandingAsync()">Update results</button>
+                }
+                else
+                {
+                    <span>@string.Join(" · ", Ui.LandBlockers().Select(b => b.Text)).</span>
+                }
+            </div>
+        }
         <div class="verdict-main" role="status" aria-live="polite" aria-atomic="true">
             <h2 id="verdict-title" class="verdict-big">
                 <span class="verdict-icon" aria-hidden="true">@VerdictText.Icon(m.Verdict)</span>
@@ -65,7 +79,10 @@
     /// <summary>Only after the user (or QUICK DEMO) asked for a result, never mid-descent, and for the selected site.</summary>
     private bool Visible =>
         (Ui.VerdictRequested || Inline) && !Ui.VerdictDismissed && !Ui.LandingInProgress
-        && Analysis.Mission is not null && Analysis.MissionSiteId == MissionState.SelectedSite?.Id;
+        && Analysis.Mission is not null;
+
+    /// <summary>Settings (site, lander, dates, limits, what-if) changed since this result was computed.</summary>
+    private bool Outdated => Analysis.IsOutdated || Analysis.MissionSiteId != MissionState.SelectedSite?.Id;
 
     private static string P(double v) => Math.Round(v).ToString("0", CultureInfo.InvariantCulture);
 
