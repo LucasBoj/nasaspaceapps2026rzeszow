@@ -4,10 +4,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SELENE OPS · Lunar Landing Window Planner</title>
+    <meta name="description" content="Can a lander survive at NASA's Artemis III candidate sites near the lunar south pole? SELENE OPS simulates sunlight, Earth visibility and battery charge hour by hour for 2027–2028 and finds the best landing window." />
+    <meta name="theme-color" content="#0a0e13" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SELENE OPS · Lunar Landing Window Planner" />
+    <meta property="og:description" content="Sunlight, Earth contact and battery simulation for NASA's nine Artemis III candidate regions — pick a site and a lander, get the best landing window in one click." />
+    <meta property="og:image" content="og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <base href="/" />
+    <!-- Filled at build time (OverrideHtmlAssetPlaceholders): maps dotnet.js etc. to fingerprinted files.
+         Without it a static host (nginx, GitHub Pages) cannot start the app. -->
+    <script type="importmap"></script>
+    <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="css/app.css" />
+    <link rel="preconnect" href="https://cesium.com" crossorigin />
+    <link rel="preconnect" href="https://trek.nasa.gov" crossorigin />
     <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Widgets/widgets.css" />
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Cesium.js"></script>
+    <!-- defer: download in parallel with the .NET runtime instead of blocking it; the viewer waits for window.Cesium. -->
+    <script defer src="https://cesium.com/downloads/cesiumjs/releases/1.120/Build/Cesium/Cesium.js"></script>
 </head>
 <body>
     <div id="app"></div>

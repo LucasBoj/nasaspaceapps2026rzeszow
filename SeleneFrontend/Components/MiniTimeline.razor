@@ -1,0 +1,46 @@
+@using System.Globalization
+@using SeleneFrontend.Services
+
+@* Compact timeline for comparison cards: sunlight bars + battery line (+ threshold). *@
+<svg viewBox="0 0 @Result.Steps 40" preserveAspectRatio="none" class="mini-timeline" role="img"
+     aria-label="@($"Battery minimum {Result.MinSocPct:0}%, sunlight {Result.SunPct:0}% of the mission")">
+    <rect class="tl-bg" x="0" y="0" width="@Result.Steps" height="40" />
+    @foreach (var (from, len) in LitRuns())
+    {
+        <rect class="tl-sun" x="@F(from)" y="0" width="@F(len)" height="8" />
+    }
+    <line class="tl-threshold" x1="0" x2="@Result.Steps" y1="@F(Y(ThresholdPct))" y2="@F(Y(ThresholdPct))" vector-effect="non-scaling-stroke" />
+    <polyline class="tl-soc" points="@Points()" vector-effect="non-scaling-stroke" />
+</svg>
+
+@code {
+    [Parameter, EditorRequired] public SimulationResult Result { get; set; } = null!;
+    [Parameter] public double ThresholdPct { get; set; }
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+    private static double Y(double pct) => 39 - Math.Clamp(pct, 0, 100) * 0.28;
+
+    private string Points()
+    {
+        // Downsample to ≤ 200 points: plenty for a ~250 px wide card.
+        var step = Math.Max(1, Result.Steps / 200);
+        var pts = new List<string>();
+        for (var i = 0; i < Result.Steps; i += step)
+        {
+            var min = Result.SocPct.Skip(i).Take(step).Min();
+            pts.Add($"{F(i + step / 2.0)},{F(Y(min))}");
+        }
+        return string.Join(' ', pts);
+    }
+
+    private IEnumerable<(int, int)> LitRuns()
+    {
+        int start = -1;
+        for (var i = 0; i <= Result.Steps; i++)
+        {
+            var on = i < Result.Steps && Result.Sun[i] >= MissionSimulator.LitThresholdPct;
+            if (on && start < 0) start = i;
+            if (!on && start >= 0) { yield return (start, i - start); start = -1; }
+        }
+    }
+}

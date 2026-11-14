@@ -1,0 +1,50 @@
+@using SeleneFrontend.Services
+@inject UiService Ui
+@implements IDisposable
+
+@* First-visit boot screen. Each line turns OK only when the corresponding real fetch has finished. *@
+<div class="boot @(Ui.ReducedMotion ? "reduced" : "")" tabindex="-1" @ref="root" role="status" aria-live="polite"
+     aria-label="Loading SELENE OPS — press Escape or click to skip"
+     @onclick="Ui.SkipBoot" @onkeydown="OnKey">
+    <div class="boot-inner">
+        <div class="boot-logo">SELENE OPS</div>
+        <div class="boot-sub">LUNAR SOUTH POLE · LANDING WINDOW PLANNER</div>
+        <ul class="boot-lines">
+            @foreach (var line in Ui.BootLines)
+            {
+                <li class="boot-line">
+                    <span class="boot-text">@line.Text…</span>
+                    <span class="boot-status @line.Status.ToString().ToLowerInvariant()">
+                        @(line.Status switch { BootStatus.Ok => "OK", BootStatus.Failed => "FAILED", _ => string.IsNullOrEmpty(line.Detail) ? "…" : line.Detail })
+                    </span>
+                    @if (line.Status == BootStatus.Ok && !string.IsNullOrEmpty(line.Detail))
+                    {
+                        <span class="boot-detail">@line.Detail</span>
+                    }
+                </li>
+            }
+        </ul>
+        <div class="boot-skip">click or press Esc to skip</div>
+    </div>
+</div>
+
+@code {
+    private ElementReference root;
+    private bool focused;
+
+    protected override void OnInitialized() => Ui.OnChanged += Refresh;
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Ui.OnChanged -= Refresh;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focused) return;
+        focused = true;
+        try { await root.FocusAsync(); } catch { /* element gone */ }
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key is "Escape" or "Enter" or " ") Ui.SkipBoot();
+    }
+}

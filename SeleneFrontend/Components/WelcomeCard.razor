@@ -1,0 +1,29 @@
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject UiService Ui
+
+@if (Ui.WelcomeVisible && !Ui.BootVisible)
+{
+    <section class="welcome-card" aria-labelledby="welcome-title">
+        <button type="button" class="welcome-close" aria-label="Close welcome card" @onclick="Ui.DismissWelcome">×</button>
+        <h2 id="welcome-title">Can a lander survive here?</h2>
+        <p>
+            SELENE OPS checks NASA's nine Artemis III candidate regions near the lunar south pole.
+            It simulates sunlight, Earth visibility and battery charge hour by hour for 2027–2028,
+            using NASA LRO LOLA terrain and JPL ephemerides.
+            Pick a site and a lander, and it finds the best landing window — or tells you why there isn't one.
+        </p>
+        <ol class="welcome-steps">
+            <li><span>1</span>Pick a site</li>
+            <li><span>2</span>Pick a lander</li>
+            <li><span>3</span>Run analysis</li>
+        </ol>
+        <button type="button" class="btn-primary quick-demo" @onclick="Ui.QuickDemoAsync">▶ QUICK DEMO</button>
+    </section>
+}
+
+@code {
+    protected override void OnInitialized() => Ui.OnChanged += Refresh;
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Ui.OnChanged -= Refresh;
+}

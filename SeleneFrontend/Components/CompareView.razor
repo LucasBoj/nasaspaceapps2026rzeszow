@@ -1,0 +1,94 @@
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@inject AnalysisService Analysis
+@inject UiService Ui
+
+@if (Analysis.Heatmap is not { } heatmap)
+{
+    <div class="compare-pending">
+        <div class="skeleton-block" style="height: 28px"></div>
+        <div class="compare-grid">
+            @for (var i = 0; i < 3; i++) { <div class="skeleton-block" style="height: 170px"></div> }
+        </div>
+    </div>
+}
+else
+{
+    <div class="compare">
+        <div class="compare-picker" role="group" aria-label="Regions to compare (up to 3)">
+            <span class="compare-hint">Compare up to 3 regions, each at its own best landing day:</span>
+            @foreach (var site in heatmap.Sites)
+            {
+                var on = Ui.CompareSiteIds.Contains(site.Id);
+                <button type="button" class="chip @(on ? "on" : "")" aria-pressed="@(on ? "true" : "false")"
+                        @onclick="() => Ui.ToggleCompare(site.Id)">@site.Name</button>
+            }
+        </div>
+
+        @{
+            var entries = Analysis.Compare(Ui.CompareSiteIds);
+            var winner = entries.Where(e => e.Score > 0).OrderByDescending(e => e.Score).ThenBy(e => e.Day).FirstOrDefault();
+        }
+        @if (entries.Count == 0)
+        {
+            <p class="results-hint">Pick regions above to compare them.</p>
+        }
+        <div class="compare-grid">
+            @foreach (var e in entries)
+            {
+                var m = e.Mission;
+                var isWinner = winner is not null && e.SiteId == winner.SiteId && entries.Count > 1;
+                <article class="compare-card @(isWinner ? "winner" : "")" aria-label="@e.Name">
+                    @if (isWinner)
+                    {
+                        <span class="lander-card-tag">BEST OF @entries.Count</span>
+                    }
+                    <h4>@e.Name</h4>
+                    @if (m is null)
+                    {
+                        <div class="compare-verdict v-nogo">NOT FEASIBLE</div>
+                        <p class="compare-reason">No landing day in the window keeps the battery alive.</p>
+                    }
+                    else
+                    {
+                        <div class="compare-verdict @VerdictClass(m.Verdict)">@VerdictLabel(m.Verdict) · score @e.Score.ToString("0")</div>
+                        <div class="compare-date">land @m.LandingUtc.ToString("yyyy-MM-dd")</div>
+                        <MiniTimeline Result="m" ThresholdPct="Analysis.ThresholdBatteryPct" />
+                        <dl class="compare-metrics">
+                            <dt>min battery</dt><dd>@m.MinSocPct.ToString("0")%</dd>
+                            <dt>Earth in view</dt><dd>@m.CommsPct.ToString("0")%</dd>
+                            <dt>lit hours</dt><dd>@m.SunPct.ToString("0")%</dd>
+                            <dt>longest dark</dt><dd>@m.LongestDarkH.ToString("0") h</dd>
+                        </dl>
+                        <button type="button" class="btn-secondary compare-open" @onclick="() => Open(e)">Open in timeline</button>
+                    }
+                </article>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback OnOpened { get; set; }
+
+    private async Task Open(CompareEntry e)
+    {
+        await Analysis.SelectCellAsync(e.SiteIndex, e.Day);
+        Ui.SetResultsTab("mission");
+        await OnOpened.InvokeAsync();
+    }
+
+    private static string VerdictLabel(Verdict v) => v switch
+    {
+        Verdict.Feasible => "FEASIBLE",
+        Verdict.Marginal => "MARGINAL",
+        _ => "NOT FEASIBLE",
+    };
+
+    private static string VerdictClass(Verdict v) => v switch
+    {
+        Verdict.Feasible => "v-feasible",
+        Verdict.Marginal => "v-marginal",
+        _ => "v-nogo",
+    };
+}

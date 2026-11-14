@@ -52,6 +52,9 @@ public sealed class IlluminationIndexSite
     public string SiteId { get; set; } = "";
     public string Name { get; set; } = "";
     public string File { get; set; } = "";
+    public double PctSunlit { get; set; }
+    public double PctComms { get; set; }
+    public double LongestDarkHours { get; set; }
 }
 
 public static class TimeUtil

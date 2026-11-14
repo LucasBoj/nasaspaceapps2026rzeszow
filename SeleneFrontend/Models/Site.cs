@@ -8,4 +8,6 @@ public class Site
     public double Lon { get; set; }
     public bool Approximate { get; set; }
     public string Source { get; set; } = "";
+    public string? CandidateId { get; set; }
+    public int CandidatesEvaluated { get; set; }
 }

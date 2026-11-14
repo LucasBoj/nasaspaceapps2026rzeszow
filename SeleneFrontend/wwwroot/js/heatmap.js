@@ -29,7 +29,7 @@ function dayDate(data, d) {
   return new Date(t);
 }
 
-function draw(canvas) {
+function draw(canvas, pulse = 0) {
   const st = states.get(canvas);
   if (!st || !st.data) return;
   const data = st.data;
@@ -88,6 +88,14 @@ function draw(canvas) {
   outline(data.selected[0], data.selected[1], "#d7e2ec", 1);
   const [bs, bd] = data.best;
   if (bs >= 0 && bd >= 0) {
+    if (pulse > 0) {
+      // Attention pulse (QUICK DEMO): an expanding amber glow around the best cell.
+      ctx.save();
+      ctx.shadowColor = AMBER;
+      ctx.shadowBlur = 18 * pulse;
+      outline(bs, bd, `rgba(255,176,32,${0.35 + 0.65 * pulse})`, 2 + 4 * pulse);
+      ctx.restore();
+    }
     outline(bs, bd, AMBER, 2);
     const label = "BEST WINDOW";
     ctx.font = '600 10px "IBM Plex Mono", monospace';
@@ -144,6 +152,22 @@ export function render(canvas, tooltip, data, dotNetRef) {
   st.data = data;
   st.dotNetRef = dotNetRef;
   draw(canvas);
+
+  const reduced = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } })();
+  if (data.pulse && data.pulse !== st.lastPulse) {
+    st.lastPulse = data.pulse;
+    if (!reduced) {
+      const start = performance.now(), dur = 2400;
+      const tick = (now) => {
+        if (states.get(canvas) !== st || st.data !== data) return;
+        const t = (now - start) / dur;
+        if (t >= 1) { draw(canvas); return; }
+        draw(canvas, Math.abs(Math.sin(t * Math.PI * 3)) * (1 - t * 0.5));
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+  }
 }
 
 export function dispose(canvas) {

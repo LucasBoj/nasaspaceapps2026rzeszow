@@ -1,0 +1,24 @@
+@using System.Globalization
+@using SeleneFrontend.Services
+@inject UiService Ui
+
+@* Renders the final value; JS animates it up once per new value. @key gives every value its own
+   element, so Blazor never fights the animation. Keep it out of aria-live regions. *@
+<span class="countup" @key="Value" @ref="el">@Formatted</span>
+
+@code {
+    [Parameter] public double Value { get; set; }
+    [Parameter] public int Decimals { get; set; }
+
+    private ElementReference el;
+    private double? animated;
+
+    private string Formatted => Value.ToString("F" + Decimals, CultureInfo.InvariantCulture);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (animated == Value) return;
+        animated = Value;
+        await Ui.CountUpAsync(el, Value, Decimals);
+    }
+}

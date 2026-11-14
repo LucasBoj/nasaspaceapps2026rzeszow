@@ -1,5 +1,9 @@
 @using System.Globalization
-@implements IAsyncDisposable
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject UiService Ui
+@inject MissionConfigState MissionState
+@inject AnalysisService Analysis
 
 <header class="top-bar">
     <div class="top-bar-left">
@@ -7,56 +11,75 @@
             <h1>SELENE OPS</h1>
             <p>Lunar Landing Window Planner</p>
         </div>
+        <button type="button" class="btn-primary quick-demo top" disabled="@(!MissionState.IsLoaded)"
+                title="Pick the recommended site and lander, run the analysis and show the best window" @onclick="Ui.QuickDemoAsync">
+            ▶ QUICK DEMO
+        </button>
     </div>
-    
+
     <div class="top-bar-right">
-        <div class="utc-clock">
+        <div class="status-indicators">
+            <div class="status-item" title="Precomputed site, lander and illumination data">
+                <span class="status-dot @DataDot"></span>
+                <span>DATA: @DataText</span>
+            </div>
+            @if (Ui.ViewMode is { } mode)
+            {
+                <div class="status-item" title="Moon view">
+                    <span class="status-dot ok"></span>
+                    <span>@mode</span>
+                </div>
+            }
+        </div>
+        <div class="utc-clock" aria-label="Current UTC time">
             <span class="utc-time">@utcTime</span>
         </div>
-        <div class="status-indicators">
-            <div class="status-item" title="Ephemeris data status">
-                <span class="status-dot" style="background: #ffb020;"></span>
-                <span>EPHEMERIS: NOT LOADED</span>
-            </div>
-            <div class="status-item" title="Terrain data source">
-                <span class="status-dot" style="background: #4fc3f7;"></span>
-                <span>TERRAIN: LOLA</span>
-            </div>
-            <div class="status-item" title="Data connectivity">
-                <span class="status-dot" style="background: #ff4d4f;"></span>
-                <span>DATA: OFFLINE</span>
-            </div>
-        </div>
+        <button type="button" class="help-btn" aria-label="Help and glossary" title="Help and glossary" @onclick="() => Ui.SetHelp(true)">?</button>
     </div>
 </header>
 
 @code {
     private string utcTime = "";
     private PeriodicTimer? timer;
+    private CancellationTokenSource cts = new();
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private string DataText => MissionState.LoadError is not null ? "ERROR" : MissionState.IsLoaded ? "READY" : "LOADING";
+    private string DataDot => MissionState.LoadError is not null ? "error" : MissionState.IsLoaded ? "ok" : "warn";
+
+    protected override void OnInitialized()
     {
-        if (firstRender)
+        UpdateTime();
+        Ui.OnChanged += Refresh;
+        MissionState.OnStateChanged += Refresh;
+        Analysis.OnChanged += Refresh;
+        _ = TickAsync();
+    }
+
+    private async Task TickAsync()
+    {
+        timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
         {
-            UpdateTime();
-            timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-            
-            while (await timer.WaitForNextTickAsync())
+            while (await timer.WaitForNextTickAsync(cts.Token))
             {
                 UpdateTime();
                 await InvokeAsync(StateHasChanged);
             }
         }
+        catch (OperationCanceledException) { }
     }
 
-    private void UpdateTime()
-    {
-        var utcNow = DateTime.UtcNow;
-        utcTime = utcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
-    }
+    private void UpdateTime() =>
+        utcTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
-    async ValueTask IAsyncDisposable.DisposeAsync()
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
     {
+        cts.Cancel();
         timer?.Dispose();
+        Ui.OnChanged -= Refresh;
+        MissionState.OnStateChanged -= Refresh;
+        Analysis.OnChanged -= Refresh;
     }
 }

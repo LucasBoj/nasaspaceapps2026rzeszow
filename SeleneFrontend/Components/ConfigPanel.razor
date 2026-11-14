@@ -3,10 +3,27 @@
 @using SeleneFrontend.Services
 @inject MissionConfigState MissionState
 @inject AnalysisService Analysis
+@inject UiService Ui
 @implements IDisposable
 
 <div class="config-panel-content">
-    <section class="config-section">
+    <nav class="stepper" aria-label="Setup steps">
+        <ol>
+            @foreach (var (n, label, target, done) in Steps())
+            {
+                var state = done ? "done" : n == ActiveStep ? "active" : "next";
+                <li class="step @state">
+                    <button type="button" @onclick="() => Ui.ScrollToAsync(target)" aria-current="@(state == "active" ? "step" : null)">
+                        <span class="step-num" aria-hidden="true">@(done ? "✓" : n.ToString())</span>
+                        <span class="step-label">@label</span>
+                        <span class="sr-only">(@state)</span>
+                    </button>
+                </li>
+            }
+        </ol>
+    </nav>
+
+    <section class="config-section" id="step-site">
         <h2><span class="section-number">01</span>TARGET SITE</h2>
         <div class="section-body">
             <div class="field">
@@ -20,11 +37,16 @@
                     {
                         <p style="font-size: 0.75rem; color: #ffb020;">positions approximate — verify</p>
                     }
+                    else if (MissionState.SelectedSite is { CandidateId: { } cid } site)
+                    {
+                        <p class="site-source">site @cid · best of @site.CandidatesEvaluated published candidates ·
+                            <a href="https://doi.org/10.1029/2025JE009434" target="_blank" rel="noopener">Wueller et al. 2026</a></p>
+                    }
                 </div>
             </div>
             <div class="field">
                 <label>Choose Site</label>
-                <select @onchange="@((ChangeEventArgs e) => OnSiteSelected(e.Value?.ToString() ?? ""))">
+                <select value="@(MissionState.SelectedSite?.Id ?? "")" @onchange="@((ChangeEventArgs e) => OnSiteSelected(e.Value?.ToString() ?? ""))">
                     <option value="">-- Select a site --</option>
                     @foreach (var site in MissionState.AvailableSites)
                     {
@@ -36,14 +58,14 @@
         </div>
     </section>
 
-    <section class="config-section">
+    <section class="config-section" id="step-lander">
         <h2><span class="section-number">02</span>LANDER</h2>
         <div class="section-body">
             <LanderPicker />
         </div>
     </section>
 
-    <section class="config-section">
+    <section class="config-section" id="step-run">
         <h2><span class="section-number">03</span>MISSION WINDOW</h2>
         <div class="section-body">
             <div class="field">
@@ -68,10 +90,7 @@
                 <label>Mission Duration [Earth days]</label>
                 <input type="number" min="0" step="any" value="@Inv(MissionState.MissionDurationDays)" @onchange="@((ChangeEventArgs e) => OnDurationChanged(e.Value?.ToString() ?? ""))" />
             </div>
-            <div class="field">
-                <label>Time Step [h]</label>
-                <input type="number" min="0.5" step="0.5" value="@Inv(MissionState.TimeStepHours)" @onchange="@((ChangeEventArgs e) => OnTimeStepChanged(e.Value?.ToString() ?? ""))" />
-            </div>
+            <p class="window-hint">Data step: 1 h (precomputed hourly, 2027–2028)</p>
         </div>
     </section>
 
@@ -79,19 +98,25 @@
         <h2><span class="section-number">04</span>CONSTRAINTS</h2>
         <div class="section-body">
             <div class="field">
-                <label>Min Earth Comms Time [%]</label>
-                <input type="number" min="0" max="100" value="@Inv(MissionState.MinCommsPercent)" @onchange="@((ChangeEventArgs e) => OnMinCommsChanged(e.Value?.ToString() ?? ""))" />
+                <div class="label-row">
+                    <label for="min-comms">Min Earth visibility [% of hours]</label>
+                    <Term Key="earth" AriaLabel="What is Earth visibility?">?</Term>
+                </div>
+                <input id="min-comms" type="number" min="0" max="100" value="@Inv(MissionState.MinCommsPercent)" @onchange="@((ChangeEventArgs e) => OnMinCommsChanged(e.Value?.ToString() ?? ""))" />
             </div>
             <div class="field">
-                <label>Min Battery State [%]</label>
-                <input type="number" min="0" max="100" value="@Inv(MissionState.MinBatteryPercent)" @onchange="@((ChangeEventArgs e) => OnMinBatteryChanged(e.Value?.ToString() ?? ""))" />
+                <div class="label-row">
+                    <label for="min-battery">Min battery SoC [%]</label>
+                    <Term Key="soc" AriaLabel="What is SoC?">?</Term>
+                </div>
+                <input id="min-battery" type="number" min="0" max="100" value="@Inv(MissionState.MinBatteryPercent)" @onchange="@((ChangeEventArgs e) => OnMinBatteryChanged(e.Value?.ToString() ?? ""))" />
             </div>
         </div>
     </section>
 
     <div class="config-actions">
-        <button class="btn-primary" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? "Simulate every landing day for all 9 regions")"
-                @onclick="Analysis.RunAsync">
+        <button class="btn-primary" disabled="@(!Analysis.CanRun)" title="@(Analysis.CannotRunReason ?? (Analysis.IsRunning ? "Running — click to restart with the current settings" : "Simulate every landing day for all 9 regions"))"
+                @onclick="() => Analysis.RunAsync()">
             @(Analysis.IsRunning ? $"ANALYZING… {Analysis.Progress * 100:0}%" : "RUN ANALYSIS")
         </button>
         <button class="btn-secondary" @onclick="@(() => MissionState.Reset())">Reset</button>
@@ -101,6 +126,15 @@
 @code {
     // type=number inputs need invariant formatting; the browser culture (pl) would render "6,5".
     private static string Inv(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private int ActiveStep => Steps().FirstOrDefault(s => !s.Done).N;
+
+    private IEnumerable<(int N, string Label, string Target, bool Done)> Steps()
+    {
+        yield return (1, "Pick a site", "step-site", MissionState.SelectedSite is not null);
+        yield return (2, "Pick a lander", "step-lander", MissionState.SelectedLander is not null);
+        yield return (3, "Run analysis", "step-run", Analysis.HasResults && !Analysis.IsOutdated);
+    }
 
     private static string? Day(DateTime? d) => d?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
@@ -141,11 +175,6 @@
             await MissionState.UpdateMissionDuration(duration);
     }
 
-    private async Task OnTimeStepChanged(string value)
-    {
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var step))
-            await MissionState.UpdateTimeStep(step);
-    }
 
     private async Task OnMinCommsChanged(string value)
     {

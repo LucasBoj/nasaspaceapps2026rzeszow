@@ -10,7 +10,7 @@
             <span style="top: 34%">EARTH</span>
             <span style="top: 52%">BATTERY</span>
         </div>
-        <div class="timeline-plot" @onmouseleave="() => hover = -1">
+        <div class="timeline-plot" @onmouseleave="() => SetHover(-1)">
             <svg viewBox="0 0 @N 100" preserveAspectRatio="none" class="timeline-svg" role="img"
                  aria-label="@AriaSummary">
                 <rect class="tl-bg" x="0" y="0" width="@N" height="30" />
@@ -49,7 +49,7 @@
                 @for (var i = 0; i < N; i++)
                 {
                     var step = i;
-                    <rect class="tl-hit" x="@F(i)" y="0" width="1" height="100" @onmouseover="() => hover = step">
+                    <rect class="tl-hit" x="@F(i)" y="0" width="1" height="100" @onmouseover="() => SetHover(step)">
                         <title>@Describe(step)</title>
                     </rect>
                 }
@@ -75,6 +75,16 @@
 @code {
     [Parameter, EditorRequired] public SimulationResult Result { get; set; } = null!;
     [Parameter] public double ThresholdPct { get; set; }
+
+    /// <summary>UTC time under the cursor (null when the pointer leaves) — drives the HUD compass.</summary>
+    [Parameter] public EventCallback<DateTime?> OnHoverTime { get; set; }
+
+    private Task SetHover(int step)
+    {
+        if (hover == step) return Task.CompletedTask;
+        hover = step;
+        return OnHoverTime.InvokeAsync(step >= 0 && step < N ? Result.TimeAt(step) : null);
+    }
 
     private int hover = -1;
     private int N => Result.Steps;

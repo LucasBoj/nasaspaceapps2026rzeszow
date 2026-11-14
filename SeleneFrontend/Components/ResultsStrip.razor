@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject AnalysisService Analysis
 @inject MissionConfigState MissionState
+@inject UiService Ui
 
 <div class="results-strip @(expanded ? "expanded" : "")">
     <button type="button" class="results-header" aria-expanded="@(expanded ? "true" : "false")" aria-controls="results-content"
@@ -12,11 +13,22 @@
         {
             <span class="results-title">RESULTS —</span>
             <span class="results-summary @VerdictClass(m.Verdict)">@VerdictLabel(m.Verdict)</span>
-            <span class="results-title">@Analysis.MissionSiteName · land @m.LandingUtc.ToString("yyyy-MM-dd")</span>
+            <span class="results-title results-summary-detail">
+                @Analysis.MissionSiteName · land @m.LandingUtc.ToString("yyyy-MM-dd") · min battery @m.MinSocPct.ToString("0")% · Earth @m.CommsPct.ToString("0")%
+            </span>
+            @if (!expanded)
+            {
+                <span class="results-expand-hint">show timeline &amp; heatmap</span>
+            }
+        }
+        else if (Analysis.IsRunning || !MissionState.IsLoaded)
+        {
+            <span class="results-title">RESULTS —</span>
+            <span class="skeleton-inline" style="width: 260px"></span>
         }
         else
         {
-            <span class="results-title">RESULTS — select a site and a lander, then RUN ANALYSIS</span>
+            <span class="results-title">RESULTS — pick a site and a lander, then RUN ANALYSIS</span>
         }
         @if (Analysis.IsOutdated)
         {
@@ -24,63 +36,103 @@
         }
     </button>
 
-    @if (expanded)
-    {
-        <div class="results-content" id="results-content">
+    <div class="results-content" id="results-content" hidden="@(!expanded)">
+        @if (expanded)
+        {
             @if (Analysis.Error is { } err)
             {
                 <p class="results-error" role="alert">Analysis failed: @err</p>
             }
 
-            @if (Analysis.Mission is { } mission && Analysis.Heatmap is { } heatmap)
+            @if (Analysis.Mission is { } mission)
             {
-                <div class="verdict-line @VerdictClass(mission.Verdict)" role="status">
-                    @VerdictLabel(mission.Verdict) — @Analysis.MissionSiteName · land @mission.LandingUtc.ToString("yyyy-MM-dd")
-                    · min battery @mission.MinSocPct.ToString("0")% · Earth comms @mission.CommsPct.ToString("0")%
-                    · based on: @ParamKind.Label(mission.BasedOn)
+                <div class="results-toolbar">
+                    <div class="sr-only" role="status">@VerdictLabel(mission.Verdict) for @Analysis.MissionSiteName, landing @mission.LandingUtc.ToString("yyyy-MM-dd"): @mission.Reason.</div>
+                    <div class="verdict-line @VerdictClass(mission.Verdict)">
+                        @VerdictLabel(mission.Verdict) — @Analysis.MissionSiteName · land @mission.LandingUtc.ToString("yyyy-MM-dd")
+                        · min battery <CountUp Value="Math.Round(mission.MinSocPct)" />%
+                        · Earth comms <CountUp Value="Math.Round(mission.CommsPct)" />%
+                        · based on: @ParamKind.Label(mission.BasedOn)
+                    </div>
+                    <div class="results-tabs" role="tablist" aria-label="Result views">
+                        <button type="button" role="tab" class="results-tab @(Ui.ResultsTab == "mission" ? "active" : "")"
+                                aria-selected="@(Ui.ResultsTab == "mission" ? "true" : "false")" @onclick="@(() => Ui.SetResultsTab("mission"))">MISSION</button>
+                        <button type="button" role="tab" class="results-tab @(Ui.ResultsTab == "compare" ? "active" : "")"
+                                aria-selected="@(Ui.ResultsTab == "compare" ? "true" : "false")" @onclick="@(() => Ui.SetResultsTab("compare"))">COMPARE</button>
+                    </div>
                 </div>
-                <p class="verdict-reason">@Capitalize(mission.Reason).</p>
+                <p class="verdict-reason">
+                    @Capitalize(mission.Reason). <Term Key="soc">Battery</Term> · <Term Key="earth">Earth comms</Term> · <Term Key="verdict">Verdict</Term>
+                </p>
 
-                <div class="results-grid">
-                    <section class="results-panel" aria-label="Mission timeline">
-                        <h3>MISSION TIMELINE · @mission.DurationDays.ToString("0.#") d</h3>
-                        <MissionTimeline Result="mission" ThresholdPct="Analysis.ThresholdBatteryPct" />
-                    </section>
-                    <section class="results-panel" aria-label="Landing window heatmap">
-                        <h3>LANDING WINDOW · @heatmap.Sites.Count REGIONS × @heatmap.Days DAYS</h3>
-                        <LandingHeatmap Result="heatmap" Selected="Analysis.SelectedCell" OnCellClick="OnCellClick" />
-                        <div class="best-dates" role="group" aria-label="Best landing day per region">
-                            @for (var s = 0; s < heatmap.Sites.Count; s++)
+                @if (Ui.ResultsTab == "compare")
+                {
+                    <CompareView />
+                }
+                else
+                {
+                    <div class="results-grid">
+                        <section class="results-panel" aria-label="Mission timeline">
+                            <h3>MISSION TIMELINE · @mission.DurationDays.ToString("0.#") d</h3>
+                            <MissionTimeline Result="mission" ThresholdPct="Analysis.ThresholdBatteryPct" OnHoverTime="Ui.SetHoverTime" />
+                        </section>
+                        <section class="results-panel" aria-label="Landing window heatmap">
+                            @if (Analysis.Heatmap is { } heatmap)
                             {
-                                var site = s;
-                                var day = heatmap.BestDayFor(s);
-                                if (day < 0)
-                                {
-                                    <span class="best-date none">@heatmap.Sites[s].Name: none feasible</span>
-                                }
-                                else
-                                {
-                                    <button type="button" class="best-date" @onclick="() => OnCellClick((site, day))">
-                                        @heatmap.Sites[s].Name · @heatmap.DayUtc(day).ToString("MM-dd") · @heatmap.Scores[s, day].ToString("0")
-                                    </button>
-                                }
+                                <div class="panel-head">
+                                    <h3>LANDING WINDOW · @heatmap.Sites.Count REGIONS × @heatmap.Days DAYS · <Term Key="score">score</Term></h3>
+                                    <button type="button" class="hud-btn small" @onclick="@(() => Ui.SetResultsTab("compare"))">COMPARE ▸</button>
+                                </div>
+                                <LandingHeatmap Result="heatmap" Selected="Analysis.SelectedCell" OnCellClick="OnCellClick" Pulse="PulseToken()" />
+                                <div class="best-dates" role="group" aria-label="Best landing day per region">
+                                    @for (var s = 0; s < heatmap.Sites.Count; s++)
+                                    {
+                                        var site = s;
+                                        var day = heatmap.BestDayFor(s);
+                                        if (day < 0)
+                                        {
+                                            <span class="best-date none">@heatmap.Sites[s].Name: none feasible</span>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="best-date" @onclick="() => OnCellClick((site, day))">
+                                                @heatmap.Sites[s].Name · @heatmap.DayUtc(day).ToString("MM-dd") · @heatmap.Scores[s, day].ToString("0")
+                                            </button>
+                                        }
+                                    }
+                                </div>
                             }
-                        </div>
-                    </section>
+                            else
+                            {
+                                <h3>LANDING WINDOW · computing all regions… @((int)(Analysis.Progress * 100))%</h3>
+                                <div class="skeleton-block" style="height: 150px"></div>
+                                <div class="skeleton-block" style="height: 18px; margin-top: 8px; width: 70%"></div>
+                            }
+                        </section>
+                    </div>
+                }
+            }
+            else if (Analysis.IsRunning || !MissionState.IsLoaded)
+            {
+                <div class="skeleton-block" style="height: 26px; width: 60%"></div>
+                <div class="results-grid" style="margin-top: 12px">
+                    <div class="skeleton-block" style="height: 170px"></div>
+                    <div class="skeleton-block" style="height: 170px"></div>
                 </div>
             }
-            else if (!Analysis.IsRunning && Analysis.Error is null)
+            else if (Analysis.Error is null)
             {
                 <p class="results-hint">Select one of the 9 regions and a lander, then press <strong>RUN ANALYSIS</strong>.
                     Every landing day in the window is simulated for all regions.</p>
             }
-        </div>
-    }
+        }
+    </div>
 </div>
 
 @code {
     private bool expanded;
-    private int seenRun;
+    private int seenExpand;
+    private int pulseConsumed;
 
     private static string VerdictLabel(Verdict v) => v switch
     {
@@ -98,31 +150,42 @@
 
     private static string Capitalize(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
+    /// <summary>Hand the heatmap a pulse token only once per request (re-created canvases must not pulse again).</summary>
+    private int PulseToken()
+    {
+        var token = Analysis.HighlightBestToken;
+        if (token == pulseConsumed) return 0;
+        pulseConsumed = token;
+        return token;
+    }
+
     private Task OnCellClick((int Site, int Day) cell) => Analysis.SelectCellAsync(cell.Site, cell.Day);
 
     protected override void OnInitialized()
     {
+        pulseConsumed = Analysis.HighlightBestToken;
         Analysis.OnChanged += HandleChanged;
-        MissionState.OnStateChanged += HandleConfigChanged;   // outdated badge
+        MissionState.OnStateChanged += Refresh;   // outdated badge
+        Ui.OnChanged += Refresh;                   // tabs
     }
-
-    private void HandleConfigChanged() => InvokeAsync(StateHasChanged);
 
     private void HandleChanged()
     {
-        // Auto-expand once per finished analysis.
-        if (Analysis.RunCount != seenRun && !Analysis.IsRunning)
+        if (Analysis.ExpandToken != seenExpand)
         {
-            seenRun = Analysis.RunCount;
+            seenExpand = Analysis.ExpandToken;
             expanded = true;
         }
         if (Analysis.Error is not null) expanded = true;
         InvokeAsync(StateHasChanged);
     }
 
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
     public void Dispose()
     {
         Analysis.OnChanged -= HandleChanged;
-        MissionState.OnStateChanged -= HandleConfigChanged;
+        MissionState.OnStateChanged -= Refresh;
+        Ui.OnChanged -= Refresh;
     }
 }

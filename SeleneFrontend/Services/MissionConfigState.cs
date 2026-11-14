@@ -91,8 +91,13 @@ public class MissionConfigState
         _illumination = illumination;
     }
 
+    /// <summary>Catalog loading state for the status bar / error banner.</summary>
+    public bool IsLoaded { get; private set; }
+    public string? LoadError { get; private set; }
+
     public async Task LoadData()
     {
+        LoadError = null;
         try
         {
             var sitesJson = await _httpClient.GetStringAsync("data/sites.json");
@@ -119,15 +124,19 @@ public class MissionConfigState
                 SelectedSite = AvailableSites[0];
             }
             
+            IsLoaded = AvailableSites.Count > 0 && AllLanders.Count > 0;
+            if (!IsLoaded) LoadError = "site or lander catalog is empty";
             OnStateChanged?.Invoke();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error loading data: {ex.Message}");
+            Console.Error.WriteLine($"[MissionConfigState] Catalog load failed: {ex.Message}");
+            LoadError = $"could not load the site/lander catalog ({ex.Message})";
+            OnStateChanged?.Invoke();
         }
     }
 
-    public async Task SelectSite(string siteId, Site? customSite = null)
+    public async Task SelectSite(string siteId, Site? customSite = null, bool fly = true)
     {
         if (customSite != null)
         {
@@ -138,8 +147,9 @@ public class MissionConfigState
             SelectedSite = AvailableSites.FirstOrDefault(s => s.Id == siteId);
         }
         OnStateChanged?.Invoke();
-        // Every explicit site selection (map pin or list) flies the camera there.
-        RequestFlyTo();
+        // Every explicit site selection (map pin or list) flies the camera there,
+        // except programmatic selections during the intro (the camera is doing its own flight).
+        if (fly) RequestFlyTo();
         await Task.CompletedTask;
     }
 

@@ -11,5 +11,6 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddScoped<IlluminationRepository>();
 builder.Services.AddScoped<MissionConfigState>();
 builder.Services.AddScoped<AnalysisService>();
+builder.Services.AddScoped<UiService>();
 
 await builder.Build().RunAsync();

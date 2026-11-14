@@ -20,16 +20,21 @@
     [Parameter] public (int Site, int Day) Selected { get; set; } = (-1, -1);
     [Parameter] public EventCallback<(int Site, int Day)> OnCellClick { get; set; }
 
+    /// <summary>Change to make the BEST WINDOW cell pulse once (QUICK DEMO).</summary>
+    [Parameter] public int Pulse { get; set; }
+
     private ElementReference canvas;
     private ElementReference tooltip;
     private IJSObjectReference? module;
     private DotNetObjectReference<LandingHeatmap>? selfRef;
     private HeatmapResult? drawnResult;
     private (int, int) drawnSelected = (-2, -2);
+    private int drawnPulse = -1;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (ReferenceEquals(drawnResult, Result) && drawnSelected == Selected) return;
+        var newPulse = Pulse != 0 && Pulse != drawnPulse;
+        if (ReferenceEquals(drawnResult, Result) && drawnSelected == Selected && !newPulse) return;
         try
         {
             module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/heatmap.js");
@@ -37,6 +42,7 @@
             await module.InvokeVoidAsync("render", canvas, tooltip, Payload(), selfRef);
             drawnResult = Result;
             drawnSelected = Selected;
+            if (Pulse != 0) drawnPulse = Pulse;
         }
         catch (JSDisconnectedException)
         {
@@ -65,6 +71,7 @@
             verdicts,
             best = new[] { Result.BestSite, Result.BestDay },
             selected = new[] { Selected.Site, Selected.Day },
+            pulse = Pulse != drawnPulse ? Pulse : 0,
         };
     }
 

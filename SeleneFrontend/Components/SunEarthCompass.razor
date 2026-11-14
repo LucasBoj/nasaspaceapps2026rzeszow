@@ -1,0 +1,133 @@
+@using System.Globalization
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject UiService Ui
+@inject MissionConfigState MissionState
+@inject AnalysisService Analysis
+@inject IlluminationRepository Repo
+
+@* Azimuth rose for the selected site: terrain horizon (LOLA), Sun and Earth (JPL DE421), all from illumination/{siteId}.json. *@
+@if (series is not null && index >= 0)
+{
+    var sunAz = series.SunAzCentiDeg[index] / 100.0;
+    var sunEl = series.SunElevCentiDeg[index] / 100.0;
+    var earthEl = series.EarthElevCentiDeg[index] / 100.0;
+    double? earthAz = series.EarthAzCentiDeg.Length > index ? series.EarthAzCentiDeg[index] / 100.0 : null;
+    var sunPct = series.SunFraction[index];
+    var earthOn = series.EarthVisible[index] == 1;
+    <div class="compass" role="group" aria-label="@AriaText(sunAz, sunEl, sunPct, earthAz, earthEl, earthOn)">
+        <svg viewBox="-60 -60 120 120" class="compass-svg" aria-hidden="true">
+            <circle r="@F(R(MinEl))" class="compass-edge" />
+            <path d="@HorizonPath()" class="compass-terrain" />
+            <circle r="@F(R(0))" class="compass-zero" />
+            <line x1="0" y1="@F(-R(MinEl))" x2="0" y2="@F(R(MinEl))" class="compass-axis" />
+            <line x1="@F(-R(MinEl))" y1="0" x2="@F(R(MinEl))" y2="0" class="compass-axis" />
+            <text x="0" y="-51" class="compass-cardinal">N</text>
+            <text x="53" y="3" class="compass-cardinal">E</text>
+            <text x="0" y="57" class="compass-cardinal">S</text>
+            <text x="-53" y="3" class="compass-cardinal">W</text>
+            @if (earthAz is { } eaz)
+            {
+                var (ex, ey) = Polar(eaz, earthEl);
+                <circle cx="@F(ex)" cy="@F(ey)" r="4" class="compass-earth @(earthOn ? "" : "hidden")" />
+            }
+            @{ var (sx, sy) = Polar(sunAz, sunEl); }
+            <circle cx="@F(sx)" cy="@F(sy)" r="5" class="compass-sun @(sunPct > 0 ? "" : "hidden")" />
+        </svg>
+        <div class="compass-text">
+            <div class="compass-time">@moment.ToString("yyyy-MM-dd HH:mm") UTC</div>
+            <div><span class="dot sun"></span>SUN az @F0(sunAz)° · el @F1(sunEl)° · horizon @F1(HorizonAt(sunAz))° → @sunPct% disk</div>
+            <div><span class="dot earth"></span>EARTH @(earthAz is { } a ? $"az {F0(a)}° · " : "")el @F1(earthEl)° · @(earthOn ? "in view" : "hidden")</div>
+        </div>
+    </div>
+}
+
+@code {
+    private const double MinEl = -5, MaxEl = 15;     // radial scale: edge = −5°, centre = +15°
+    private IlluminationSeries? series;
+    private string? loadedFor;
+    private int index = -1;
+    private DateTime moment;
+
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+    private static string F0(double v) => v.ToString("0", CultureInfo.InvariantCulture);
+    private static string F1(double v) => v.ToString("0.0", CultureInfo.InvariantCulture);
+
+    private static double R(double el) => 48 * (1 - (Math.Clamp(el, MinEl, MaxEl) - MinEl) / (MaxEl - MinEl));
+
+    private static (double X, double Y) Polar(double azDeg, double el)
+    {
+        var r = R(el);
+        var a = azDeg * Math.PI / 180;
+        return (r * Math.Sin(a), -r * Math.Cos(a));
+    }
+
+    /// <summary>Terrain horizon elevation at an azimuth (linear between whole degrees), as in the pipeline.</summary>
+    private double HorizonAt(double azDeg)
+    {
+        var h = series!.HorizonDeg;
+        if (h.Length == 0) return 0;
+        var a = ((azDeg % 360) + 360) % 360;
+        var i = (int)Math.Floor(a);
+        var f = a - i;
+        return h[i % h.Length] * (1 - f) + h[(i + 1) % h.Length] * f;
+    }
+
+    private string HorizonPath()
+    {
+        if (series is null || series.HorizonDeg.Length == 0) return "";
+        var pts = series.HorizonDeg.Select((h, az) => Polar(az, h)).ToList();
+        var outer = Enumerable.Range(0, 361).Select(az => Polar(az, MinEl)).Reverse();
+        var d = "M" + string.Join("L", pts.Select(p => $"{F(p.X)},{F(p.Y)}")) + "Z";
+        d += "M" + string.Join("L", outer.Select(p => $"{F(p.X)},{F(p.Y)}")) + "Z";
+        return d;
+    }
+
+    private static string AriaText(double sunAz, double sunEl, int sunPct, double? earthAz, double earthEl, bool earthOn) =>
+        $"Sun azimuth {sunAz:0} degrees, elevation {sunEl:0.0}, {sunPct}% of disk visible. " +
+        $"Earth {(earthAz is { } a ? $"azimuth {a:0} degrees, " : "")}elevation {earthEl:0.0}, {(earthOn ? "in view" : "hidden")}.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ui.OnChanged += Refresh;
+        Ui.HoverTimeChanged += Refresh;
+        MissionState.OnStateChanged += Refresh;
+        Analysis.OnChanged += Refresh;
+        await UpdateAsync();
+    }
+
+    private void Refresh() => InvokeAsync(async () => { await UpdateAsync(); StateHasChanged(); });
+
+    private async Task UpdateAsync()
+    {
+        var site = MissionState.SelectedSite;
+        if (site is null || !MissionState.AvailableSites.Any(s => s.Id == site.Id)) { series = null; return; }
+        if (loadedFor != site.Id)
+        {
+            try
+            {
+                series = await Repo.GetSeries(site.Id);
+                loadedFor = site.Id;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Compass] {ex.Message}");
+                series = null;
+                return;
+            }
+        }
+        moment = Ui.HoverTimeUtc
+                 ?? (Analysis.MissionSiteId == site.Id ? Analysis.Mission?.LandingUtc : null)
+                 ?? series!.Start;
+        index = series!.IndexOf(moment);
+    }
+
+    public void Dispose()
+    {
+        Ui.OnChanged -= Refresh;
+        Ui.HoverTimeChanged -= Refresh;
+        MissionState.OnStateChanged -= Refresh;
+        Analysis.OnChanged -= Refresh;
+    }
+}

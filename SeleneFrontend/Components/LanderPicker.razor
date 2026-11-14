@@ -14,6 +14,8 @@
     }
 </div>
 
+<p class="class-help"><Term Key="clps">CLPS</Term> robotic delivery landers · <Term Key="hls">HLS</Term> crewed Artemis landers</p>
+
 <div class="lander-grid" role="radiogroup" aria-label="Spacecraft model" @ref="gridRef">
     @{ var landers = MissionState.FilteredLanders; var tabStop = TabStopId(landers); }
     @foreach (var lander in landers)

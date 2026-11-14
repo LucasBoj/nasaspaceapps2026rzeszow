@@ -1,0 +1,71 @@
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject UiService Ui
+
+@if (Ui.HelpOpen)
+{
+    <div class="dialog-backdrop" @onclick="Close">
+        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="help-title" tabindex="-1"
+             @onclick:stopPropagation="true" @onkeydown="OnKey">
+            <header class="dialog-header">
+                <h2 id="help-title">How to read SELENE OPS</h2>
+                <button type="button" class="welcome-close" @ref="closeBtn" aria-label="Close help" @onclick="Close">×</button>
+            </header>
+            <div class="dialog-body">
+                <p>
+                    For a landing site, a lander and a date window, the app simulates every hour of the mission:
+                    how much of the Sun is above the local terrain (power), whether Earth is in view (radio contact),
+                    and the battery charge. The result is a one-line verdict, a mission timeline and a heatmap of
+                    all landing days for all nine regions.
+                </p>
+                <h3>Reading the results</h3>
+                <ul>
+                    <li><strong>Timeline</strong> — amber bars: sunlight · cyan band: Earth in view · green line: battery, dashed line: your minimum.</li>
+                    <li><strong>Heatmap</strong> — one row per region, one column per landing day. Brighter = better score; dark grey = the battery runs out. Click a cell to inspect it.</li>
+                    <li><strong>based on</strong> — the weakest data behind the result: SOURCED, DERIVED, ASSUMPTION or WHAT-IF.</li>
+                </ul>
+                <h3>Glossary</h3>
+                <dl class="glossary">
+                    @foreach (var (_, term, text) in Glossary.Entries)
+                    {
+                        <dt>@term</dt>
+                        <dd>@text</dd>
+                    }
+                </dl>
+                <h3>Data</h3>
+                <p class="dialog-small">
+                    Terrain horizons from NASA LRO LOLA (120 m/px); Sun and Earth positions from JPL DE421 via Skyfield;
+                    candidate landing sites from Wueller et al. (2026); imagery from NASA/JPL Moon Trek.
+                    All numbers are precomputed — the app works without a server.
+                </p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ElementReference closeBtn;
+    private bool wasOpen;
+
+    protected override void OnInitialized() => Ui.OnChanged += Refresh;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Ui.HelpOpen && !wasOpen)
+        {
+            try { await closeBtn.FocusAsync(); } catch { /* not rendered */ }
+        }
+        wasOpen = Ui.HelpOpen;
+    }
+
+    private void Close() => Ui.SetHelp(false);
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Close();
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Ui.OnChanged -= Refresh;
+}

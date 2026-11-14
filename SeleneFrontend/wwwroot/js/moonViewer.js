@@ -13,8 +13,15 @@ const FLY_DURATION_S = 1.8;
 const PIN_SIZE = { site: 8, selected: 12, custom: 10 };
 const HOVER_GROW_PX = 3;
 
+const SELECTION_RING_ID = "selection-ring";
+const SELECTION_LEADER_ID = "selection-leader";
+const LEADER = { w: 34, h: 26 };            // px, from the pin to the label anchor
+const LABEL_OFFSET = new Cesium.Cartesian2(10, -10);
+const SELECTED_LABEL_OFFSET = new Cesium.Cartesian2(LEADER.w + 4, -LEADER.h - 2);
+
 let viewer = null;
 let dotNetRef = null;
+let reducedMotion = false;
 let selectedSiteId = null;
 let hoveredId = null;
 let pendingHoverPos = null;
@@ -79,25 +86,56 @@ export async function initViewer(elementId, token, dotNetReference) {
     }
   }
 
-  resetView();
+  try { reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { reducedMotion = false; }
+  // Start far out; introFlight() brings the camera down over the south pole.
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(0, -35, 9000000, Cesium.Ellipsoid.MOON),
+    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+  });
   viewer.screenSpaceEventHandler.setInputAction(onLeftClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   viewer.screenSpaceEventHandler.setInputAction(onMouseMove, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
   return { terrainLoaded, hasToken };
 }
 
+/** Resolve true when the globe has finished loading its visible tiles, false after timeoutMs. */
+export function waitForTiles(timeoutMs) {
+  return new Promise((resolve) => {
+    if (!viewer) return resolve(false);
+    const globe = viewer.scene.globe;
+    let settled = false;
+    const finish = (ok) => { if (settled) return; settled = true; remove(); clearTimeout(timer); resolve(ok); };
+    const remove = globe.tileLoadProgressEvent.addEventListener((pending) => {
+      if (pending === 0 && globe.tilesLoaded) finish(true);
+    });
+    const timer = setTimeout(() => finish(globe.tilesLoaded), timeoutMs);
+  });
+}
+
+/** Intro: from far space down to the south-pole overview (instant with reduced motion). */
+export function introFlight() {
+  if (!viewer) return;
+  if (reducedMotion) { resetView(false); return; }
+  const view = southPoleView();
+  viewer.camera.flyTo({
+    ...view,
+    duration: 3.2,
+    easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT,
+  });
+}
+
+function southPoleView() {
+  return {
+    destination: Cesium.Cartesian3.fromDegrees(0, -72, 420000, Cesium.Ellipsoid.MOON),
+    orientation: { heading: Cesium.Math.toRadians(180), pitch: Cesium.Math.toRadians(-38), roll: 0 },
+  };
+}
+
 /** South-pole overview. Instant by default; pass animate=true for a camera flight. */
 export function resetView(animate = false) {
   if (!viewer) return;
-  const view = {
-    destination: Cesium.Cartesian3.fromDegrees(0, -72, 420000, Cesium.Ellipsoid.MOON),
-    orientation: {
-      heading: Cesium.Math.toRadians(180),
-      pitch: Cesium.Math.toRadians(-38),
-      roll: 0,
-    },
-  };
-  if (animate) {
+  const view = southPoleView();
+  if (animate && !reducedMotion) {
     viewer.camera.flyTo({ ...view, duration: FLY_DURATION_S });
   } else {
     viewer.camera.setView(view);
@@ -106,7 +144,7 @@ export function resetView(animate = false) {
 
 function isPin(entity) {
   const kind = entityKind(entity);
-  return kind === "site" || kind === "custom";
+  return kind === "site" || kind === "custom" || kind === "candidate";
 }
 
 // Hover: pick at most once per animation frame.
@@ -138,6 +176,9 @@ function restylePin(id) {
   const hover = id === hoveredId ? HOVER_GROW_PX : 0;
   if (entityKind(entity) === "custom") {
     entity.point.pixelSize = PIN_SIZE.custom + hover;
+  } else if (entityKind(entity) === "candidate") {
+    entity.point.pixelSize = 6 + hover;
+    entity.label.show = id === hoveredId;
   } else if (entityKind(entity) === "site") {
     styleSitePin(entity, id === selectedSiteId);
   }
@@ -157,6 +198,7 @@ function onLeftClick(click) {
     dotNetRef?.invokeMethodAsync("OnSiteSelected", entity.id);
     return;
   }
+  if (entity instanceof Cesium.Entity && ["candidate", "decor"].includes(entityKind(entity))) return;
 
   let position;
   if (viewer.scene.pickPositionSupported) {
@@ -174,6 +216,7 @@ function onLeftClick(click) {
 
   placeCustomPin(lat, lon);
   selectSite(null);
+  decorate(CUSTOM_SITE_ID);
   dotNetRef?.invokeMethodAsync("OnCustomSiteCreated", lat, lon);
 }
 
@@ -184,6 +227,7 @@ function pinGraphics(color, pixelSize, text) {
       color,
       outlineColor: Cesium.Color.BLACK,
       outlineWidth: 1,
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,   // sits on 3D terrain when loaded
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
     label: {
@@ -198,6 +242,7 @@ function pinGraphics(color, pixelSize, text) {
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
       pixelOffset: new Cesium.Cartesian2(10, -10),
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   };
@@ -252,10 +297,137 @@ export function selectSite(siteId) {
   }
 
   selectedSiteId = siteId ?? null;
-  if (!siteId) return;
+  if (!siteId) { decorate(null); return; }
 
   const entity = viewer.entities.getById(siteId);
   if (entity && entityKind(entity) === "site") styleSitePin(entity, true);
+  decorate(siteId);
+}
+
+// ---- Selection decoration: pulsing ring + thin leader line to the label ----
+
+let ringImage = null;
+let leaderImage = null;
+
+function makeRingImage() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  g.strokeStyle = "#ffb020";
+  g.lineWidth = 3;
+  g.beginPath(); g.arc(32, 32, 26, 0, Math.PI * 2); g.stroke();
+  return c;
+}
+
+function makeLeaderImage() {
+  const c = document.createElement("canvas");
+  c.width = LEADER.w; c.height = LEADER.h;
+  const g = c.getContext("2d");
+  g.strokeStyle = "rgba(255,176,32,0.9)";
+  g.lineWidth = 1;
+  g.beginPath(); g.moveTo(1, LEADER.h - 1); g.lineTo(LEADER.w - 1, 1); g.stroke();
+  return c;
+}
+
+function removeDecor() {
+  for (const id of [SELECTION_RING_ID, SELECTION_LEADER_ID]) {
+    const e = viewer.entities.getById(id);
+    if (e) viewer.entities.remove(e);
+  }
+  for (const e of viewer.entities.values) {
+    if ((entityKind(e) === "site" || entityKind(e) === "custom") && e.label) e.label.pixelOffset = LABEL_OFFSET;
+  }
+}
+
+function decorate(entityId) {
+  if (!viewer) return;
+  const target = entityId ? viewer.entities.getById(entityId) : null;
+  // Already decorated (state syncs call selectSite often) → keep the running pulse.
+  const ring = viewer.entities.getById(SELECTION_RING_ID);
+  if (target && ring && ring.properties?.target?.getValue() === entityId
+      && Cesium.Cartesian2.equals(target.label?.pixelOffset?.getValue(viewer.clock.currentTime), SELECTED_LABEL_OFFSET)) {
+    return;
+  }
+  removeDecor();
+  if (!target) return;
+  const position = target.position.getValue(viewer.clock.currentTime);
+  ringImage ??= makeRingImage();
+  leaderImage ??= makeLeaderImage();
+
+  const t0 = performance.now();
+  const phase = () => ((performance.now() - t0) % 1600) / 1600;
+  viewer.entities.add({
+    id: SELECTION_RING_ID,
+    position,
+    properties: { kind: "decor", target: entityId },
+    billboard: {
+      image: ringImage,
+      width: 32, height: 32,
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      scale: reducedMotion ? 1.0 : new Cesium.CallbackProperty(() => 0.7 + 0.9 * phase(), false),
+      color: reducedMotion ? Cesium.Color.WHITE.withAlpha(0.8)
+        : new Cesium.CallbackProperty(() => Cesium.Color.WHITE.withAlpha(0.95 * (1 - phase())), false),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+  viewer.entities.add({
+    id: SELECTION_LEADER_ID,
+    position,
+    properties: { kind: "decor" },
+    billboard: {
+      image: leaderImage,
+      width: LEADER.w, height: LEADER.h,
+      horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      pixelOffset: new Cesium.Cartesian2(2, -2),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+  if (target.label) target.label.pixelOffset = SELECTED_LABEL_OFFSET;
+}
+
+// ---- Candidate landing sites overlay (Wueller et al. 2026, scored by the pipeline) ----
+
+const CANDIDATE_LOW = Cesium.Color.fromCssColorString("#1c4a5e");
+const CANDIDATE_HIGH = Cesium.Color.fromCssColorString("#4fc3f7");
+const CANDIDATE_REJECTED = Cesium.Color.fromCssColorString("#5b6670");
+
+/** points: [{ id, lat, lon, sunPct (0..100 or null), rejected, label }] */
+export function showCandidates(points) {
+  if (!viewer) return;
+  clearCandidates();
+  for (const p of points ?? []) {
+    const color = p.rejected || p.sunPct == null
+      ? CANDIDATE_REJECTED
+      : Cesium.Color.lerp(CANDIDATE_LOW, CANDIDATE_HIGH, Math.max(0, Math.min(1, p.sunPct / 100)), new Cesium.Color());
+    viewer.entities.add({
+      id: `cand-${p.id}`,
+      position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0, Cesium.Ellipsoid.MOON),
+      properties: { kind: "candidate" },
+      point: {
+        pixelSize: 6, color,
+        outlineColor: Cesium.Color.BLACK, outlineWidth: 1,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      label: {
+        text: p.label, show: false,
+        font: '11px "IBM Plex Mono", monospace',
+        fillColor: Cesium.Color.WHITE,
+        showBackground: true, backgroundColor: LABEL_BG_COLOR,
+        pixelOffset: new Cesium.Cartesian2(8, -8),
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        horizontalOrigin: Cesium.HorizontalOrigin.LEFT, verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+    });
+  }
+}
+
+export function clearCandidates() {
+  if (!viewer) return;
+  for (const e of viewer.entities.values.filter((x) => entityKind(x) === "candidate")) viewer.entities.remove(e);
 }
 
 export function flyToSite(siteId) {

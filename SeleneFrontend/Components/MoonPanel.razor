@@ -1,3 +1,4 @@
+@using System.Net.Http.Json
 @using Microsoft.Extensions.Configuration
 @using SeleneFrontend.Models
 @using SeleneFrontend.Services
@@ -6,6 +7,8 @@
 @inject IConfiguration Config
 @inject MissionConfigState MissionState
 @inject AnalysisService Analysis
+@inject UiService Ui
+@inject HttpClient Http
 
 <div class="moon-viewer-container">
     @* Cesium owns this element exclusively — Blazor must never render children into it. *@
@@ -13,8 +16,8 @@
 
     @if (!moonLoaded && initError is null)
     {
-        <div class="loading-overlay">
-            <p>Initializing Cesium...</p>
+        <div class="loading-overlay skeleton-surface" aria-live="polite">
+            <p>LOADING MOON VIEW…</p>
         </div>
     }
     @if (moonLoaded)
@@ -23,10 +26,28 @@
             <div class="viewer-hud-buttons">
                 <button type="button" class="hud-btn" @onclick="SouthPoleViewAsync">SOUTH POLE VIEW</button>
                 <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)" @onclick="ZoomToSiteAsync">ZOOM TO SITE</button>
+                <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
+                        disabled="@(!HasRegionSelected)" title="Show all evaluated candidate landing sites in this region"
+                        @onclick="Ui.ToggleCandidates">CANDIDATES</button>
             </div>
             @if (badgeText is not null)
             {
-                <div class="viewer-badge">@badgeText</div>
+                <div class="viewer-badge mode" title="@badgeTitle">@badgeText</div>
+            }
+            @if (Ui.CandidatesOn && HasRegionSelected)
+            {
+                <div class="hud-legend">
+                    @if (candidateError is not null)
+                    {
+                        <span class="hud-legend-error">@candidateError</span>
+                    }
+                    else
+                    {
+                        <span class="legend-scale small"></span>
+                        <span>@candidateCount candidate sites · color = % of hours lit · grey = rejected</span>
+                        <span>Wueller et al. 2026 · sites near <Term Key="psr">PSRs</Term></span>
+                    }
+                </div>
             }
             @if (Analysis.IsRunning)
             {
@@ -38,6 +59,11 @@
             }
         </div>
     }
+    @if (moonLoaded)
+    {
+        <div class="viewer-compass"><SunEarthCompass /></div>
+    }
+    <WelcomeCard />
     @if (initError is not null)
     {
         <div class="token-error-overlay">
@@ -54,6 +80,17 @@
     private IJSObjectReference? moonModule;
     private DotNetObjectReference<MoonPanel>? dotNetRef;
     private List<Site>? loadedSites;
+    private string? badgeTitle;
+    private bool introPending;
+    private string? candidatesShownFor;
+    private string? candidateError;
+    private int candidateCount;
+
+    private bool HasRegionSelected =>
+        MissionState.SelectedSite is { } s && MissionState.AvailableSites.Any(a => a.Id == s.Id);
+
+    private sealed record CandidateFile(List<CandidatePoint> Candidates);
+    private sealed record CandidatePoint(string CandidateId, double Lat, double Lon, double? SunPct, double? EarthPct, bool Rejected, string Reason);
 
     public class InitResult
     {
@@ -66,9 +103,19 @@
         MissionState.OnStateChanged += HandleStateChanged;
         MissionState.OnFlyToRequested += HandleFlyToRequested;
         Analysis.OnChanged += HandleAnalysisChanged;
+        Ui.OnChanged += HandleUiChanged;
+        Ui.IntroRequested += HandleIntro;
     }
 
     private void HandleAnalysisChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); StateHasChanged(); });
+
+    private void HandleIntro()
+    {
+        if (!moonLoaded || moonModule is null) { introPending = true; return; }
+        _ = moonModule.InvokeVoidAsync("introFlight").AsTask();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -76,6 +123,11 @@
 
         try
         {
+            // Cesium is loaded with `defer` so it downloads alongside the .NET runtime.
+            if (!await Ui.WhenCesiumReadyAsync())
+            {
+                throw new InvalidOperationException("the 3D engine (CesiumJS) could not be downloaded — check the connection and reload");
+            }
             moonModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/moonViewer.js");
             dotNetRef = DotNetObjectReference.Create(this);
 
@@ -84,13 +136,22 @@
 
             if (!result.TerrainLoaded)
             {
-                badgeText = result.HasToken
-                    ? "3D TERRAIN UNAVAILABLE — 2D MOSAIC"
-                    : "NO ION TOKEN — 2D MOSAIC ONLY";
+                // 2D is a supported mode, not a failure: show it as a mode label.
+                badgeText = "2D MOSAIC MODE";
+                badgeTitle = result.HasToken
+                    ? "NASA/JPL Moon Trek LRO WAC mosaic on a smooth Moon (3D terrain asset not available for this token)"
+                    : "NASA/JPL Moon Trek LRO WAC mosaic on a smooth Moon";
             }
 
             moonLoaded = true;
+            Ui.SetViewerReady(result.TerrainLoaded);
             await SyncViewerAsync();
+            if (introPending)
+            {
+                introPending = false;
+                await moonModule.InvokeVoidAsync("introFlight");
+            }
+            Ui.SetTilesLoaded(await moonModule.InvokeAsync<bool>("waitForTiles", 2400));
         }
         catch (Exception ex)
         {
@@ -104,6 +165,7 @@
     private void HandleStateChanged()
     {
         _ = SyncViewerAsync();
+        _ = InvokeAsync(SyncCandidatesAsync);
         _ = InvokeAsync(StateHasChanged); // keeps HUD button state in sync with the selection
     }
 
@@ -156,6 +218,46 @@
         }
     }
 
+    /// <summary>Show / hide the evaluated candidate sites of the selected region.</summary>
+    private async Task SyncCandidatesAsync()
+    {
+        if (!moonLoaded || moonModule is null) return;
+        var want = Ui.CandidatesOn && HasRegionSelected ? MissionState.SelectedSite!.Id : null;
+        if (want == candidatesShownFor) return;
+        candidatesShownFor = want;
+        candidateError = null;
+        try
+        {
+            if (want is null)
+            {
+                await moonModule.InvokeVoidAsync("clearCandidates");
+                return;
+            }
+            var file = await Http.GetFromJsonAsync<CandidateFile>($"data/illumination/candidates/{Uri.EscapeDataString(want)}.json",
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            var points = (file?.Candidates ?? []).Select(c => new
+            {
+                id = c.CandidateId,
+                lat = c.Lat,
+                lon = c.Lon,
+                sunPct = c.SunPct,
+                rejected = c.Rejected,
+                label = c.Rejected
+                    ? $"{c.CandidateId} · rejected: {c.Reason}"
+                    : $"{c.CandidateId} · lit {c.SunPct:0}% · Earth {c.EarthPct:0}%",
+            }).ToList();
+            candidateCount = points.Count;
+            await moonModule.InvokeVoidAsync("showCandidates", points);
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[MoonPanel] candidates: {ex.Message}");
+            candidateError = "candidate sites unavailable for this region";
+        }
+        StateHasChanged();
+    }
+
     private void HandleFlyToRequested(string siteId) => _ = FlyToAsync(siteId);
 
     private async Task FlyToAsync(string siteId)
@@ -201,6 +303,8 @@
         MissionState.OnStateChanged -= HandleStateChanged;
         MissionState.OnFlyToRequested -= HandleFlyToRequested;
         Analysis.OnChanged -= HandleAnalysisChanged;
+        Ui.OnChanged -= HandleUiChanged;
+        Ui.IntroRequested -= HandleIntro;
 
         if (moonModule is not null)
         {

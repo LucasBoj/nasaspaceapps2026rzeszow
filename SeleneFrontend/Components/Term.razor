@@ -1,0 +1,17 @@
+@using SeleneFrontend.Models
+@* Inline term with a plain-language tooltip (hover or keyboard focus). Never place inside another button. *@
+<span class="term">
+    <button type="button" class="term-btn @(AriaLabel is null ? "" : "icon")" aria-label="@AriaLabel" aria-describedby="@tipId">@ChildContent</button>
+    <span class="term-tip" role="tooltip" id="@tipId">@Glossary.Text(Key)</span>
+</span>
+
+@code {
+    private static int counter;
+    private readonly string tipId = $"term-tip-{Interlocked.Increment(ref counter)}";
+
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Accessible name when the visible content is just an icon such as "?".</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+}

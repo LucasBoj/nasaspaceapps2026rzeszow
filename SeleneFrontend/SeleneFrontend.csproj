@@ -5,7 +5,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- All UI formatting is invariant and all times are UTC: skip ICU culture data (smaller first download).
+         InvariantTimezone would also help but needs the wasm-tools workload. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <!-- The local Cesium ion token lives in this git-ignored file. Never ship it: published files are public. -->
+  <ItemGroup>
+    <Content Update="wwwroot\appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.10" />
