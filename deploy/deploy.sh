@@ -73,7 +73,19 @@ case "$TARGET" in
   preview) REMOTE_DIR=/var/www/selene/preview; SITE_URL="$PREVIEW_URL" ;;
   *) usage_error "missing target (stable or preview)" ;;
 esac
+# Values pasted into GitHub secrets/variables may carry spaces or a newline.
+MIKRUS_HOST="$(printf '%s' "$MIKRUS_HOST" | tr -d '[:space:]')"
+MIKRUS_PORT="$(printf '%s' "$MIKRUS_PORT" | tr -d '[:space:]')"
+MIKRUS_USER="$(printf '%s' "$MIKRUS_USER" | tr -d '[:space:]')"
 [[ "$MIKRUS_PORT" =~ ^[0-9]+$ ]] || usage_error "MIKRUS_PORT must be a number, got '$MIKRUS_PORT'"
+# An address without a scheme (e.g. "selene.byst.re") gets https://, and always a trailing slash:
+# og:image must be an absolute URL.
+SITE_URL="$(printf '%s' "$SITE_URL" | tr -d '[:space:]')"
+if [[ "$SITE_URL" != *://* ]]; then
+  warn "site URL '$SITE_URL' has no http(s)://, using https://$SITE_URL"
+  SITE_URL="https://$SITE_URL"
+fi
+[[ "$SITE_URL" == */ ]] || SITE_URL="$SITE_URL/"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
