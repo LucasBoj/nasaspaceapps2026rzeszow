@@ -2010,3 +2010,12 @@ a { color: var(--accent-cyan); }
 }
 .confirm-landing { margin-top: auto; }
 .confirm-landing + .config-actions { margin-top: 0; }
+
+.landing-status {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: var(--accent-cyan);
+    animation: shimmer-text 1.2s ease-in-out infinite alternate;
+}
+@keyframes shimmer-text { from { opacity: 0.55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .landing-status { animation: none; } }

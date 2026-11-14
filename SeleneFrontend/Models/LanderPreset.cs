@@ -64,6 +64,12 @@ public class LanderPreset
     public NumberParam? Crew { get; set; }
     public NumberParam? PayloadKg { get; set; }
 
+    /// <summary>Optional glTF/GLB model for the 3D view (visualisation only; falls back to primitives).</summary>
+    public string? ModelUri { get; set; }
+
+    /// <summary>Height the 3D model is scaled to, in metres (visual scale, not a provenance-tracked figure).</summary>
+    public double? ModelHeightM { get; set; }
+
     /// <summary>All present parameters, in display order.</summary>
     public IEnumerable<LanderParam> AllParams =>
         new LanderParam?[] { SolarArrayW, BatteryWh, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg }

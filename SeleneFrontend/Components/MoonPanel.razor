@@ -9,6 +9,7 @@
 @inject AnalysisService Analysis
 @inject UiService Ui
 @inject HttpClient Http
+@inject IlluminationRepository Repo
 
 <div class="moon-viewer-container">
     @* Cesium owns this element exclusively — Blazor must never render children into it. *@
@@ -116,6 +117,7 @@
         public string Status { get; set; } = "";
         public double Fps { get; set; }
         public bool Simplified { get; set; }
+        public string? Model { get; set; }   // "gltf" or "schematic"
     }
     private bool introPending;
     private string? candidatesShownFor;
@@ -142,6 +144,7 @@
         Ui.OnChanged += HandleUiChanged;
         Ui.IntroRequested += HandleIntro;
         Ui.LandingRequested += HandleLandingRequested;
+        Ui.HoverTimeChanged += HandleHoverTime;
     }
 
     private void HandleLandingRequested(LandingRequest req) => _ = InvokeAsync(() => PlayLandingAsync(req));
@@ -158,9 +161,11 @@
                 {
                     lat = req.Lat, lon = req.Lon, landerClass = req.LanderClass,
                     landerName = req.LanderName, siteName = req.SiteName, reducedMotion = req.ReducedMotion,
+                    modelUri = req.ModelUri, modelHeightM = req.ModelHeightM,
                 };
                 var result = await moonModule.InvokeAsync<LandingResult>("playLanding", options, landingHud);
                 status = result.Status;
+                Console.WriteLine($"[Landing] {result.Status} · model: {result.Model ?? "schematic"}");
                 if (result.Simplified) Console.WriteLine($"[Landing] low frame rate ({result.Fps:0} fps) — simplified model");
             }
         }
@@ -187,7 +192,11 @@
         Ui.ClearContact();
     }
 
-    private void HandleAnalysisChanged() => _ = InvokeAsync(StateHasChanged);
+    private void HandleAnalysisChanged() => _ = InvokeAsync(async () =>
+    {
+        if (MissionState.SelectedSite is { } s) await SyncSunLightAsync(s);
+        StateHasChanged();
+    });
 
     private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); StateHasChanged(); });
 
@@ -288,11 +297,15 @@
             if (selected is not null && !selected.Id.StartsWith("CUSTOM", StringComparison.Ordinal))
             {
                 await moonModule.InvokeVoidAsync("selectSite", selected.Id);
-                if (Ui.LandingAnimationEnabled && prefetchedFor != selected.Id)
+                var modelUri = MissionState.SelectedLander?.ModelUri;
+                var prefetchKey = $"{selected.Id}|{modelUri}";
+                if (Ui.LandingAnimationEnabled && prefetchedFor != prefetchKey)
                 {
-                    prefetchedFor = selected.Id;
-                    _ = moonModule.InvokeVoidAsync("prefetchLanding", selected.Lat, selected.Lon).AsTask();
+                    prefetchedFor = prefetchKey;
+                    _ = moonModule.InvokeVoidAsync("prefetchLanding", selected.Lat, selected.Lon, modelUri,
+                        MissionState.SelectedLander?.ModelHeightM).AsTask();
                 }
+                await SyncSunLightAsync(selected);
             }
         }
         catch (JSDisconnectedException)
@@ -344,6 +357,36 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Scene light from the precomputed Sun position for the selected site at the same moment the
+    /// compass shows (timeline hover → mission landing time → first data hour).
+    /// </summary>
+    private async Task SyncSunLightAsync(Site site)
+    {
+        if (moonModule is null || !MissionState.AvailableSites.Any(s => s.Id == site.Id)) return;
+        try
+        {
+            var series = await Repo.GetSeries(site.Id);
+            var moment = Ui.HoverTimeUtc
+                         ?? (Analysis.MissionSiteId == site.Id ? Analysis.Mission?.LandingUtc : null)
+                         ?? series.Start;
+            var i = series.IndexOf(moment);
+            if (i < 0) return;
+            await moonModule.InvokeVoidAsync("setSunLight", site.Lat, site.Lon,
+                series.SunAzCentiDeg[i] / 100.0, series.SunElevCentiDeg[i] / 100.0, series.SunFraction[i]);
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[MoonPanel] sun light: {ex.Message}");
+        }
+    }
+
+    private void HandleHoverTime()
+    {
+        if (MissionState.SelectedSite is { } s) _ = InvokeAsync(() => SyncSunLightAsync(s));
+    }
+
     private void HandleFlyToRequested(string siteId) => _ = FlyToAsync(siteId);
 
     private async Task FlyToAsync(string siteId)
@@ -392,6 +435,7 @@
         Ui.OnChanged -= HandleUiChanged;
         Ui.IntroRequested -= HandleIntro;
         Ui.LandingRequested -= HandleLandingRequested;
+        Ui.HoverTimeChanged -= HandleHoverTime;
 
         if (moonModule is not null)
         {

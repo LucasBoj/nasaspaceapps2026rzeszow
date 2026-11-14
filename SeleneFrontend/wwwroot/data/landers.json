@@ -52,7 +52,10 @@
       "kind": "sourced",
       "note": "",
       "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
-    }
+    },
+    "modelUri": "models/nova_c.glb",
+    "modelHeightM": 4,
+    "modelNote": "3D model for visualisation only (concept image: Meshy AI; mesh: Microsoft TRELLIS.2). Scaled to modelHeightM."
   },
   {
     "id": "blue_ghost",

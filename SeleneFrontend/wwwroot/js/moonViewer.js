@@ -22,6 +22,18 @@ const SELECTED_LABEL_OFFSET = new Cesium.Cartesian2(LEADER.w + 4, -LEADER.h - 2)
 let viewer = null;
 let dotNetRef = null;
 let landingModule = null;   // loaded on first use only (feature can be switched off)
+let terrainTileset = null;  // Cesium Moon Terrain (3D mode only)
+
+/**
+ * Uniform ambient light as spherical-harmonic coefficients (only the L00 band). The Moon has no
+ * sky, so without it surfaces facing away from a grazing polar Sun render pitch black. This
+ * stands in for regolith bounce light; the Sun's direction itself is unchanged.
+ */
+function ambientCoefficients(level) {
+  const c = Array.from({ length: 9 }, () => new Cesium.Cartesian3(0, 0, 0));
+  c[0] = new Cesium.Cartesian3(level, level, level * 1.04);
+  return c;
+}
 let reducedMotion = false;
 let selectedSiteId = null;
 let hoveredId = null;
@@ -92,6 +104,7 @@ export async function initViewer(elementId, token, dotNetReference) {
       const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(MOON_TERRAIN_ION_ASSET_ID);
       scene.primitives.add(tileset);
       scene.globe.show = false;
+      terrainTileset = tileset;
       terrainLoaded = true;
     } catch (e) {
       console.warn("Lunar 3D terrain unavailable, falling back to Moon Trek mosaic:", e);
@@ -476,11 +489,62 @@ export async function playLanding(options, hudHost) {
   return landingModule.play(viewer, { ...options, hudHost });
 }
 
-/** Load the animation module and sample the site's ground height ahead of CONFIRM LANDING SITE. */
-export async function prefetchLanding(lat, lon) {
+/**
+ * Load the animation module and sample the site's ground height ahead of CONFIRM LANDING SITE.
+ * A lander model (GLB, several MB) is fetched a few seconds later so it never competes with
+ * the first page load.
+ */
+export async function prefetchLanding(lat, lon, modelUri, modelHeightM) {
   if (!viewer) return;
   landingModule ??= await import("./landingAnimation.js");
+  if (modelUri) setTimeout(() => landingModule.prefetchModel(viewer, modelUri, modelHeightM), 4000);
   await landingModule.prefetchGround(viewer, lat, lon);
+}
+
+// ---- Sunlight from the precomputed ephemeris ----
+
+let sunLightKey = null;
+
+/**
+ * Scene light = the Sun as seen from the site at the chosen moment (azimuth/elevation from
+ * illumination/{siteId}.json), converted from the site's east-north-up frame to the Moon-fixed frame. Soft shadows on.
+ * If the Sun is hidden (sunFraction 0) a weak, cool fill light from above keeps models visible.
+ */
+export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
+  if (!viewer || viewer.isDestroyed()) return;
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)},${azDeg.toFixed(1)},${elDeg.toFixed(1)},${sunPct > 0}`;
+  if (key === sunLightKey) return;
+  sunLightKey = key;
+
+  const site = Cesium.Cartesian3.fromDegrees(lon, lat, 0, Cesium.Ellipsoid.MOON);
+  const rot = Cesium.Matrix4.getMatrix3(Cesium.Transforms.eastNorthUpToFixedFrame(site), new Cesium.Matrix3());
+  const az = Cesium.Math.toRadians(azDeg), el = Cesium.Math.toRadians(elDeg);
+  const toSunEnu = new Cesium.Cartesian3(Math.cos(el) * Math.sin(az), Math.cos(el) * Math.cos(az), Math.sin(el));
+  const toSun = Cesium.Cartesian3.normalize(Cesium.Matrix3.multiplyByVector(rot, toSunEnu, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+  const up = Cesium.Matrix3.multiplyByVector(rot, Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3());
+
+  if (sunPct > 0) {
+    viewer.scene.light = new Cesium.DirectionalLight({
+      direction: Cesium.Cartesian3.negate(toSun, new Cesium.Cartesian3()),   // light travels from the Sun
+      intensity: 2.2,
+    });
+  } else {
+    // Sun hidden: weak fill light, mostly from overhead with a hint of the Sun's bearing.
+    const fill = Cesium.Cartesian3.normalize(Cesium.Cartesian3.add(
+      Cesium.Cartesian3.multiplyByScalar(up, 0.8, new Cesium.Cartesian3()),
+      Cesium.Cartesian3.multiplyByScalar(toSun, 0.2, new Cesium.Cartesian3()), new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    viewer.scene.light = new Cesium.DirectionalLight({
+      direction: Cesium.Cartesian3.negate(fill, new Cesium.Cartesian3()),
+      intensity: 0.6,
+      color: Cesium.Color.fromCssColorString("#a9c6e0"),
+    });
+  }
+  if (terrainTileset && !terrainTileset.isDestroyed()) {
+    terrainTileset.imageBasedLighting.sphericalHarmonicCoefficients = ambientCoefficients(sunPct > 0 ? 0.55 : 0.35);
+  }
+  viewer.shadows = true;
+  viewer.shadowMap.softShadows = true;
+  viewer.shadowMap.darkness = sunPct > 0 ? 0.35 : 0.6;
 }
 
 export function cancelLanding() {

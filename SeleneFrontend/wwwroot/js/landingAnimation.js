@@ -20,6 +20,114 @@ let active = null;     // running animation state
 let marker = [];       // entities of the landed model (kept after touchdown)
 let generation = 0;    // bumped by play() and cancel(): a play() still awaiting setup aborts if it changed
 const groundCache = new Map();   // "lat,lon" → sampled ground height (m)
+let markerPrims = [];            // glTF model primitive(s) left on the surface
+const glbCache = new Map();      // uri → Promise<{ url, height, bottom } | null>
+const modelPool = new Map();     // uri → loaded Cesium.Model, hidden when not in use (parsing a large GLB again is slow)
+let pending = null;              // { hud, onKey } while play() is preparing (before the animation clock starts)
+let settleTimer = null;          // post-touchdown terrain-following of the landed marker
+
+// ------------------------------------------------------------------ optional glTF model (e.g. Nova-C)
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Download a GLB once, read its height from the POSITION accessor bounds and keep the bytes
+ * as a blob URL for Cesium (so the file is fetched a single time).
+ *
+ * Orientation: glTF is Y-up by specification, and the TRELLIS export follows it (bounds:
+ * x/z ±0.50, y ±0.41 → the lander is wider than tall, as Nova-C is). The model's height is
+ * therefore its Y extent. Cesium.Model converts glTF Y-up to Z-up by default, so with an
+ * east-north-up modelMatrix the model's "up" is the local vertical at the landing site and no
+ * extra rotation is needed. Node transforms are ignored (this export has none).
+ */
+function glbInfo(uri) {
+  if (!glbCache.has(uri)) {
+    glbCache.set(uri, (async () => {
+      try {
+        const res = await fetch(uri);
+        if (!res.ok) return null;
+        const buf = await res.arrayBuffer();
+        const dv = new DataView(buf);
+        if (buf.byteLength < 20 || dv.getUint32(0, true) !== 0x46546c67 || dv.getUint32(16, true) !== 0x4e4f534a) return null; // "glTF", "JSON"
+        const gltf = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, dv.getUint32(12, true))));
+        let minY = Infinity, maxY = -Infinity;
+        for (const mesh of gltf.meshes ?? []) {
+          for (const prim of mesh.primitives ?? []) {
+            const acc = gltf.accessors?.[prim.attributes?.POSITION];
+            if (acc?.min && acc?.max) { minY = Math.min(minY, acc.min[1]); maxY = Math.max(maxY, acc.max[1]); }
+          }
+        }
+        if (!(maxY > minY)) return null;
+        return { url: URL.createObjectURL(new Blob([buf], { type: "model/gltf-binary" })), height: maxY - minY, bottom: minY };
+      } catch {
+        return null;
+      }
+    })());   // a failure is cached too: one request per session, no repeated 404s
+  }
+  return glbCache.get(uri);
+}
+
+/** Pooled models are only hidden (reused by the next landing); anything else is removed. */
+function hideOrRemove(viewer, model) {
+  if (!viewer || viewer.isDestroyed() || model.isDestroyed()) return;
+  if ([...modelPool.values()].includes(model)) model.show = false;
+  else viewer.scene.primitives.remove(model);
+}
+
+/** Wait until a model is ready to draw and one more frame has rendered (shader compile happens here). */
+async function whenModelReady(viewer, model, timeoutMs) {
+  if (!model.ready) {
+    await Promise.race([new Promise((r) => { const off = model.readyEvent.addEventListener(() => { off(); r(); }); }), sleep(timeoutMs)]);
+  }
+  await Promise.race([new Promise((r) => { const off = viewer.scene.postRender.addEventListener(() => { off(); r(); }); }), sleep(500)]);
+}
+
+/**
+ * Background preparation (called a few seconds after a site is selected): download, parse and
+ * upload the model once, then keep it hidden in the pool so CONFIRM can start instantly.
+ */
+export async function prefetchModel(viewer, uri, heightM) {
+  if (!uri || !viewer || viewer.isDestroyed()) return;
+  const loaded = await loadModel(viewer, uri, heightM, 20000);
+  if (!loaded) return;
+  await whenModelReady(viewer, loaded.model, 20000);
+  const inUse = (active && active.prims.includes(loaded.model)) || markerPrims.includes(loaded.model);
+  if (!inUse && !loaded.model.isDestroyed()) loaded.model.show = false;
+}
+
+/** Load the model scaled to heightM; null on any failure or if it is not ready within timeoutMs. */
+async function loadModel(viewer, uri, heightM, timeoutMs) {
+  const info = await Promise.race([glbInfo(uri), sleep(timeoutMs).then(() => null)]);
+  if (!info || !(heightM > 0)) return null;
+  const pooled = modelPool.get(uri);
+  if (pooled && !pooled.isDestroyed() && viewer.scene.primitives.contains(pooled)) {
+    pooled.scale = heightM / info.height;
+    pooled.show = true;
+    return { model: pooled, lift: -info.bottom * pooled.scale };
+  }
+  try {
+    const scale = heightM / info.height;
+    const model = await Promise.race([
+      Cesium.Model.fromGltfAsync({
+        url: info.url, scale, minimumPixelSize: 64, maximumScale: 20000,
+        shadows: Cesium.ShadowMode.ENABLED,
+      }),
+      sleep(timeoutMs).then(() => null),
+    ]);
+    if (!model) return null;
+    // Same uniform ambient as the terrain (see moonViewer.js) so the shaded side stays readable.
+    const amb = Array.from({ length: 9 }, () => new Cesium.Cartesian3(0, 0, 0));
+    amb[0] = new Cesium.Cartesian3(0.55, 0.55, 0.57);
+    model.imageBasedLighting.sphericalHarmonicCoefficients = amb;
+    model.errorEvent.addEventListener((e) => console.warn("[Landing] glTF model error — using the schematic model next time:", e?.message ?? e));
+    viewer.scene.primitives.add(model);
+    modelPool.set(uri, model);
+    return { model, lift: -info.bottom * scale };   // raise so the lowest point (feet) touches the ground
+  } catch (e) {
+    console.warn("[Landing] glTF model unavailable, using the schematic model:", e?.message ?? e);
+    return null;
+  }
+}
 
 // ------------------------------------------------------------------ descent curve (shared by motion + telemetry)
 
@@ -149,16 +257,18 @@ function buildHud(host, opts, onSkip) {
     phaseEl[p] = el("li", null, p);
     phases.append(phaseEl[p]);
   }
+  const status = el("div", "landing-status", "PREPARING DESCENT…");
   const skip = el("button", "hud-btn landing-skip", "SKIP ▸▸");
   skip.type = "button";
   skip.addEventListener("click", (e) => { e.stopPropagation(); onSkip(); });
-  panel.append(badge, title, rows, phases, skip);
+  panel.append(badge, title, status, rows, phases, skip);
   root.append(catcher, panel);
   host.append(root);
 
   const fmt = (n) => Math.round(n).toLocaleString("en-US");
   return {
     update(t) {
+      status.remove();
       value.alt.textContent = `${fmt(t.alt)} m`;
       value.vs.textContent = `${t.vs <= 0 ? "−" : "+"}${Math.abs(t.vs).toFixed(1)} m/s`;
       value.range.textContent = `${fmt(t.range)} m`;
@@ -171,14 +281,29 @@ function buildHud(host, opts, onSkip) {
 
 // ------------------------------------------------------------------ public API
 
+function stopPending() {
+  if (!pending) return;
+  document.removeEventListener("keydown", pending.onKey, true);
+  pending.hud.destroy();
+  pending = null;
+}
+
+function stopSettle() {
+  if (settleTimer) clearInterval(settleTimer);
+  settleTimer = null;
+}
+
 export function cancel() {
   generation++;
+  stopPending();
+  stopSettle();
   if (!active) return;
   const a = active;
   active = null;
   cancelAnimationFrame(a.frame);
   document.removeEventListener("keydown", a.onKey, true);
   for (const e of [...a.entities, ...a.fx]) if (!a.viewer.isDestroyed()) a.viewer.entities.remove(e);
+  for (const m of a.prims) hideOrRemove(a.viewer, m);
   a.hud?.destroy();
   if (!a.viewer.isDestroyed()) a.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
   a.resolve({ status: "cancelled", fps: Math.round(a.fps), simplified: a.simplified });
@@ -191,8 +316,11 @@ export async function prefetchGround(viewer, lat, lon) {
 }
 
 export function clearMarker(viewer) {
+  stopSettle();
   for (const e of marker) if (viewer && !viewer.isDestroyed()) viewer.entities.remove(e);
+  for (const m of markerPrims) hideOrRemove(viewer, m);
   marker = [];
+  markerPrims = [];
 }
 
 /**
@@ -205,9 +333,19 @@ export async function play(viewer, options) {
   options.hudHost.classList.remove("fade");
   // An unfinished camera flight (intro, fly-to) fights lookAt() and drives the camera to NaN.
   viewer.camera.cancelFlight();
+
+  // Immediate feedback: the HUD appears at once ("PREPARING DESCENT…"); skipping already works.
+  let prepSkipped = false;
+  let skipHandler = () => { prepSkipped = true; };
+  const hud = buildHud(options.hudHost, options, () => skipHandler());
+  const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); skipHandler(); } };
+  document.addEventListener("keydown", onKey, true);
+  pending = { hud, onKey };
+  const aborted = () => myGeneration !== generation || viewer.isDestroyed();
+
   const site = Cesium.Cartographic.fromDegrees(options.lon, options.lat, 0);
   const ground = await groundHeight(viewer, site, options.reducedMotion ? 300 : 700);
-  if (myGeneration !== generation || viewer.isDestroyed()) return { status: "cancelled", fps: 0, simplified: false };
+  if (aborted()) return { status: "cancelled", fps: 0, simplified: false };
   const siteGround = Cesium.Cartesian3.fromRadians(site.longitude, site.latitude, ground, Cesium.Ellipsoid.MOON);
   const rot = enuRotation(siteGround);
   const orientation = Cesium.Transforms.headingPitchRollQuaternion(siteGround, new Cesium.HeadingPitchRoll(0, 0, 0));
@@ -224,9 +362,45 @@ export async function play(viewer, options) {
   }
   const at = (s) => path.getValue(Cesium.JulianDate.addSeconds(epoch, Math.min(s, DESCENT_S), new Cesium.JulianDate()));
 
-  const parts = modelParts(options.landerClass);
+  // glTF model (only landers that declare one, e.g. Nova-C); otherwise / on failure: schematic primitives.
+  const prims = [];
+  const glb = options.modelUri ? await loadModel(viewer, options.modelUri, options.modelHeightM, 4000) : null;
+  if (glb) prims.push(glb.model);
+  if (aborted()) {
+    for (const m of prims) hideOrRemove(viewer, m);
+    return { status: "cancelled", fps: 0, simplified: false };
+  }
+
+  const parts = glb ? { solids: [], legs: [], height: options.modelHeightM } : modelParts(options.landerClass);
   let simplified = false;
-  let current = at(0) ?? siteGround;
+  // Vertical correction (m) towards the terrain that is actually rendered near the site. The
+  // pre-landing height sample is taken from far away and can differ from the detailed tiles that
+  // stream in during the final approach (tens of metres on the Cesium Moon tileset).
+  let groundAdj = 0;
+  const pathAt = (s) => {
+    const p = at(s);
+    return p ? localToWorld(p, rot, 0, 0, groundAdj) : localToWorld(siteGround, rot, 0, 0, groundAdj);
+  };
+  const surface = () => localToWorld(siteGround, rot, 0, 0, groundAdj);
+  const renderedGround = () => {
+    if (!viewer.scene.sampleHeightSupported) return undefined;
+    try {
+      const h = viewer.scene.sampleHeight(site, [...prims, ...entities, ...(active?.fx ?? [])]);
+      return Number.isFinite(h) ? h : undefined;
+    } catch { return undefined; }
+  };
+  let current = pathAt(0);
+  const placeModel = () => {
+    if (glb) glb.model.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(localToWorld(current, rot, 0, 0, glb.lift));
+  };
+  placeModel();
+  // First draw of a large model compiles shaders and can stall the page for a moment; start the
+  // animation clock only afterwards so no phase is swallowed by the stall.
+  if (glb) await whenModelReady(viewer, glb.model, 3000);
+  if (aborted()) {
+    for (const m of prims) hideOrRemove(viewer, m);
+    return { status: "cancelled", fps: 0, simplified: false };
+  }
   const entities = [];
   const posOf = (off) => new Cesium.CallbackProperty(() => localToWorld(current, rot, off[0], off[1], off[2]), false);
   const add = (spec) => { const e = viewer.entities.add({ properties: { kind: "lander" }, ...spec }); entities.push(e); return e; };
@@ -253,15 +427,17 @@ export async function play(viewer, options) {
     if (simplified) return;
     simplified = true;
     for (const e of entities.filter((x) => x._optional)) viewer.entities.remove(e);
+    if (glb) glb.model.shadows = Cesium.ShadowMode.DISABLED;
   };
 
   const camera = viewer.camera;
   const heading0 = Cesium.Math.toRadians(215);
   const finalHpr = new Cesium.HeadingPitchRange(heading0 + Cesium.Math.toRadians(55), Cesium.Math.toRadians(-28), parts.height * 9);
-  const landedAt = localToWorld(siteGround, rot, 0, 0, parts.height * 0.4);
+  const landedAt = () => localToWorld(surface(), rot, 0, 0, parts.height * 0.4);
 
   return new Promise((resolve) => {
-    const state = { viewer, entities, fx: [], frame: 0, hud: null, onKey: null, resolve, fps: 0, simplified: false };
+    const state = { viewer, entities, prims, fx: [], frame: 0, hud, onKey, resolve, fps: 0, simplified: false };
+    pending = null;          // the running animation owns the HUD and the key listener now
     active = state;
 
     const finish = (status) => {
@@ -269,9 +445,12 @@ export async function play(viewer, options) {
       active = null;
       cancelAnimationFrame(state.frame);
       document.removeEventListener("keydown", state.onKey, true);
-      current = siteGround;
+      const g = renderedGround();
+      if (g !== undefined && Math.abs(g - ground) < 500) groundAdj = g - ground;   // final snap to the rendered terrain
+      current = surface();
+      placeModel();
       for (const e of state.fx) viewer.entities.remove(e);
-      safeLookAt(camera, landedAt, finalHpr);   // stays in orbit around the site until another camera command
+      safeLookAt(camera, landedAt(), finalHpr);   // stays in orbit around the site until another camera command
       state.hud?.update(telemetry(1));
       state.hud?.done();
       // Freeze the landed model as plain constant positions (cheap) and keep it as a marker.
@@ -284,13 +463,41 @@ export async function play(viewer, options) {
         if (e.polyline) e.polyline.positions = new Cesium.ConstantProperty(e.polyline.positions.getValue(now));
       }
       marker = entities;
-      resolve({ status, fps: Math.round(state.fps), simplified });
+      markerPrims = prims;
+      startSettle();
+      resolve({ status, fps: Math.round(state.fps), simplified, model: glb ? "gltf" : "schematic" });
     };
 
     const onSkip = () => finish("skipped");
-    state.onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); onSkip(); } };
-    document.addEventListener("keydown", state.onKey, true);
-    state.hud = buildHud(options.hudHost, options, onSkip);
+    skipHandler = onSkip;
+
+    // After touchdown keep the landed marker on the terrain that is actually rendered: finer tiles
+    // can keep streaming in for a few seconds and shift the surface by tens of metres.
+    const up = Cesium.Matrix3.multiplyByVector(rot, Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3());
+    const startSettle = () => {
+      stopSettle();
+      const t0s = performance.now();
+      settleTimer = setInterval(() => {
+        if (viewer.isDestroyed() || performance.now() - t0s > 8000) { stopSettle(); return; }
+        const g = renderedGround();
+        if (g === undefined || Math.abs(g - ground) > 500) return;
+        const delta = g - ground - groundAdj;
+        if (Math.abs(delta) < 0.3) return;
+        groundAdj += delta;
+        const shift = Cesium.Cartesian3.multiplyByScalar(up, delta, new Cesium.Cartesian3());
+        const now = Cesium.JulianDate.now();
+        for (const e of entities) {
+          const p = e.position?.getValue(now);
+          if (p) e.position = new Cesium.ConstantPositionProperty(Cesium.Cartesian3.add(p, shift, new Cesium.Cartesian3()));
+          const line = e.polyline?.positions?.getValue(now);
+          if (line) e.polyline.positions = new Cesium.ConstantProperty(line.map((q) => Cesium.Cartesian3.add(q, shift, new Cesium.Cartesian3())));
+        }
+        current = surface();
+        placeModel();
+      }, 400);
+    };
+
+    if (prepSkipped) { onSkip(); return; }
 
     if (options.reducedMotion) {
       // No motion: the host fades (CSS), the lander is placed and the result shows right away.
@@ -306,18 +513,18 @@ export async function play(viewer, options) {
     let fxT = 0;                       // seconds since touchdown, updated in tick()
     let ringR = 2;
     const ring = {
-      position: localToWorld(siteGround, rot, 0, 0, 0.5),
+      position: new Cesium.CallbackProperty(() => localToWorld(surface(), rot, 0, 0, 0.5), false),
       ellipse: {
         semiMajorAxis: new Cesium.CallbackProperty(() => ringR, false),
         semiMinorAxis: new Cesium.CallbackProperty(() => ringR, false),
-        height: ground + 0.5,
+        height: new Cesium.CallbackProperty(() => ground + groundAdj + 0.5, false),
         material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(
           () => Cesium.Color.fromCssColorString("#d7e2ec").withAlpha(0.55 * Math.max(0, 1 - fxT / 0.9)), false)),
       },
       properties: { kind: "lander-fx" },
     };
     const flash = {
-      position: localToWorld(siteGround, rot, 0, 0, 2),
+      position: new Cesium.CallbackProperty(() => localToWorld(surface(), rot, 0, 0, 2), false),
       point: {
         pixelSize: new Cesium.CallbackProperty(() => 6 + 50 * Math.min(1, fxT / 0.25), false),
         color: new Cesium.CallbackProperty(() => Cesium.Color.WHITE.withAlpha(Math.max(0, 1 - fxT / 0.45)), false),
@@ -327,7 +534,7 @@ export async function play(viewer, options) {
     };
 
     const t0 = performance.now();
-    let last = t0, frames = 0, frameTime = 0;
+    let last = t0, frames = 0, frameTime = 0, frameNo = 0;
     const tick = (now) => {
       if (active !== state) return;
       const s = (now - t0) / 1000;
@@ -336,7 +543,13 @@ export async function play(viewer, options) {
       if (!simplified && frames >= 25 && state.fps < FPS_FLOOR) simplify();
 
       const u = Math.min(1, s / DESCENT_S);
-      current = at(s) ?? siteGround;
+      // Final approach: follow the rendered terrain (sampled every few frames, eased in).
+      if (s > DESCENT_S * 0.55 && (frameNo++ % 6) === 0) {
+        const g = renderedGround();
+        if (g !== undefined && Math.abs(g - ground) < 500) groundAdj += (g - ground - groundAdj) * 0.35;
+      }
+      current = pathAt(s);
+      placeModel();
       state.hud.update(telemetry(u));
 
       if (u < 1) {
@@ -356,7 +569,7 @@ export async function play(viewer, options) {
           if (!simplified) state.fx.push(viewer.entities.add(ring));
           state.fx.push(viewer.entities.add(flash));
         }
-        safeLookAt(camera, landedAt, finalHpr);
+        safeLookAt(camera, landedAt(), finalHpr);
         if (s >= DESCENT_S + SETTLE_S) { finish("landed"); return; }
       }
       state.frame = requestAnimationFrame(tick);
