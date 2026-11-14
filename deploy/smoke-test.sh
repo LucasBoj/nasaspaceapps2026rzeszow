@@ -7,6 +7,7 @@
 # Checks HTTP 200 for:
 #   /                                    (and that it contains the importmap, see CLAUDE.md → Gotchas)
 #   /_framework/blazor.webassembly*.js   the fingerprinted name is read from the served index.html
+#   /lib/cesium-*/Cesium.js, widgets.css self-hosted CesiumJS, path read from the served index.html
 #   /data/illumination/index.json        and that it is JSON with a non-empty "sites" list
 #   /appsettings.json                    and whether it carries a Cesium token (the value is never printed)
 # With a local index.html it also checks that the server serves THIS build (same Blazor fingerprint),
@@ -95,6 +96,17 @@ if expect_200 "/" "$TMP/index.html"; then
     if expect_200 "/$served" "$TMP/blazor.js"; then
       [[ "$LAST_TYPE" == *javascript* ]] || bad "/$served is served as '${LAST_TYPE}', expected a JavaScript MIME type"
     fi
+  fi
+
+  # 2b. CesiumJS: self-hosted (lib/cesium-<version>/Cesium.js). An absolute URL means it comes from a CDN.
+  cesium="$(grep -oE 'src="[^"]*Cesium\.js"' "$TMP/index.html" | awk 'NR == 1 { sub(/^src="(\.?\/)?/, ""); sub(/"$/, ""); print }')"
+  if [[ -z "$cesium" ]]; then
+    bad "served index.html does not load Cesium.js"
+  elif [[ "$cesium" == *://* ]]; then
+    ok "Cesium.js comes from a CDN ($cesium), not checked"
+  else
+    expect_200 "/$cesium" "$TMP/cesium.js" || true
+    expect_200 "/${cesium%Cesium.js}Widgets/widgets.css" "$TMP/widgets.css" || true
   fi
 fi
 
