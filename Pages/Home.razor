@@ -11,7 +11,7 @@
             <div class="moon-panel">
                 <MoonPanel @ref="moonPanel" />
             </div>
-            <div class="splitter" @onmousedown="@(e => StartSplitterDrag(e))" title="Drag to resize"></div>
+            <div class="splitter" title="Drag to resize"></div>
             <div class="config-panel">
                 <ConfigPanel />
             </div>
@@ -25,13 +25,9 @@
     private MissionConfigState missionState { get; set; } = null!;
 
     private MoonPanel? moonPanel;
-    private bool draggingSplitter = false;
-    private double startX = 0;
-    private double startLeftWidth = 0;
 
-    private void StartSplitterDrag(MouseEventArgs e)
+    protected override async Task OnInitializedAsync()
     {
-        draggingSplitter = true;
-        startX = e.ClientX;
+        await missionState.LoadData();
     }
 }

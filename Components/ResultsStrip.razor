@@ -15,4 +15,9 @@
 
 @code {
     private bool expanded = false;
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        await Task.CompletedTask;
+    }
 }
