@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 12:45 CET
+**Ostatnia aktualizacja:** 2026-11-14 13:05 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -29,6 +29,9 @@
 - [x] Pipeline Python: maska horyzontu z LOLA, efemerydy Skyfield, `illumination/{siteId}.json` dla 9 miejsc + `index.json`, 22 testy — 2026-11-14 12:32 — `780cf1b` — AI: Claude Code. ⚠️ Wyniki dotyczą przybliżonych współrzędnych (patrz Known issues).
 - [x] Walidacja liczbowa metody: najlepszy punkt grzbietu Shackleton–de Gerlache wychodzi 89,7% czasu w świetle (2027–28), literatura podaje ~89–92%. Opis w `pipeline/README.md` — 2026-11-14 12:32 — `780cf1b` — AI: Claude Code
 - [x] `CLAUDE.md` (kontekst projektu) i `ROADMAP.md` — 2026-11-14 12:45 — `754bafc` — AI: Claude Code
+- [x] Parametry lądowników ze źródłami: każda wartość w `landers.json` ma `{value, unit, kind, note, sourceUrl}` (dane od zespołu); usunięte presety CUSTOM — 2026-11-14 13:00 — `f04be25` — dane: zespół, implementacja: AI: Claude Code
+- [x] Wybór lądownika tylko do odczytu: tabela SPECS z plakietkami SOURCED/DERIVED/ASSUMPTION, popover ⓘ z notatką i linkiem (obsługa klawiatury), plakietka „DATA: …” na karcie, panel LANDER IMPACT liczony na żywo, zwinięty panel „What-if” z suwakami i „Reset to data”, wybór lądownika ustawia długość misji — 2026-11-14 13:00 — `f04be25` — AI: Claude Code
+- [x] Pola liczbowe i daty w sekcjach 03/04 niezależne od kultury przeglądarki (wcześniej 6,5 dnia dawało puste pole) — 2026-11-14 13:00 — `f04be25` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -43,11 +46,9 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - [ ] **Weryfikacja współrzędnych 9 regionów Artemis III ze źródła NASA i uzupełnienie pola `source`** — A
   - Gotowe, gdy: każde miejsce w `sites.json` ma współrzędne ze źródłem NASA (URL) i `approximate` zgodne z prawdą, a pipeline jest przeliczony ponownie.
   - Uwaga: obecne punkty leżą na zboczach i w kraterach. Opcja: w każdym regionie automatycznie wybierać najlepiej oświetlony punkt i opisać to jako metodę.
-- [ ] **Parametry lądowników ze źródłami** (moc paneli, bateria, obciążenie, maksymalny czas ciemności) dla presetów CLPS i HLS — B
-  - Gotowe, gdy: każdy preset ma liczby z publicznego źródła (`sourceUrl`), a tam, gdzie danych brak, wartość jest jawnie oznaczona jako założenie (ASSUMPTION) z uzasadnieniem. Teraz wszystkie mają 0.
 - [ ] **Model energii i łączności w C#**: bilans baterii godzina po godzinie z `illumination/{siteId}.json` i parametrów lądownika — B
   - Gotowe, gdy: serwis liczy dla wybranego okna serię stanu baterii (SoC) i łączności, zwraca werdykt (wykonalne/niewykonalne + powód) oraz ma testy jednostkowe z ręcznie policzonym przypadkiem.
-  - Uwaga: frontend nie czyta jeszcze plików `illumination/*.json`.
+  - Uwaga: frontend nie czyta jeszcze plików `illumination/*.json`. Parametry lądownika brać przez `MissionConfigState.Effective(...)` (uwzględnia what-if), a `dayLoadW` i `missionDurationDays` z presetu. Werdykt powinien pokazywać najsłabszy rodzaj danych wejściowych (np. „based on ASSUMPTION”).
 - [ ] **Panel wyników**: oś czasu (światło / łączność / bateria) i werdykt w jednym zdaniu; podpięcie przycisku „RUN ANALYSIS” — C
   - Gotowe, gdy: po kliknięciu „RUN ANALYSIS” pasek wyników pokazuje 3 ścieżki dla wybranego okna i jedno zdanie werdyktu. Przy okazji naprawić składnię `[class.expanded]` w `ResultsStrip.razor` (to Angular, nie Blazor).
 - [ ] **Mapa ciepła „miejsce × data lądowania”** z oceną wykonalności (optymalizator) — B + C
@@ -96,11 +97,13 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — poprawki viewera Cesium, karty lądowników z sylwetkami SVG, nawigacja kamery, automatyczne testy w przeglądarce
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — pipeline Python (horyzont LOLA, efemerydy Skyfield), testy, walidacja z literaturą
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — `CLAUDE.md` i `ROADMAP.md` na podstawie przeglądu kodu
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — wybór lądownika tylko do odczytu (SPECS z pochodzeniem danych, LANDER IMPACT, what-if), weryfikacja dostępności linków źródłowych, testy w przeglądarce
 
 ## ⚠️ Known issues / ryzyka
 
 - **Przybliżone współrzędne miejsc** — wszystkie 9 punktów w `sites.json` ma `approximate: true` i `source: "TODO"`. Punkty leżą na zboczach i w kraterach (średni horyzont 6–12°), więc wyniki są mylące, np. Nobile Rim 2 ma 0% światła, a Slater Plain 0% łączności. → P0 „Weryfikacja współrzędnych”.
-- **Brak parametrów lądowników** — wszystkie presety mają moc i baterię = 0, bez źródeł. → P0.
+- **Dane lądowników HLS to głównie założenia** — moc paneli, bateria i obciążenia Starship HLS i Blue Moon nie są publikowane (ASSUMPTION). Wyniki dla HLS trzeba na pitchu przedstawiać jako szacunek klasy, nie dane producenta.
+- **Dwa linki źródłowe nie odpowiadają automatom** (sprawdzone 2026-11-14 ~12:50): `nasaspaceflight.com` (Griffin, czas misji) zwraca 403 dla zapytań automatycznych, a cały `collectspace.com` (Blue Moon: czas misji, załoga, panele) zwracał 522 (awaria serwera). Sprawdzić ręcznie w przeglądarce przed zgłoszeniem; `nasaspaceflight.com/tag/viper/` to strona tagu, czyli słabe źródło, więc warto podmienić na konkretny artykuł.
 - **Demo zależy od internetu** — Cesium z CDN, Google Fonts i kafle Moon Trek są online. Łamie to zasadę „offline”. → P0.
 - **Brak tokena lub terenu 3D** — bez tokena działa tylko tryb 2D. Token jest tylko lokalnie (gitignored). Asset Moon Terrain `2684829` nie jest jeszcze dodany do konta Cesium ion, więc aplikacja pokazuje „3D TERRAIN UNAVAILABLE”.
 - **Przybliżenie liniowe tarczy Słońca** — maksymalny błąd to 5,8 pkt proc. przy częściowym zakryciu. Statystyka „jakiekolwiek światło” nie jest dotknięta.
