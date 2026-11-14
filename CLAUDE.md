@@ -13,7 +13,7 @@
 | Frontend | Blazor WebAssembly standalone, **.NET 10**. CesiumJS **1.120** via JS interop | `SeleneFrontend/` (`wwwroot/js/moonViewer.js`, `cardGrid.js`) |
 | Data | Python 3.11+ (Skyfield, rasterio, pyproj, numpy). A **one-off** precompute into JSON | `pipeline/` → `SeleneFrontend/wwwroot/data/illumination/` |
 | Runtime | **No backend.** Static files only | — |
-| Hosting | Static files on Mikrus (nginx): stable :80 (jury link) + preview :8080; GitHub Pages mirror planned | `deploy/` (README in Polish) |
+| Hosting | Static files on Mikrus (nginx): stable :80 (jury link) + preview :8080. Deployed by GitHub Actions: push `main` → preview, push `stable` → stable. GitHub Pages mirror planned | `deploy/` (README in Polish), `.github/workflows/deploy.yml` |
 
 ## Data sources
 
@@ -58,9 +58,12 @@ dotnet build                      # must build with 0 warnings
 dotnet test ../SeleneFrontend.Tests  # simulator + optimizer unit tests (links the logic sources)
 
 # Deploy (from repo root, see deploy/README.md)
-./deploy/deploy.sh preview --build-only   # build + checks, no upload
-./deploy/deploy.sh preview                # then: ./deploy/deploy.sh stable
+git push origin main                      # CI → preview (tests gate it; secrets MIKRUS_* in GitHub)
+git push origin main:stable               # CI → stable (jury link); rollback: git push -f origin <good>:stable
+./deploy/deploy.sh preview --build-only   # local build + checks, no upload (works in Git Bash)
+./deploy/deploy.sh preview                # manual deploy (needs rsync; not in Git Bash), then: … stable
 CESIUM_ION_TOKEN='<URL-restricted token>' ./deploy/deploy.sh stable   # optional 3D, never commit the token
+./deploy/smoke-test.sh <site-url> out/publish/wwwroot/index.html      # check a deployed site
 
 # Pipeline (from pipeline/, see pipeline/README.md)
 python download_kernels.py
@@ -102,3 +105,7 @@ python -m pytest -q
 - UI state that many components share (boot, welcome, help, compare, compass time) lives in `UiService`. Timeline hover uses its own `HoverTimeChanged` event so the whole UI does not re-render on mouse move.
 - `sites.json` is **generated** by `pipeline/select_sites.py` from Wueller et al. (2026) candidates (Zenodo, CC-BY-4.0). Do not edit coordinates by hand; re-run the pipeline. Their shapefile projection has true scale at −70°, unlike the DEM (−90°), so always reproject with the shipped `.prj`.
 - "Lit" has two definitions: `index.json → pctSunlit` uses `sunFraction > 0`, while site selection and the 6.5-day test use `≥ 50`.
+- `*.sh`, `*.conf` and `*.yml` are forced to LF by `.gitattributes`. With `core.autocrlf=true` a CRLF script fails on the server and in CI (`$'\r': command not found`). Clones from before `.gitattributes` keep CRLF until refreshed (`deploy/README.md`, step 2).
+- On Windows `python3` is often the Microsoft Store stub. Scripts must pick the first Python that actually runs (as `deploy.sh` does) and set `PYTHONIOENCODING=utf-8`: piped Windows Python crashes on `→` otherwise.
+- The published `index.html` names `blazor.webassembly` twice: the importmap alias (plain name) and the `<script src>` (fingerprinted). Checks must read the `src=` one.
+- CI deploy (`.github/workflows/deploy.yml`) without the `MIKRUS_SSH_KEY` secret only tests and builds (warning "Deploy skipped"). The build is stamped with its target (`out/publish/selene-build.txt`); `deploy.sh --upload-only` refuses a build made for the other target (og:image differs). New scripts need the exec bit in git: `git update-index --chmod=+x` (`core.filemode=false` on Windows).

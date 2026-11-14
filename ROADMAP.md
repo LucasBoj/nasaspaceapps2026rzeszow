@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-14 18:30 CET
+**Ostatnia aktualizacja:** 2026-11-14 17:05 CET
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -51,6 +51,7 @@
 - [x] Animacja lądowania (P2 „Animacja lądowania”): osobny moduł `landingAnimation.js`, własny schematyczny model z prymitywów Cesium (CLPS / HLS), opadanie z 15 km z krzywą hamowania, kamera pościgowa i orbita, pierścień pyłu i błysk; HUD „SIMULATED DESCENT” z ALT, V/S, RANGE i fazami z tej samej krzywej; przycisk CONFIRM LANDING SITE i QUICK DEMO z analizą liczoną równolegle; pomijanie (klik, SKIP, Esc); flaga `features.landingAnimation` + przełącznik w HUD; tryb ograniczonego ruchu; wysokość z terenu 3D z fallbackiem na elipsoidę. Testy: Chromium 3D/2D, Firefox, WebKit — 22/22 — 2026-11-14 16:25 — `c726269` — AI: Claude Code
 - [x] Model 3D Nova-C (GLB, tylko dla `nova_c`): skalowanie do 4 m z bounding boxa, orientacja glTF Y-up → pion miejsca (nogi w dół, sprawdzone), ładowanie w tle i pula modeli, fallback na model z prymitywów; lądownik i znacznik podążają za faktycznie wyrenderowanym terenem; światło sceny = Słońce z efemeryd (az/el dla miejsca i chwili), miękkie cienie, światło wypełniające i otoczenia; atrybucja w stopce. Testy GLB 11/11 w Chromium (3D i 2D), Firefox, WebKit — 2026-11-14 17:35 — `345d6f8` — model: zespół (Meshy AI + Microsoft TRELLIS.2), integracja: AI: Claude Code
 - [x] Przygotowanie wdrożenia na Mikrus: `deploy/nginx-selene.conf` (stable :80 + preview :8080, MIME, gzip_static, cache, nagłówki bezpieczeństwa), `deploy/server-setup.sh` (idempotentny), `deploy/deploy.sh` (publish, kontrole, opcjonalny token z ENV, absolutny `og:image`, kompresja GLB, rsync, curl; tryb `--build-only`), `deploy/README.md`; kompresja i trimming włączone jawnie i sprawdzone. Lokalnie: build Release 39 MB, testy na serwerze zachowującym się jak nginx 23/23 + 11/11 — 2026-11-14 18:25 — `83a84bc` — AI: Claude Code (rsync/ssh nie były uruchamiane)
+- [x] Automatyczne wdrażanie przez GitHub Actions (`.github/workflows/deploy.yml`): push `main` → preview, push `stable` → stable, ręczne uruchomienie z wyborem celu; `concurrency` per cel; testy xUnit blokują wdrożenie; token Cesium z sekretu tylko do publikacji (maskowany); klucz SSH + `ssh-keyscan` (opcjonalnie przypięty `MIKRUS_KNOWN_HOSTS`); rsync; smoke test; podsumowanie przebiegu. `deploy.sh` działa w CI (`--upload-only`, zmienne `MIKRUS_*`, brak pytań, kody wyjścia, adnotacje), nowe `smoke-test.sh` i `create-deploy-user.sh` (użytkownik `deploy` bez hasła, klucz z `restrict`), `.gitattributes` (LF dla `*.sh`), sekcja „Automatyczne wdrażanie” w `deploy/README.md`; gałąź `stable` = `main`. Sprawdzone lokalnie: build z atrapą tokena (token nie trafia do logu), smoke test na lokalnym serwerze (OK, inna wersja, brak serwera), ścieżka uploadu na atrapie rsync, logika `create-deploy-user.sh` na atrapach, skrypty z YAML na symulowanych wejściach; testy 14/14 — 2026-11-14 17:01 — `21ca97d` — AI: Claude Code (workflow nie był jeszcze uruchomiony z sekretami na prawdziwym serwerze)
 
 ## 🔄 In progress
 
@@ -64,9 +65,10 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 - [ ] **Demo działa offline** — C
   - Gotowe, gdy: aplikacja z laptopa bez internetu ładuje się z lokalnym Cesium (nie z CDN), lokalnymi czcionkami i podręcznym zestawem kafli Moon Trek dla bieguna (albo ma fallback bez zdjęć), co jest sprawdzone przy wyłączonym Wi-Fi.
-- [ ] **Uruchomić wdrożenie na Mikrusie** (skrypty gotowe: `deploy/README.md`) — C
-  - Gotowe, gdy: `server-setup.sh` uruchomiony; port/subdomena z panelu wpisane w `nginx-selene.conf` i `STABLE_URL`; `deploy.sh preview` → test → `deploy.sh stable`; strona działa z telefonu po LTE; czasy ładowania zapisane.
-  - Decyzja: token 3D w produkcji (token z ograniczeniem URL wstrzykiwany przez `CESIUM_ION_TOKEN`) czy tryb 2D.
+- [ ] **Uruchomić wdrożenie na Mikrusie** (skrypty i CI gotowe: `deploy/README.md` → „Automatyczne wdrażanie”) — C
+  - Gotowe, gdy: `server-setup.sh` i `create-deploy-user.sh` uruchomione; port/subdomena z panelu wpisane w `nginx-selene.conf`; w GitHubie ustawione sekrety `MIKRUS_SSH_KEY`, `MIKRUS_HOST`, `MIKRUS_PORT`, `MIKRUS_USER=deploy` i zmienne `PREVIEW_URL`, `STABLE_URL`; przebieg „Deploy” dla preview ma zielony smoke test → `git push origin main:stable` → zielony smoke test stable; strona działa z telefonu po LTE; czasy ładowania zapisane.
+  - Decyzja: token 3D w produkcji (token z ograniczeniem URL jako sekret `CESIUM_ION_TOKEN`) czy tryb 2D.
+  - Opcjonalnie: sekret `MIKRUS_KNOWN_HOSTS` (przypięty klucz hosta) i ochrona gałęzi `stable` (bez usuwania; force-push zostawić, bo służy do wycofania).
 - [ ] **Lustro na GitHub Pages** — C
   - Gotowe, gdy: `<base href>` ustawione na podścieżkę repo i adres działa.
 - [ ] **Strona projektu na spaceappschallenge.org**: opis odhaczający cele wyzwania, lista danych z linkami, deklaracja użycia AI (z sekcji poniżej), link do repo i demo — wszyscy (prowadzi C)
@@ -119,6 +121,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — odnalezienie danych Wueller et al. (2026) w Zenodo, import kandydatów, wybór miejsc w regionach, walidacja z twierdzeniem NASA i z wynikami autorów, testy
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — rdzeń analizy: symulator misji, optymalizator okien, panel wyników (werdykt, oś czasu, mapa ciepła), testy xUnit, testy w przeglądarce i optymalizacja wydajności
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — przygotowanie wdrożenia (nginx, skrypty setup/deploy, README), weryfikacja buildu Release z trimmingiem na serwerze zachowującym się jak nginx
+- 2026-11-14 — Claude Code (Claude Opus 5.5) — automatyczne wdrażanie: workflow GitHub Actions, przeróbka `deploy.sh` pod CI, smoke test, skrypt użytkownika `deploy`, instrukcja po polsku, lokalne testy skryptów (w tym wykrycie błędów: kodowanie Pythona na Windows, CRLF w skryptach, nazwa skryptu Blazor z importmapy)
 - 2026-11-14 — Meshy AI — obraz koncepcyjny lądownika Nova-C (wygenerowany przez zespół)
 - 2026-11-14 — Microsoft TRELLIS.2 (MIT) — model 3D `nova_c.glb` z obrazu koncepcyjnego (wygenerowany przez zespół)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — integracja modelu GLB (skala, orientacja, ładowanie w tle, fallback, podążanie za terenem), oświetlenie sceny z efemeryd, testy w 3 przeglądarkach
@@ -156,3 +159,9 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Brotli na serwerze nieaktywne** — standardowy nginx z Debiana serwuje tylko `.gz` (`gzip_static`); moduł brotli (`libnginx-mod-http-brotli-static`) dałby ~20% mniej transferu — opcjonalnie.
 - **`InvariantTimezone` wymaga workloadu `wasm-tools`** — nie włączone; opcjonalna dalsza oszczędność rozmiaru.
 - **GitHub Pages** — `<base href="/">` nie zadziała pod podścieżką repo.
+- **CI wdrożenia nie przeszło jeszcze prawdziwego przebiegu** — workflow i skrypty sprawdzone lokalnie (atrapy rsync/ssh, lokalny serwer HTTP), ale bez sekretów i bez serwera. Do czasu ustawienia `MIKRUS_SSH_KEY` każdy push na `main`/`stable` tylko testuje i buduje (ostrzeżenie „Deploy skipped”). `create-deploy-user.sh` nie był uruchomiony na Debianie jako root.
+- **Każdy push na `main` wdraża preview** — także commity z samym `ROADMAP.md` (~2–3 min Actions, darmowe dla publicznego repo). Nowszy push anuluje starszy przebieg tego samego celu.
+- **`ssh-keyscan` ufa kluczowi hosta przy każdym wdrożeniu** — dopóki nie ma sekretu `MIKRUS_KNOWN_HOSTS`, podszycie się pod serwer w trakcie przebiegu jest teoretycznie możliwe.
+- **Ręczne wdrożenie z Windows niemożliwe bez `rsync`** — Git Bash go nie ma; lokalnie działa tylko `--build-only`, wdrażać przez CI (albo WSL).
+- **Stare kopie repo mogą mieć `*.sh` z CRLF** — `.gitattributes` działa dopiero po odświeżeniu plików (`rm deploy/*.sh && git checkout -- deploy/`); inaczej `server-setup.sh` wysłany przez `scp` nie zadziała na serwerze.
+- **Logi Actions są publiczne** (publiczne repo) — sekrety są maskowane; nie dodawać `set -x` ani wypisywania zmiennych w krokach z sekretami.
