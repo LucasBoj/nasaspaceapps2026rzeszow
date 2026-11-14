@@ -1,7 +1,7 @@
 # SELENE OPS — test, build and deploy the static site to Mikrus (nginx), see deploy/README.md.
 #
-#   push → main     preview  /var/www/selene/preview  (vars.PREVIEW_URL)
-#   push → stable   stable   /var/www/selene/stable   (vars.STABLE_URL — the jury link)
+#   push → main     stable   /var/www/selene/stable   (vars.STABLE_URL — our only domain, the jury link)
+#   push → stable   stable   (same target; preview only via "Run workflow")
 #   Run workflow    target chosen by hand (re-deploy, or put the selected branch on preview/stable)
 #
 # Secrets:   MIKRUS_SSH_KEY, MIKRUS_HOST, MIKRUS_PORT, MIKRUS_USER (default root),
@@ -10,7 +10,7 @@
 # Without MIKRUS_SSH_KEY the run still tests and builds, but uploads nothing (warning on the run).
 name: Deploy
 
-run-name: "Deploy ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }} · ${{ github.ref_name }}"
+run-name: "Deploy ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'stable' }} · ${{ github.ref_name }}"
 
 on:
   push:
@@ -21,12 +21,12 @@ on:
         description: Target site
         type: choice
         options: [preview, stable]
-        default: preview
+        default: stable
         required: true
 
 # One deploy per target at a time: a newer run cancels the older one instead of racing it.
 concurrency:
-  group: deploy-${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }}
+  group: deploy-${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'stable' }}
   cancel-in-progress: true
 
 permissions:
@@ -38,11 +38,11 @@ defaults:
 
 jobs:
   deploy:
-    name: "deploy → ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }}"
+    name: "deploy → ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'stable' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      TARGET: ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'preview' }}
+      TARGET: ${{ inputs.target || (github.ref_name == 'stable' && 'stable') || 'stable' }}
       STABLE_URL: ${{ vars.STABLE_URL }}
       PREVIEW_URL: ${{ vars.PREVIEW_URL }}
       DOTNET_NOLOGO: "1"
