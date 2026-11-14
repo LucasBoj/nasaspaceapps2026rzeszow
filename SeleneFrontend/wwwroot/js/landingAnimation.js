@@ -1,3 +1,4 @@
+import { EngineFx } from "./engineFx.js";
 // Landing animation — fully isolated: it only receives a Cesium.Viewer and a host <div> for its HUD.
 // play(viewer, options) → Promise<{ status: "landed" | "skipped" | "cancelled" | "reduced", fps, simplified }>
 // cancel()               → removes every entity, listener and camera lock; resolves a running play() as "cancelled".
@@ -445,10 +446,17 @@ function stopSettle() {
   settleTimer = null;
 }
 
+let lingeringFx = null;   // touchdown dust still settling after finish(); removed by cancel()/clearMarker()
+
+function stopLingeringFx() {
+  if (lingeringFx) { clearTimeout(lingeringFx.timer); lingeringFx.fx.destroy(); lingeringFx = null; }
+}
+
 export function cancel() {
   generation++;
   stopPending();
   stopSettle();
+  stopLingeringFx();
   if (!active) return;
   if (pose && !pose.landed) pose = null;   // the descending lander is removed below
   const a = active;
@@ -457,6 +465,7 @@ export function cancel() {
   document.removeEventListener("keydown", a.onKey, true);
   for (const e of [...a.entities, ...a.fx]) if (!a.viewer.isDestroyed()) a.viewer.entities.remove(e);
   for (const m of a.prims) hideOrRemove(a.viewer, m);
+  a.engine?.destroy();
   a.hud?.destroy();
   if (!a.viewer.isDestroyed()) a.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
   a.resolve({ status: "cancelled", fps: Math.round(a.fps), simplified: a.simplified });
@@ -513,6 +522,7 @@ export function getPose() {
 }
 
 export function clearMarker(viewer) {
+  stopLingeringFx();
   cancelAnimationFrame(turnFrame);
   pose = null;
   stopSettle();
@@ -705,11 +715,25 @@ export async function play(viewer, options) {
     if (options.reducedMotion && yaw.target !== null) yaw.heading = yaw.target;
   }
 
+  // Engine plume + surface dust (particles). Not with reduced motion; dropped when the frame rate is low.
+  const nozzle = options.model?.nozzleOffset ?? [0, 0, 0.15 * parts.height];   // [east, north, up] m from the feet
+  const upVec = Cesium.Matrix3.multiplyByVector(rot, Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3());
+  let engine = options.reducedMotion ? null : new EngineFx(viewer, { sizeM: frame, up: () => upVec });
+  const nozzleAt = () => {
+    const [e, n] = turnEN(nozzle[0], nozzle[1], yaw.heading);
+    return localToWorld(current, rot, e, n, nozzle[2]);
+  };
+  const dustAltM = Math.min(150, Math.max(10, 5 * frame));   // dust starts ~25 m above a 4–5 m lander
+
   const simplify = () => {
     if (simplified) return;
     simplified = true;
     for (const e of entities.filter((x) => x._optional)) viewer.entities.remove(e);
     if (glb) glb.model.shadows = Cesium.ShadowMode.DISABLED;
+    if (window.__seleneKeepFx) return;   // test hook: headless browsers render < 30 fps
+    engine?.destroy();
+    engine = null;
+    if (active) active.engine = null;
   };
 
   const camera = viewer.camera;
@@ -733,7 +757,7 @@ export async function play(viewer, options) {
   orbitClearance = Math.max(2, 0.3 * frame);
 
   return new Promise((resolve) => {
-    const state = { viewer, entities, prims, fx: [], frame: 0, hud, onKey, resolve, fps: 0, simplified: false };
+    const state = { viewer, entities, prims, fx: [], frame: 0, hud, onKey, resolve, fps: 0, simplified: false, engine };
     pending = null;          // the running animation owns the HUD and the key listener now
     active = state;
 
@@ -748,6 +772,14 @@ export async function play(viewer, options) {
       if (yaw.target !== null) yaw.heading = yaw.target;   // skip / short descent: end at the target heading
       placeModel();
       for (const e of state.fx) viewer.entities.remove(e);
+      if (engine) {
+        // Engine off; the touchdown dust settles for a moment, then the particle systems go away.
+        engine.update({ throttle: 0, dust: 0, ground: localToWorld(surface(), rot, 0, 0, 0.2) });
+        stopLingeringFx();
+        const fx = engine;
+        lingeringFx = { fx, timer: setTimeout(() => { fx.destroy(); if (lingeringFx?.fx === fx) lingeringFx = null; }, 1800) };
+        engine = null;
+      }
       safeLookAt(camera, landedAt(), finalHpr);   // stays in orbit around the site until another camera command
       state.hud?.update(telemetry(1));
       state.hud?.done();
@@ -795,23 +827,10 @@ export async function play(viewer, options) {
       return;
     }
 
-    // Touchdown effects: expanding dust ring + short flash. Both read values computed ONCE per
-    // frame in tick(): sampling the clock separately for each semi-axis could make the minor axis
-    // larger than the major one, which yields an invalid ellipse and stops Cesium rendering.
+    // Touchdown effects: a short flash (the dust is the particle system above; the old flat ring at a
+    // fixed height sank under sloped terrain).
     let touchdownAt = null;
     let fxT = 0;                       // seconds since touchdown, updated in tick()
-    let ringR = frame * 0.4;
-    const ring = {
-      position: new Cesium.CallbackProperty(() => localToWorld(surface(), rot, 0, 0, 0.5), false),
-      ellipse: {
-        semiMajorAxis: new Cesium.CallbackProperty(() => ringR, false),
-        semiMinorAxis: new Cesium.CallbackProperty(() => ringR, false),
-        height: new Cesium.CallbackProperty(() => ground + groundAdj + 0.5, false),
-        material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(
-          () => Cesium.Color.fromCssColorString("#d7e2ec").withAlpha(0.55 * Math.max(0, 1 - fxT / 0.9)), false)),
-      },
-      properties: { kind: "lander-fx" },
-    };
     const flash = {
       position: new Cesium.CallbackProperty(() => localToWorld(surface(), rot, 0, 0, frame * 0.3), false),
       point: {
@@ -853,7 +872,20 @@ export async function play(viewer, options) {
         }
       }
       placeModel();
-      state.hud.update(telemetry(u));
+      const tel = telemetry(u);
+      state.hud.update(tel);
+      if (engine) {
+        // Throttle: rises through DEORBIT and BRAKING, falls through TERMINAL, off at touchdown.
+        const alt = tel.alt;
+        const throttle = u >= 1 ? 0
+          : alt > 8000 ? 0.3 + 0.3 * (1 - (alt - 8000) / (START_ALT_M - 8000))
+          : alt > 1500 ? 0.6 + 0.4 * (1 - (alt - 1500) / 6500)
+          : 0.4 + 0.6 * (alt / 1500);
+        const sinceTd = touchdownAt == null ? -1 : (now - touchdownAt) / 1000;
+        const dust = u >= 1 ? Math.max(0, 1 - sinceTd / 1.0) : alt < dustAltM ? 1 - alt / dustAltM : 0;
+        engine.update({ nozzle: nozzleAt(), ground: localToWorld(surface(), rot, 0, 0, 0.2), throttle, dust,
+                        burst: u >= 1 && sinceTd >= 0 && sinceTd < 0.35 });
+      }
 
       if (u < 1) {
         // Chase camera: slow orbit, closing in as the lander slows down, ending exactly on the landed shot.
@@ -866,11 +898,9 @@ export async function play(viewer, options) {
       } else {
         if (touchdownAt != null) {
           fxT = (now - touchdownAt) / 1000;
-          ringR = frame * (0.4 + 2.8 * Math.min(1, fxT / 0.9));   // dust ring scales with the lander
         }
         if (touchdownAt == null) {
           touchdownAt = now;
-          if (!simplified) state.fx.push(viewer.entities.add(ring));
           state.fx.push(viewer.entities.add(flash));
         }
         safeLookAt(camera, landedAt(), finalHpr);

@@ -75,7 +75,8 @@
     "modelUri": "models/nova_c.glb",
     "modelHeightM": 3.94,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
-    "modelNote": "Visualisation only. Bounding-box height scaled to 3.94 m: FCC IM-1 application gives Nova-C as 2.19 m × 2.385 m × 3.938 m (https://apps.fcc.gov/els/GetAtt.html?amp=&id=266519&x=)."
+    "modelNozzleOffsetM": [0, 0, 0.55],
+    "modelNote": "Visualisation only. Bounding-box height scaled to 3.94 m: FCC IM-1 application gives Nova-C as 2.19 m × 2.385 m × 3.938 m (https://apps.fcc.gov/els/GetAtt.html?amp=&id=266519&x=). modelNozzleOffsetM: engine plume origin above the feet, visual estimate from the model's shape."
   },
   {
     "id": "blue_ghost",
@@ -146,7 +147,8 @@
     "modelUri": "models/blue_ghost.glb",
     "modelHeightM": 2,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
-    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 2 m (team value)."
+    "modelNozzleOffsetM": [0, 0, 0.3],
+    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 2 m (team value). modelNozzleOffsetM: engine plume origin above the feet, visual estimate from the model's shape."
   },
   {
     "id": "griffin",
@@ -223,7 +225,8 @@
     "modelScaleBy": "width",
     "modelWidthM": 4.5,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
-    "modelNote": "Visualisation only. APPROXIMATE: the model's largest horizontal extent is scaled to 4.5 m. Astrobotic's Griffin page (https://www.astrobotic.com/lunar-delivery/landers/griffin-lander/) labels a drawing \"4.5M\" but its text gives no dimensions, so the width is not confirmed."
+    "modelNozzleOffsetM": [0, 0, 0.55],
+    "modelNote": "Visualisation only. APPROXIMATE: the model's largest horizontal extent is scaled to 4.5 m. Astrobotic's Griffin page (https://www.astrobotic.com/lunar-delivery/landers/griffin-lander/) labels a drawing \"4.5M\" but its text gives no dimensions, so the width is not confirmed. modelNozzleOffsetM: engine plume origin above the feet, visual estimate from the model's shape."
   },
   {
     "id": "starship_hls",
@@ -297,7 +300,8 @@
     "modelUri": "models/starship_hls.glb",
     "modelHeightM": 50,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
-    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 50 m (team value)."
+    "modelNozzleOffsetM": [0, 0, 1.5],
+    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 50 m (team value). modelNozzleOffsetM: engine plume origin above the feet, visual estimate from the model's shape."
   },
   {
     "id": "blue_moon_mk2",
@@ -371,6 +375,7 @@
     "modelUri": "models/blue_moon_mk2.glb",
     "modelHeightM": 16,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
-    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 16 m (team value)."
+    "modelNozzleOffsetM": [0, 0, 1.2],
+    "modelNote": "Visualisation only. Approximate visual size: the model's bounding-box height is scaled to 16 m (team value). modelNozzleOffsetM: engine plume origin above the feet, visual estimate from the model's shape."
   }
 ]
