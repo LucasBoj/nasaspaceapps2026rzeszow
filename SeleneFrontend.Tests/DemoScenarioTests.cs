@@ -89,6 +89,44 @@ public class DemoScenarioTests
     }
 
     [Fact]
+    public void Panel_height_row_matches_a_direct_run_at_each_height_with_heaters()
+    {
+        // The robustness row re-runs the mission with another horizon. It once built that series at (0°, 0°), so the
+        // heater model read the Diviner ground at the wrong subsolar point: QUICK DEMO at 2 m showed 1 % instead of ~19 %.
+        var lander = JsonSerializer.Deserialize<List<LanderPreset>>(File.ReadAllText(Path.Combine(Data(), "landers.json")), Web)!
+            .Single(l => l.Id == DemoScenario.LanderId);
+        var baseSeries = IlluminationSeries.Concat(new[] { 2028, 2029 }.Select(y => JsonSerializer.Deserialize<IlluminationSeries>(
+            File.ReadAllText(Path.Combine(Data(), "illumination", DemoScenario.SiteId, $"{y}.json")), Web)!).ToList());
+        var heights = JsonSerializer.Deserialize<HorizonHeightsData>(
+            File.ReadAllText(Path.Combine(Data(), "illumination", DemoScenario.SiteId, "heights.json")), Web)!;
+        var ground = JsonSerializer.Deserialize<DivinerData>(File.ReadAllText(Path.Combine(Data(), "thermal", "diviner.json")), Web)!
+            .For(DemoScenario.SiteId);
+        var inputs = new LanderInputs(lander.SolarArrayW!.Value, lander.BatteryWh!.Value, lander.DayLoadW!.Value, lander.SurvivalLoadW!.Value,
+            ParamKind.Assumption, lander.Panels, null, false, lander.BatteryRoundTripEff?.Value ?? 1.0, lander.Thermal?.ToInputs());
+        var thresholds = new MissionThresholds(20, 50);
+        IlluminationSeries At(double m)
+        {
+            var s = PanelHeightAnalysis.SeriesAt(baseSeries, heights.At(m)!);
+            s.Ground = ground;
+            return s;
+        }
+
+        var panelM = lander.PanelHeightM!.Value;
+        var nominal = MissionSimulator.Run(At(panelM), inputs, DemoScenario.LandingUtc, DemoScenario.MissionDays, thresholds);
+        var row = PanelHeightAnalysis.ForLander(At(panelM), heights, inputs, nominal, thresholds, panelM)!;
+        var pinned = inputs with { HeadingDeg = nominal.HeadingDeg };
+        foreach (var c in new[] { row.Low, row.High })
+        {
+            var direct = MissionSimulator.Run(At(c.HeightM), pinned, DemoScenario.LandingUtc, DemoScenario.MissionDays, thresholds);
+            Assert.Equal(direct.Verdict, c.Verdict);
+            Assert.Equal(direct.MinSocPct, c.MinSocPct, 1);
+        }
+        // Higher panels see over the near terrain here: the lowest battery does not fall with height.
+        Assert.True(row.Low.MinSocPct <= nominal.MinSocPct && nominal.MinSocPct <= row.High.MinSocPct,
+            $"{row.Low.MinSocPct:0.0} / {nominal.MinSocPct:0.0} / {row.High.MinSocPct:0.0}");
+    }
+
+    [Fact]
     public void Both_dates_fit_the_demo_window()
     {
         Assert.InRange(DemoScenario.LandingUtc, DemoScenario.WindowStart, DemoScenario.WindowEnd);

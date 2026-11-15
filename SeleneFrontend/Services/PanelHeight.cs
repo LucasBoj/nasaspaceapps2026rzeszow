@@ -55,7 +55,8 @@ public static class PanelHeightAnalysis
     /// </summary>
     public static IlluminationSeries SeriesAt(IlluminationSeries baseSeries, HorizonAtHeight h)
     {
-        var s = LandingEllipse.PointSeries(baseSeries, new EllipsePoint { HorizonCentiDeg = h.HorizonCentiDeg }, 0, baseSeries.Count);
+        var s = LandingEllipse.PointSeries(baseSeries,
+            new EllipsePoint { Lat = baseSeries.Lat, Lon = baseSeries.Lon, HorizonCentiDeg = h.HorizonCentiDeg }, 0, baseSeries.Count);
         s.SiteId = baseSeries.SiteId;
         s.Lat = baseSeries.Lat;
         s.Lon = baseSeries.Lon;
@@ -103,7 +104,9 @@ public static class PanelHeightAnalysis
 
         HeightCase Run(HorizonAtHeight h)
         {
-            var point = new EllipsePoint { HorizonCentiDeg = h.HorizonCentiDeg };      // same place, other mask
+            // Same place, other mask. The site's coordinates matter: the heater model finds the Diviner ground
+            // temperature from the subsolar point seen from Lat/Lon (0°, 0° gave wrong night loads).
+            var point = new EllipsePoint { Lat = site.Lat, Lon = site.Lon, HorizonCentiDeg = h.HorizonCentiDeg };
             var series = LandingEllipse.PointSeries(site, point, start, nominal.Steps);
             var r = MissionSimulator.Run(series, pinned, series.Start, nominal.DurationDays, thresholds, recordSeries: false);
             return new HeightCase(h.HeightM, r.Verdict, r.MinSocPct, r.SunPct, r.CommsPct);
