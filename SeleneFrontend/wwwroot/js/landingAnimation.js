@@ -404,59 +404,6 @@ function safeLookAt(camera, target, hpr) {
   camera.lookAt(target, hpr);
 }
 
-// ------------------------------------------------------------------ terrain warm-up (3D tiles only)
-
-const WARMUP_MAX_MS = 2500;
-
-/** The Cesium Moon Terrain tileset of this viewer; null in 2D mosaic mode. */
-function terrainTileset(viewer) {
-  const prims = viewer.scene.primitives;
-  for (let i = 0; i < prims.length; i++) {
-    const p = prims.get(i);
-    if (p instanceof Cesium.Cesium3DTileset) return p.show ? p : null;
-  }
-  return null;
-}
-
-/**
- * First landing at a site: the descent camera uses lookAt (no camera flight), so Cesium never preloads
- * the close-up terrain tiles and they streamed in during the descent (parse + GPU upload = stutter).
- * Here the camera looks at the landed shot behind a dark cover (.landing-hud-host.warmup) until the
- * tileset reports tilesLoaded or WARMUP_MAX_MS passes; later landings find the tiles in the cache.
- * No tileset (2D mode) → nothing happens. `stop()` = skipped or aborted; an abort restores the camera.
- */
-async function warmUpTerrain(viewer, host, hud, key, target, hpr, stop, aborted) {
-  const tileset = terrainTileset(viewer);
-  const warmed = (viewer._seleneWarmed ??= new Set());
-  if (!tileset || warmed.has(key)) return;
-  warmed.add(key);
-  const camera = viewer.camera;
-  const saved = { destination: camera.positionWC.clone(), orientation: { direction: camera.directionWC.clone(), up: camera.upWC.clone() } };
-  let frames = 0;
-  const off = viewer.scene.postRender.addEventListener(() => { frames++; });
-  host.classList.add("warmup");
-  hud.status("LOADING TERRAIN…");
-  try {
-    const t0 = performance.now();
-    while (performance.now() - t0 < WARMUP_MAX_MS && !stop()) {
-      safeLookAt(camera, target, hpr);
-      await sleep(100);
-      if (frames >= 3 && tileset.tilesLoaded) break;
-    }
-  } catch (e) {
-    console.warn("[Landing] terrain warm-up skipped:", e?.message ?? e);
-  } finally {
-    off();
-    if (!viewer.isDestroyed() && aborted()) {
-      camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-      camera.setView(saved);
-    }
-    host.classList.remove("warmup");
-    host.classList.add("fade");   // 300 ms fade from dark covers the jump to the chase camera
-    hud.status("PREPARING DESCENT…");
-  }
-}
-
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -820,22 +767,6 @@ export async function play(viewer, options) {
   if (aborted()) {
     for (const m of prims) hideOrRemove(viewer, m);
     return { status: "cancelled", fps: 0, simplified: false };
-  }
-  // Terrain warm-up (first landing at this site, 3D tiles, ground known): load the close-up tiles of
-  // the landed shot before the clock starts. Same view as the landed shot below (range from the
-  // lander size, pitch −22°, heading from the Sun azimuth).
-  if (!options.reducedMotion && !prepSkipped && sampledGround != null) {
-    const fovyW = viewer.camera.frustum.fovy ?? 0.6;
-    const warmHpr = new Cesium.HeadingPitchRange(
-      Cesium.Math.toRadians(Number.isFinite(options.sunAzDeg) ? options.sunAzDeg + 120 : 270),
-      Cesium.Math.toRadians(-22),
-      Math.max(20, frame / (0.3 * 2 * Math.tan(fovyW / 2))));
-    await warmUpTerrain(viewer, options.hudHost, hud, `${options.lat},${options.lon}`, siteGround, warmHpr,
-      () => prepSkipped || aborted(), aborted);
-    if (aborted()) {
-      for (const m of prims) hideOrRemove(viewer, m);
-      return { status: "cancelled", fps: 0, simplified: false };
-    }
   }
   // Every part has pose functions of (current, yaw.heading). In flight they back CallbackProperties;
   // on the surface freeze() turns them into constants (cheap) and re-runs whenever the heading changes.
