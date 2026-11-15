@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-15 01:50 CET (scalone `custom-sites`, plan UI)
+**Ostatnia aktualizacja:** 2026-11-15 (plan niedzieli, sekcja „Po hackathonie”)
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -12,6 +12,21 @@
 > - Czerwony przebieg = coś jest zepsute w kodzie (najczęściej test xUnit). Wtedy na stronie zostaje poprzednia wersja. Napraw kod i pushuj ponownie, nie zmieniaj workflow.
 > - **Nie zmieniać:** `.github/workflows/deploy.yml`, `deploy/*`, sekretów i zmiennych w GitHub, tokena Cesium, konfiguracji nginx na Mikrusie. Gałąź `stable` i port 8080 (preview) nie są potrzebne: mamy jedną domenę.
 > - Teren 3D Cesium działa na produkcji (token z sekretu `CESIUM_ION_TOKEN`). Lokalnie 3D wymaga własnego `appsettings.Development.json` (gitignored), a bez niego jest tryb 2D, co jest normalne.
+
+---
+
+## 📅 Plan niedzieli (2026-11-15, ostatni dzień)
+
+Cel: zero zgrzytów na ścieżce jurora i QUICK DEMO, które pokazuje sens narzędzia. Bez nowych dużych funkcji; małe commity na `main`, każdy z zielonymi testami.
+
+1. [x] Etap 1 — porządek w ROADMAP (ta sekcja, „🧊 Po hackathonie”)
+2. [ ] Etap 2 — pakiet błędów: niemodalna karta podsumowania, tooltipy HUD bez nakładania, pakiet A planu UI, przejście ścieżki jurora 1366×768 i 1920×1080
+3. [ ] Etap 3 — QUICK DEMO z realną decyzją (spadek baterii, napisy ciemność/powrót Słońca, kontrprzykład MISSION LOST, link do najlepszego okna)
+4. [ ] Pakiet B planu UI (intuicyjność SIMPLE)
+5. [ ] Pakiet C planu UI (czytelność ANALYST)
+6. [ ] Test ścieżki jurora (całość, oba tryby, obie rozdzielczości)
+7. [ ] **Zamrożenie ~16:00** — potem tylko zgłoszenie, wideo, poprawki krytyczne
+8. [ ] (opcjonalnie) DSN — tylko jeśli zostanie czas przed zamrożeniem
 
 ---
 
@@ -118,11 +133,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P0
 
-- [ ] **Demo działa offline** — C (Cesium i czcionki są już lokalne od `c6085d3`; zostały kafle Moon Trek)
-  - Gotowe, gdy: aplikacja z laptopa bez internetu ładuje się z lokalnym Cesium (nie z CDN), lokalnymi czcionkami i podręcznym zestawem kafli Moon Trek dla bieguna (albo ma fallback bez zdjęć), co jest sprawdzone przy wyłączonym Wi-Fi.
 - [x] ~~Uruchomić wdrożenie na Mikrusie~~ — zrobione, patrz Done (`85d36e0`). Zostało tylko: sprawdzić stronę z telefonu po LTE i zapisać czasy ładowania (C).
-- [ ] **Lustro na GitHub Pages** — C
-  - Gotowe, gdy: `<base href>` ustawione na podścieżkę repo i adres działa.
 - [ ] **Strona projektu na spaceappschallenge.org**: opis odhaczający cele wyzwania, lista danych z linkami, deklaracja użycia AI (z sekcji poniżej), link do repo i demo — wszyscy (prowadzi C)
   - Gotowe, gdy: projekt jest wysłany przed terminem, a wszystkie pola są po angielsku.
 - [ ] **30-sekundowe wideo demo** (albo maksymalnie 7 slajdów) — C
@@ -133,29 +144,20 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ### P1
 
+- [ ] **Lustro na GitHub Pages** — kopia zapasowa linku dla jury, ~30 min — C
+  - Gotowe, gdy: `<base href>` ustawione na podścieżkę repo i adres działa.
+
 - [x] ~~**Optymalizacja `nova_c.glb` (13,3 MB → cel < 2 MB)**~~ — zrobione dla wszystkich 5 modeli (Done, 2026-11-14 19:55). Było: — gltf-transform: `meshopt` (lub `draco`), uproszczenie siatki (288 tys. trójkątów → ~30–50 tys.), tekstury WebP 1024 px; dodać dekoder meshopt do Cesium (obsługuje `EXT_meshopt_compression`) i sprawdzić, że skala/orientacja się nie zmieniły — A/C
   - Gotowe, gdy: plik < 2 MB, test GLB przechodzi, a pierwsze lądowanie w Firefoksie mieści się w 6 s. Uwaga: publikacja Blazor nie kompresuje `.glb` (13,9 MB transferu).
 - [ ] **Licencja obrazów koncepcyjnych z Meshy — dotyczy teraz wszystkich 5 modeli** (Nova-C, Blue Ghost, Griffin, Starship HLS, Blue Moon Mk2) — potwierdzić plan konta (darmowy = CC BY 4.0, wymaga atrybucji — jest w stopce i w tooltipie modelu) i że obrazy nie odwzorowują grafik producentów ani logotypów. Do obejrzenia: kolorowa naklejka na kadłubie Blue Moon Mk2 i mały znak na kadłubie Starshipa (są w teksturach TRELLIS, widać je na zbliżeniu) — jeśli to logo, zamalować w teksturze źródłowej i przepuścić przez `tools/optimize-models` (zasada nr 1) — zespół
 - [x] ~~**Moc paneli Nova-C: 200 W czy 788 W?**~~ — zespół wybrał 788 W z FCC → 494 W w modelu (Done, 2026-11-15 01:35). Zostało: źródło obciążenia dziennego Nova-C (patrz Known issues) — A/B
-- [ ] **Źródła pozostałych wartości ASSUMPTION** — przewodnik Astrobotic przeczytany 2026-11-15 (Griffin: czas misji, panele boczne, moc dla ładunków; patrz Done). Zostały bez publicznych liczb: moc paneli i bateria Griffina, obciążenia dzienne Nova-C i Blue Ghost, wszystkie wartości mocy HLS. Kolejny krok: opisy ładunków NASA dla IM-1/IM-2 i Blue Ghost M1 (moc każdego instrumentu) → obciążenie dzienne jako DERIVED — A
-- [ ] **Wymiary Griffina ze źródła** — strona Astrobotic ma tylko etykietę „4.5M” na rysunku; tekst Lunar Landers PUG 2021 (wersja na science.nasa.gov) też nie podaje wymiarów (sprawdzone 2026-11-15, wymiary mogą być tylko na rysunkach); sprawdzić w Lunar Landers User Guide (https://www.astrobotic.com/wp-content/uploads/2022/01/PUGLanders_011222.pdf) i poprawić `modelWidthM` / `modelNote` — A
 
-- [ ] **Źródła geometrii paneli i obciążeń dziennych** — przy stałych panelach to one decydują o wykonalności. Potrzebne: które ściany Nova-C mają panele i podział mocy, rozmieszczenie paneli Blue Ghost, nachylenie panelu Griffina, obciążenia dzienne CLPS (dziś ASSUMPTION, 70–75% mocy szczytowej) oraz źródło dla „~450 W nominalnie / 650 W szczytowo” Blue Ghost (w danych 400 W SOURCED) — zespół. **2026-11-15:** Nova-C układ 1 + 2 (astronomy.com), Griffin panele boczne (PUG) i moc dla ładunków (PUG), Blue Ghost 400 W potwierdzone, 450/650 W bez źródła; kierunki ścian, podział mocy i obciążenia dzienne Nova-C/Blue Ghost nadal bez źródeł
-  - Gotowe, gdy: wartości w `landers.json → panels` / `dayLoadW` mają `sourceUrl` albo jawne uzasadnienie.
 
-- [ ] **Pitch na lokalne jury**: slajdy, scenariusz demo offline, odpowiedzi na trudne pytania — wszyscy
-  - Gotowe, gdy: jest próba generalna na czas z demo uruchomionym bez internetu.
 - [ ] **Zmierzyć fps animacji lądowania na prawdziwym laptopie** (Chrome/Firefox/Safari, z GPU) — w testach headless z programowym WebGL było 11–44 fps i model się upraszczał; cel ≥ 30 fps bez uproszczeń — C
 - [ ] **Sprawdzić prawdziwego Firefoksa** — w headless Firefox (programowe WebGL) mapa ciepła po QUICK DEMO liczy się ~10 s; werdykt pojawia się od razu — C
-- [ ] **Alternatywy miejsca w sekcji 01** (`alternatives` z `sites.json`) do przełączania jednym kliknięciem — C
-- [ ] **Warstwa Moon Trek w odwzorowaniu polarnym** (South Polar Stereographic) zamiast mozaiki walcowej, która przy biegunie jest rozmazana — C
-  - Gotowe, gdy: zbliżenie na miejsca przy -85…-89° jest ostre.
 
 - [x] ~~**Elipsa lądowania zamiast punktu**~~ — zrobione (Done, 2026-11-15 01:20, `c3d6646`). Zostało: elipsa w widoku 3D (punkty na terenie) i prawdziwa elipsa (osie z dyspersji lądownika) zamiast koła. Było: (największa luka Validity) — pipeline: horyzonty dla siatki punktów wokół każdego miejsca (np. 5×5 co 120 m lub elipsa ~500 m), werdykt jako odsetek elipsy z FEASIBLE („FEASIBLE w 80% elipsy”). Addytywnie, osobny plik (np. `illumination/{siteId}_ellipse.json` ze statystykami), bez zmiany kontraktu — A/B
   - Gotowe, gdy: dla 9 miejsc jest rozkład oświetlenia w elipsie i UI pokazuje go obok punktu; liczby zgodne z zakresem 3×3 NASA.
-- [ ] **Teren 60 m / 20 m dla 9 miejsc** — przeliczyć horyzonty na LDEM 60 m (lub 20 m w okolicy bieguna) i porównać z mapą NASA 60 m; dziś jesteśmy +7…+22 pp optymistyczni. Alternatywa na szybko: tryb „conservative” z poprawką z porównania — A
-- [ ] **Fizyka paneli** (część bateryjna zrobiona 2026-11-14 21:55) — spadek mocy paneli z temperaturą i kurzem, sprawność elektroniki mocy (MPPT/PCDU); każda wartość z `sourceUrl` albo jako ASSUMPTION — B
-- [ ] **Monte Carlo: prawdopodobieństwo powodzenia** — połączyć niepewność obciążenia, paneli, kursu i punktu lądowania w jedną liczbę „P(FEASIBLE)”; naturalny następnik wiersza odporności — B
 
 - [ ] **Start aplikacji: co zostało** (limit fps i współdzielona mapa ciepła zrobione 2026-11-14 22:45) — (1) blok .NET 1,2–1,6 s przy starcie (runtime + pierwszy render Blazor + deserializacja JSON przez refleksję; do sprawdzenia: `JsonSerializerContext` z generatorem źródeł), (2) preload 5 modeli GLB przez `requestIdleCallback` po zakończeniu analizy zamiast 3 s po starcie, (3) pomiar `tools/startup-profile` na laptopie do prezentacji bez innych programów (`--cpu 4` jako słaby laptop) — C
 
@@ -163,18 +165,38 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - **A. Błędy widoczne na demo (najpierw, ~2 h):** (1) HUD „SIMULATED DESCENT” zasłania przycisk „▶ Play mission” w pasku nad Księżycem; (2) przy 1366×768 karta werdyktu wychodzi poza ekran (przyciski ucięte) — zwęzić/skompaktować; (3) po lądowaniu prawy panel dalej pokazuje krok 3 i „Land & analyze” — zamienić na krok „Wynik” (werdykt w skrócie, „Try another date”, „Change lander”, „New landing”); (4) karta werdyktu pokazuje 100 / 100 / 100 % przy mocnych lądownikach — zamiast tego liczby, które coś różnicują (zapas energii ×, najdłuższy pobyt, obszar lądowania OK %); (5) etykieta „BEST WINDOW” nachodzi na komórki mapy, chipy najlepszych dat bez roku.
   - **B. Intuicyjność SIMPLE (~3 h):** lista miejsc z paskiem światła, sortowaniem i oznaczeniem „suggested” + podświetlenie pinezki przy najechaniu; mniej etykiet na globie (pełna nazwa tylko dla wybranego i najechanego, bez nakładania się, zwykłe litery zamiast MONO CAPS); kadr z biegunem wyżej (dziś pół ekranu to czarne niebo); kroki 1–2 jako „suggested”, a nie ✓, dopóki użytkownik ich nie potwierdzi; karty lądowników z 3 liczbami i jednym zdaniem „czym się różni”. Karta „Custom site” (nowa, `custom-sites`) w tym samym języku co lista 9 regionów: wyraźnie „szybkie oszacowanie, teren 240 m”, a nie drugi rodzaj wyniku.
   - **C. Czytelność ANALYST (~3 h):** minimum 12 px dla każdego tekstu, etykiety Sans zamiast mono caps; usunąć powtórzenie werdyktu (linia pod kartą) i podwójne COMPARE (zakładka + przycisk); panel odporności w 2 grupach („Założenia mocy”: LOAD; „Celność lądowania”: ELLIPSE + NASA ±120 m) z mapą elipsy przy swoim tekście; oś czasu z osią baterii 0/50/100 % i dniami „Day 1…7”; heatmapa z rzadszymi etykietami miesięcy i legendą pod spodem.
-  - **D. Wow, jeśli starczy czasu:** elipsa lądowania jako kolorowe punkty na terenie 3D wokół lądownika.
   - Weryfikacja po każdym pakiecie: zrzuty w 1366×768 i 1920×1080 (oba tryby), axe bez błędów critical/serious, `prefers-reduced-motion`, testy xUnit; pluginy do pomocy: frontend-design, Design (design-critique, accessibility-review, ux-copy), UI Design Review.
 
 ### P2
 
-- [ ] Raport misji do druku/PDF — C
+- [ ] **Warstwa Moon Trek w odwzorowaniu polarnym** (tylko tryb 2D) (South Polar Stereographic) zamiast mozaiki walcowej, która przy biegunie jest rozmazana — C
+  - Gotowe, gdy: zbliżenie na miejsca przy -85…-89° jest ostre.
+- [ ] **Łączność przez stacje DSN (Goldstone / Madryt / Canberra)** — opcjonalnie, etap 4 dzisiejszego planu (tylko gdy etapy 1–3 scalone, a pakiety B i C zrobione); dziś „kontakt” = Ziemia nad horyzontem lądownika — A/B/C
+
+
+## 🧊 Po hackathonie
+
+Świadomie odłożone 2026-11-15 (ostatni dzień: tylko poprawki ścieżki jurora i QUICK DEMO). Historia zostaje w Done.
+
+- [ ] **Monte Carlo: prawdopodobieństwo powodzenia** — połączyć niepewność obciążenia, paneli, kursu i punktu lądowania w jedną liczbę „P(FEASIBLE)”; naturalny następnik wiersza odporności — B
+- [ ] **Fizyka paneli** (część bateryjna zrobiona 2026-11-14 21:55) — spadek mocy paneli z temperaturą i kurzem, sprawność elektroniki mocy (MPPT/PCDU); każda wartość z `sourceUrl` albo jako ASSUMPTION — B
+- [ ] **Teren 60 m / 20 m dla 9 miejsc** — przeliczyć horyzonty na LDEM 60 m (lub 20 m w okolicy bieguna) i porównać z mapą NASA 60 m; dziś jesteśmy +7…+22 pp optymistyczni. Alternatywa na szybko: tryb „conservative” z poprawką z porównania — A
 - [ ] Dane partnera: JAXA Kaguya (SELENE) DEM jako druga warstwa terenu — A
+- [ ] Raport misji do druku/PDF — C
+- [ ] **Źródła pozostałych wartości ASSUMPTION** — przewodnik Astrobotic przeczytany 2026-11-15 (Griffin: czas misji, panele boczne, moc dla ładunków; patrz Done). Zostały bez publicznych liczb: moc paneli i bateria Griffina, obciążenia dzienne Nova-C i Blue Ghost, wszystkie wartości mocy HLS. Kolejny krok: opisy ładunków NASA dla IM-1/IM-2 i Blue Ghost M1 (moc każdego instrumentu) → obciążenie dzienne jako DERIVED — A
+- [ ] **Wymiary Griffina ze źródła** — strona Astrobotic ma tylko etykietę „4.5M” na rysunku; tekst Lunar Landers PUG 2021 (wersja na science.nasa.gov) też nie podaje wymiarów (sprawdzone 2026-11-15, wymiary mogą być tylko na rysunkach); sprawdzić w Lunar Landers User Guide (https://www.astrobotic.com/wp-content/uploads/2022/01/PUGLanders_011222.pdf) i poprawić `modelWidthM` / `modelNote` — A
+- [ ] **Źródła geometrii paneli i obciążeń dziennych** — przy stałych panelach to one decydują o wykonalności. Potrzebne: które ściany Nova-C mają panele i podział mocy, rozmieszczenie paneli Blue Ghost, nachylenie panelu Griffina, obciążenia dzienne CLPS (dziś ASSUMPTION, 70–75% mocy szczytowej) oraz źródło dla „~450 W nominalnie / 650 W szczytowo” Blue Ghost (w danych 400 W SOURCED) — zespół. **2026-11-15:** Nova-C układ 1 + 2 (astronomy.com), Griffin panele boczne (PUG) i moc dla ładunków (PUG), Blue Ghost 400 W potwierdzone, 450/650 W bez źródła; kierunki ścian, podział mocy i obciążenia dzienne Nova-C/Blue Ghost nadal bez źródeł
+  - Gotowe, gdy: wartości w `landers.json → panels` / `dayLoadW` mają `sourceUrl` albo jawne uzasadnienie.
+- [ ] **Alternatywy miejsca w sekcji 01** (`alternatives` z `sites.json`) do przełączania jednym kliknięciem — C
+- [ ] **Pakiet D z planu UI (elipsa na terenie 3D)** — elipsa lądowania jako kolorowe punkty na terenie 3D wokół lądownika. — C
+- [ ] **Demo działa offline** _(przeniesione z P0 2026-11-15: brak pitchu)_ — C (Cesium i czcionki są już lokalne od `c6085d3`; zostały kafle Moon Trek)
+  - Gotowe, gdy: aplikacja z laptopa bez internetu ładuje się z lokalnym Cesium (nie z CDN), lokalnymi czcionkami i podręcznym zestawem kafli Moon Trek dla bieguna (albo ma fallback bez zdjęć), co jest sprawdzone przy wyłączonym Wi-Fi.
+- [ ] **Pitch na lokalne jury** _(przeniesione z P0 2026-11-15: brak pitchu)_: slajdy, scenariusz demo offline, odpowiedzi na trudne pytania — wszyscy
+  - Gotowe, gdy: jest próba generalna na czas z demo uruchomionym bez internetu.
 
 ## 💡 Ideas / Backlog
 
 - Automatyczny wybór najlepiej oświetlonego punktu w każdym regionie (15×15 km) wraz z mapą oświetlenia regionu.
-- Łączność z konkretnymi stacjami DSN (Goldstone / Madryt / Canberra), a nie tylko „Ziemia nad horyzontem”.
 - Teren 3D Cesium Moon po dodaniu assetu do konta (sprawdzić zgłaszane ~2,5 km przesunięcia względem LOLA).
 - Wyższa wysokość obserwatora (np. maszt 10 m) jako parametr do porównania „co daje maszt”.
 - Miniatury modeli 3D na kartach lądowników (statyczne PNG z podglądu, generowane raz skryptem). Pominięte 2026-11-14: obecne sylwetki SVG nic nie ważą, a 5 obrazków dokładałoby transfer do pierwszego widoku.
@@ -227,8 +249,10 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — pakiet polish-timelapse: przeliczenie danych 2026–2035 w plikach rocznych i walidacje (Horizons, NASA, Mazarico), kalendarz, panel analizy, płomień i pył (ParticleSystem), Mission replay z zakończeniami HLS/CLPS/porażka, testy jednostkowe i E2E w 3 silnikach
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — analiza dowolnego punktu 80–90°S: eksport efemeryd i DEM 240 m, obliczenia w przeglądarce (horyzont, paralaksa, seria), walidacja vs JPL Horizons i pipeline, UI karty Custom, testy jednostkowe i E2E
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — Play mission: przewinięcie do Księżyca, mini-oś czasu w HUD replayu, róża Słońce/Ziemia zsynchronizowana z replayem, aktualizacja testów E2E
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — porządek w ROADMAP: plan niedzieli, sekcja „Po hackathonie”, zmiana priorytetów
 ## ⚠️ Known issues / ryzyka
 
+- **Optymizm względem mapy NASA 60 m (+7…+22 pp słońca)** — nasze horyzonty z DEM 120 m dają więcej światła niż mapa NASA 60 m (porównanie 120 m vs 120 m jest zgodne). **Opisać w zgłoszeniu jako ograniczenie.**
 - **Custom: promienie horyzontu urywają się na 80°S** — wycięty DEM sięga do 80°S (cel rozmiaru ≤ 8 MB), więc dla punktów blisko 80°S część promieni do 150 km kończy się wcześniej (jak w pipeline: liczy się maksimum wewnątrz DEM). Skutek: horyzont od strony równika może być zaniżony.
 - **Custom: najdłuższa noc mniej dokładna niż % słońca** — teren 240 m wygładza małe grzbiety; w walidacji różnica do ~70 h (Nobile Rim 1), stąd oznaczenie „Quick estimate”.
 - **Dane dla punktów custom: +14 MB w repo** (DEM 12,9 MB + efemerydy 1,9 MB); przeglądarka pobiera DEM (~6,6 MB gzip) dopiero przy pierwszym kliknięciu w teren.
