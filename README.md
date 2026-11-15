@@ -24,7 +24,7 @@ We follow the Space Apps rule on the use of AI. In short: **AI helped us write t
 
 **What AI was used for**
 
-- **Code, debugging, tests and documentation** — Claude Code (Anthropic, Claude Opus 5.5) wrote and reviewed most of the frontend (Blazor WebAssembly, CesiumJS), the Python data pipeline, the unit tests (xUnit, pytest), the browser tests (Playwright) and the documentation, under the team's direction. Every session is listed with its date in the *AI usage log* of [`ROADMAP.md`](ROADMAP.md). One early commit (the app skeleton) used an AI tool the team still has to name there.
+- **Code, debugging, tests and documentation** — Claude Code (Anthropic, Claude Opus 5.5) wrote and reviewed most of the frontend (Blazor WebAssembly, CesiumJS), the Python data pipeline, the unit tests (xUnit, pytest), the browser tests (Playwright) and the documentation, under the team's direction. Every session is listed with its date in [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
 - **3D lander models** — the five lander models are AI-generated: a concept image from **Meshy AI**, turned into 3D by **Microsoft TRELLIS.2** (MIT), then optimised with glTF Transform and meshoptimizer ([`tools/optimize-models`](tools/optimize-models)). They are stylised visualisations, not manufacturer CAD. Logos, flags and insignia that the AI put on the textures are painted out (`tools/optimize-models/redactions.json`).
 - **Concept images** for those models (Meshy AI).
 
@@ -46,3 +46,10 @@ We follow the Space Apps rule on the use of AI. In short: **AI helped us write t
 - `index.html` carries `<meta name="ai-assistance">`. Each GLB names the AI tools in `asset.generator` and `asset.extras`. `landers.json` has `aiGenerated` for every model.
 - Every data file from the pipeline carries a `provenance` note: the code was written with AI assistance, and the values come from NASA/JPL data.
 - Screenshots and the link preview image that show a lander say “Contains AI-generated 3D models”.
+
+## Licence
+
+Our code is open source under the [Apache License 2.0](LICENSE). Third-party parts keep their own licences:
+CesiumJS (Apache-2.0, `SeleneFrontend/wwwroot/lib/cesium-1.120/LICENSE.md`), IBM Plex (SIL OFL 1.1,
+`SeleneFrontend/wwwroot/fonts/LICENSE.txt`), the Wueller et al. (2026) site data (CC-BY-4.0) and NASA data (public
+domain, with credit to NASA / LRO LOLA / JPL).

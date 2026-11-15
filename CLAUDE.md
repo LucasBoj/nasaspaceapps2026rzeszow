@@ -1,7 +1,7 @@
 # SELENE OPS — project context
 
 **What:** a landing-window planner for the lunar south pole. Entry for **NASA Space Apps Challenge 2026**, challenge *"Lunar Landing Site Navigator / CLPS Lunar Mission Browser"*, local event **Rzeszów**.
-**Deadline:** submission by **Sunday 15.11.2026, 23:59 local time**. The local jury may close earlier, so check with the Local Lead.
+**Deadline:** the **Rzeszów local contest ends Sunday 15.11.2026 at 13:00** (rules §4.3; jury from 13:00, results 16:00): Submit for Judging before 13:00 and do not push to `main` after it. 23:59 local time is only the global deadline. Project-page text: `docs/submission.md`; AI disclosure: `docs/AI_USAGE.md`; licence: Apache-2.0 (`LICENSE`).
 **Goal:** 1st place locally and a Global Award nomination. Judging criteria (1–5 each): Impact, Creativity, Validity, Relevance (NASA data as the core), Presentation.
 
 **Product:** for a chosen site, lander and date window, compute illumination (energy), Earth comms and hour-by-hour battery balance. The output is a verdict, **"feasible / not feasible"**, plus the best window. From data to a decision.

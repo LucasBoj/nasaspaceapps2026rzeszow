@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-15 10:50 CET (porządek w ROADMAP: stan planu niedzieli, nieaktualne wpisy; wcześniej: termika — grzałki nocne + LRO Diviner)
+**Ostatnia aktualizacja:** 2026-11-15 11:20 CET (przegląd zgłoszenia vs przewodnik Space Apps i regulamin Rzeszów: **lokalny termin 13:00**, teksty zgłoszenia, log AI po angielsku, LICENSE)
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -27,7 +27,7 @@ Cel: zero zgrzytów na ścieżce jurora i QUICK DEMO, które pokazuje sens narz�
 6. [ ] Test całej ścieżki jurora (oba tryby, 1366×768 i 1920×1080)
 7. [ ] Etap 4 „Ziemia na niebie” (gałąź `earth-sky`): Ziemia jako kula w kierunku z danych (az/el, faza ze światła sceny, zasłaniana przez teren), tarcza Słońca, gwiazdy, tryb kamery „Surface view” i „Watch from the surface” w Play mission, etykiety Earth/Sun; testy az/el ±0,5°, zasłanianie, kamera nad terenem
 8. [ ] Etap 5 DSN (gałąź `dsn`) — tylko jeśli zostanie czas przed zamrożeniem; gdy 4 i 5 są gotowe, napis łączności w Surface view łączy oba warunki („Earth in view · contact via Canberra” / „Earth behind terrain — no contact”)
-9. [ ] **Zamrożenie ~16:00** — potem tylko zgłoszenie, wideo, poprawki krytyczne
+9. [ ] **Zamrożenie 12:45 (było ~16:00)** — regulamin Rzeszów §4 ust. 3: konkurs lokalny kończy się **15.11 o 13:00**, jury obraduje od 13:00, wyniki 16:00. Zgłoszenie (Submit for Judging) przed 13:00; od 13:00 **żadnych pushy na `main`** (= produkcja oglądana przez jury). 23:59 to termin tylko dla oceny globalnej. Potwierdzić u Local Leada.
 
 Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
 
@@ -173,6 +173,7 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
   - Testy: xUnit 140/140 (nowe `AiDisclosureTests`: generator i extras w każdym GLB, `aiGenerated`, meta tag, `provenance`); `tools/e2e/ai-label.mjs` 8/8 (plakietka przy opadaniu, po lądowaniu, w Play mission, znika po New landing, nie zasłania kontrolek; meta w opublikowanym index.html); modele 49/49 na nowych GLB w Chromium, WebKit i Firefox; ai-label 8/8 i stage2 44/44 w 3 silnikach; stage3 10/10, stage-c 16/16; pytest 53 passed — 2026-11-15 — commit z tym wpisem — AI: Claude Code
 
 - [x] **Warstwa naukowa PSR — etap 3: pełny werdykt dla kandydata bliżej lodu** — `build_psr.py` wybiera w każdym regionie kandydata „ice-first” (front Pareto, najbliżej PSR ≥ 1 km², ≥ 40 % słońca, bliżej lodu niż miejsce; ta sama reguła co `PsrRegion.IceFirst`) → `psr.json → iceSite` i `science/ice_sites.json`; 7 regionów (Cabeus B i Malapert bez — bliżsi kandydaci mają < 40 % słońca). Dla nich pełne dane jak dla 9 regionów: pliki roczne 2026–2035 (`build.py --no-index`, mapa ciepła zostaje przy 9), `ellipse.json`, `heights.json`, temperatury gruntu Diviner (`diviner_temperatures.py` czyta też `ice_sites.json`). Aplikacja (`IceComparisonService`, `IceComparison`): po każdej analizie ta sama misja (lądownik, data, długość) w miejscu „ice-first” + jego najlepsza data w oknie; zakładka **Sun vs ice** ma tabelę pełnych werdyktów, krok miejsca jedno zdanie („Same lander and date at NR201, 0.3 km from the ice: FEASIBLE…”). **Wyniki (7 d, 2027–28, bez grzałek, dni z FEASIBLE miejsce/„ice-first”):** Nobile Rim 2 NR201 (0,3 km od 19,5 km² PSR) — Nova-C 136/134, Blue Ghost 109/108 → lód prawie bez kosztu; Nobile Rim 1 NR102 Blue Ghost 88/128 (lepiej przy lodzie); Mons Mouton MMO09 Nova-C 263/57, ta sama data NOT FEASIBLE; Slater Plain SP01 Blue Ghost 21/14, ta sama data NOT FEASIBLE; Haworth HW02 Nova-C ta sama data MARGINAL. Z modelem grzałek (Diviner) w scenariuszu QUICK DEMO (Blue Ghost, Nobile Rim 1, 26 Dec 2028): miejsce MARGINAL (bateria 6 %), NR102 bliżej lodu w tej samej dacie FEASIBLE (66 %). Testy: xUnit 152/152 (nowe `IceComparisonTests`), pipeline `test_psr.py` (reguła i pliki), `test_diviner.py` 6/6 (liczenie 9 punktów ograniczone do regionów z `sites.json`; miejsca `_ice` mają dodatkowe wpisy), build 0 ostrzeżeń, sprawdzone w przeglądarce. Praca w osobnym worktree, uzgodniona z sesją termiczną — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+- [x] **Przegląd zgłoszenia vs przewodnik Space Apps i regulamin Rzeszów:** lokalny termin 13:00 (nie 23:59) zapisany w planie niedzieli i CLAUDE.md; teksty wszystkich pól strony projektu po angielsku (`docs/submission.md`, z listą kontrolną przed wysłaniem); log użycia SI po angielsku (`docs/AI_USAGE.md`, README linkuje tam zamiast do polskiej ROADMAP — przewodnik wymaga angielskiego w podlinkowanych materiałach); `LICENSE` Apache 2.0 i sekcja Licence w README (regulamin §7 ust. 2: wyniki muszą być open source) — 2026-11-15 11:20 CET — commit z tym wpisem — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -186,11 +187,11 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 ### P0
 
 - [x] ~~Uruchomić wdrożenie na Mikrusie~~ — zrobione, patrz Done (`85d36e0`). Zostało tylko: sprawdzić stronę z telefonu po LTE i zapisać czasy ładowania (C).
-- [ ] **Strona projektu na spaceappschallenge.org**: opis odhaczający cele wyzwania, lista danych z linkami, deklaracja użycia AI (z sekcji poniżej), link do repo i demo — wszyscy (prowadzi C)
-  - Gotowe, gdy: projekt jest wysłany przed terminem, a wszystkie pola są po angielsku.
-  - Przed deklaracją AI: zespół uzupełnia pierwszy wpis AI usage log (narzędzie użyte przy szkielecie aplikacji, `323edd4`, `a2f267d` — dziś „do uzupełnienia przez zespół”).
+- [ ] **Strona projektu na spaceappschallenge.org** — **teksty wszystkich pól gotowe po angielsku w `docs/submission.md`** (do skopiowania, z listą kontrolną) — wszyscy (prowadzi C)
+  - Gotowe, gdy: projekt jest wysłany przed **13:00** (lokalnie), a wszystkie pola są po angielsku.
+  - Zostało: link do demo, nazwa narzędzia SI użytego przy szkielecie (`323edd4`, `a2f267d`) w `docs/AI_USAGE.md` i `docs/submission.md` (placeholder `[TEAM: …]`), potwierdzenie, że wszyscy członkowie są zapisani na wydarzenie Rzeszów.
 - [ ] **30-sekundowe wideo demo** (albo maksymalnie 7 slajdów) — C
-  - Gotowe, gdy: wideo ≤ 30 s z angielskimi napisami jest podpięte do zgłoszenia.
+  - Gotowe, gdy: wideo ≤ 30 s z angielskimi napisami jest podpięte do zgłoszenia (albo ≤ 7 slajdów po angielsku z nazwą zespołu, imionami i nazwiskami członków i nazwą wyzwania). Przekroczenie limitu wyklucza z oceny globalnej. Bez osób poniżej 18 lat. Link publiczny bez logowania.
 
 - [x] **Scalić `polish-timelapse` do `main`** — scalone w `e67f5c2` (2026-11-15 00:46) i wdrożone; **czy ręczne sprawdzenie poniżej zostało zrobione — do potwierdzenia przez zespół**. Było: po ręcznym sprawdzeniu — każdy lądownik × ≥ 2 miejsca (w tym Nobile Rim 2, najbardziej nachylone 3,9°), Chrome/Firefox/Safari, 1920×1080 i 1366×768, ≥ 30 fps na laptopie do prezentacji (headless renderuje programowo 8–25 fps, tego nie da się tu zmierzyć). Polecenie: `git checkout main && git merge --no-ff polish-timelapse && git push origin main` — zespół
 
@@ -324,6 +325,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — pakiet C: progi czcionek, nagłówki Sans, panel odporności w 2 grupach, oś baterii i dni, równoległe drzewa robocze (git worktree) dla B / C / earth-sky
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — termika: wyszukanie produktu Diviner PCP, odczyt HTTP multi-range i dopasowanie siatki 240 m, walidacja krzyżowa LOLA vs Diviner, model grzałek, ponowne przeszukanie scenariusza QUICK DEMO, UI, testy
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — przegląd ROADMAP przed zamrożeniem: lista zaległości P0/P1, stan planu niedzieli, poprawki nieaktualnych wpisów (Monte Carlo, wysokość paneli, kurs w 3D, QUICK DEMO, okres danych, AI log w złej sekcji)
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — przegląd zgłoszenia vs przewodnik i regulamin, teksty strony projektu po angielsku, log SI po angielsku, LICENSE
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — zgodność z zasadą SI Space Apps: przegląd tekstur pod kątem logo i flag, krok zamalowania w optymalizatorze, plakietka w aplikacji, znaki wodne, metadane GLB / danych / HTML, README, testy
 
 ## ⚠️ Known issues / ryzyka
