@@ -75,7 +75,8 @@ def build_doc(site: dict, dem: horizon.Dem, series: dict, observer_height_m: flo
         "spacingM": ellipse.GRID_SPACING_M, "radiusM": ellipse.GRID_RADIUS_M,
         "statsPeriod": "whole data range of the site files, any Sun / Earth > horizon + 0.5°",
         "points": out,
-        "generatedWith": {"dem": dem.name, "method": "own-frame horizon + azShift/tilt (pipeline/ellipse.py)"},
+        "generatedWith": {"dem": dem.name, "method": "own-frame horizon + azShift/tilt (pipeline/ellipse.py)",
+                          "provenance": build.PROVENANCE},
     }
 
 

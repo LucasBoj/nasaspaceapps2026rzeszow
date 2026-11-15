@@ -361,6 +361,7 @@ def chart(result: dict, path: Path = CHART_PNG) -> None:
 
 
 def write_outputs(result: dict) -> None:
+    result = {**result, "provenance": build.PROVENANCE}
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
     COMPARISON_JSON.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     FRONTEND_JSON.parent.mkdir(parents=True, exist_ok=True)

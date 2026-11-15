@@ -64,7 +64,7 @@ def export_ephemeris(sky: ephemeris.MoonSky, out_dir: Path) -> dict:
         (out_dir / f"{year}.bin").write_bytes(data.tobytes())
         years.append({"year": year, "start": build.iso_z(y0), "count": int(len(data)), "file": f"{year}.bin"})
         print(f"  ephem {year}: {len(data)} h, {data.nbytes / 1e6:.2f} MB")
-    meta = {"start": START, "end": END, "stepHours": 1, "fields": FIELDS, "dtype": "float32-le",
+    meta = {"start": START, "end": END, "stepHours": 1, "fields": FIELDS, "dtype": "float32-le", "provenance": build.PROVENANCE,
             "frame": ephemeris.MOON_FRAME, "kernels": list(ephemeris.KERNEL_FILES),
             "moonRadiusM": horizon.MOON_RADIUS_M,
             "note": "apparent positions (light time + aberration) seen from the Moon's centre, as in ephemeris.MoonSky",
@@ -95,6 +95,7 @@ def export_dem(dem: horizon.Dem, out_dir: Path) -> dict:
     lons = np.array([0.0, 90.0, -45.0, 170.0, -120.0])
     xs, ys = dem.project(lons, lats)
     meta = {"width": n, "height": n, "pixelM": DEM_PIXEL_M, "originX": -DEM_HALF_EXTENT_M, "originY": DEM_HALF_EXTENT_M,
+            "provenance": build.PROVENANCE,
             "crs": dem.crs.to_proj4(), "moonRadiusM": horizon.MOON_RADIUS_M, "dtype": "int16-le", "nodata": NODATA,
             "encoding": "row-delta", "heightUnit": "m", "source": dem.name,
             "method": f"mean of {k}×{k} source pixels ({src_px:g} m), rounded to 1 m",

@@ -685,5 +685,6 @@
         }
       }
     }
-  ]
+  ],
+  "provenance": "Pipeline code written with AI assistance (Claude Code). The values are not AI-generated: they are computed deterministically from NASA LRO LOLA terrain and JPL DE421 / NAIF ephemerides (Skyfield) and validated against JPL Horizons and the NASA LOLA illumination maps."
 }

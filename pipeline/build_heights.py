@@ -39,7 +39,8 @@ def build_doc(site: dict, dem: horizon.Dem, series: dict, max_distance_m: float)
                      "horizonCentiDeg": np.rint(mask * 100).astype(int).tolist()})
     return {"siteId": site["id"], "lat": lat, "lon": lon, "seriesObserverHeightM": horizon.DEFAULT_OBSERVER_HEIGHT_M,
             "statsPeriod": "whole data range of the site files, any Sun / Earth > horizon + 0.5°",
-            "heights": rows, "generatedWith": {"dem": dem.name, "method": "horizon.horizon_profile per observer height"}}
+            "heights": rows, "generatedWith": {"dem": dem.name, "method": "horizon.horizon_profile per observer height",
+                                               "provenance": build.PROVENANCE}}
 
 
 def main(argv: list[str] | None = None) -> int:

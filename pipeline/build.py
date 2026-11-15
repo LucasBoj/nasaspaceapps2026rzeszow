@@ -92,9 +92,15 @@ def build_site(site: dict, dem: horizon.Dem, sky: ephemeris.MoonSky, times, star
             "dem": dem.name,
             "kernels": list(ephemeris.KERNEL_FILES),
             "method": "linear-disk-approx",
+            "provenance": PROVENANCE,
         },
     }
 
+
+# Space Apps "Use of Super Intelligence": every generated data file says how it was made.
+PROVENANCE = ("Pipeline code written with AI assistance (Claude Code). The values are not AI-generated: they are "
+              "computed deterministically from NASA LRO LOLA terrain and JPL DE421 / NAIF ephemerides (Skyfield) and "
+              "validated against JPL Horizons and the NASA LOLA illumination maps.")
 
 SERIES_KEYS = ("sunFraction", "sunElevCentiDeg", "sunAzCentiDeg", "earthVisible", "earthElevCentiDeg", "earthAzCentiDeg")
 
@@ -220,7 +226,8 @@ def main(argv: list[str] | None = None) -> int:
                 "years": list(range(start.year, end.year + 1)),
                 "observerHeightM": args.observer_height, "dem": dem.name,
                 "method": "linear-disk-approx",
-                "generatedAt": iso_z(datetime.now(timezone.utc))}
+                "generatedAt": iso_z(datetime.now(timezone.utc)),
+                "provenance": PROVENANCE}
         index_path = update_index(args.out, entries, meta)
         print(f"Wrote {len(entries)} site file(s) and {index_path}")
     print(f"Done in {time.perf_counter() - t0:.1f} s")

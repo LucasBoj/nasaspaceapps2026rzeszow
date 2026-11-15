@@ -185,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.perf_counter()
     m = PsrMap(args.psr)
     doc = build_doc(m, json.loads(args.sites.read_text(encoding="utf-8")))
+    doc["provenance"] = build.PROVENANCE
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"PSR total {doc['totalPsrKm2']} km², regions {doc['regionsKm2']}")

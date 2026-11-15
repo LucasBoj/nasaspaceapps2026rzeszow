@@ -426,6 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     snapshot = refresh(args.workers) if args.refresh else json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     app = app_file(snapshot)
     FRONTEND_JSON.parent.mkdir(parents=True, exist_ok=True)
+    app = {**app, "provenance": build.PROVENANCE} if isinstance(app, dict) else app
     FRONTEND_JSON.write_text(json.dumps(app, separators=(",", ":")), encoding="utf-8")
     print(f"wrote {FRONTEND_JSON.relative_to(REPO)}")
     for e in app["points"]:

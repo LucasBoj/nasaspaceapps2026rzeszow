@@ -11,7 +11,7 @@
   "encoding": "row-delta",
   "heightUnit": "m",
   "source": "ldem_75s_120m_float.lbl",
-  "method": "mean of 2\u00d72 source pixels (120 m), rounded to 1 m",
+  "method": "mean of 2×2 source pixels (120 m), rounded to 1 m",
   "checkPoints": [
     {
       "lat": -80.0,
@@ -43,5 +43,6 @@
       "x": -73544.85426434621,
       "y": -42461.14140703207
     }
-  ]
+  ],
+  "provenance": "Pipeline code written with AI assistance (Claude Code). The values are not AI-generated: they are computed deterministically from NASA LRO LOLA terrain and JPL DE421 / NAIF ephemerides (Skyfield) and validated against JPL Horizons and the NASA LOLA illumination maps."
 }

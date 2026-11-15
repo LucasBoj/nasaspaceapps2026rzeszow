@@ -1,73 +1,74 @@
 {
- "regionId": "malapert_massif",
- "method": "published",
- "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434",
- "maxSlopeDeg": 10.0,
- "observerHeightM": 2.0,
- "start": "2026-11-01T00:00:00Z",
- "end": "2035-12-31T23:00:00Z",
- "litThresholdPct": 50,
- "best": "MMA_K2023",
- "candidates": [
-  {
-   "candidateId": "MMA_K2023",
-   "lat": -85.99192,
-   "lon": 2.0564,
-   "slopeDeg": 2.24,
-   "sunPct": 77.5,
-   "earthPct": 67.1,
-   "longestDarkH": 342,
-   "longestLightH": 4165,
-   "rejected": false,
-   "reason": ""
-  },
-  {
-   "candidateId": "MMA03",
-   "lat": -85.95772,
-   "lon": -3.27827,
-   "slopeDeg": 2.96,
-   "sunPct": 67.6,
-   "earthPct": 70.2,
-   "longestDarkH": 479,
-   "longestLightH": 696,
-   "rejected": false,
-   "reason": ""
-  },
-  {
-   "candidateId": "MMA01",
-   "lat": -85.94247,
-   "lon": -0.94365,
-   "slopeDeg": 2.93,
-   "sunPct": 45.3,
-   "earthPct": 96.3,
-   "longestDarkH": 406,
-   "longestLightH": 339,
-   "rejected": false,
-   "reason": ""
-  },
-  {
-   "candidateId": "MMA02",
-   "lat": -86.01532,
-   "lon": 3.38206,
-   "slopeDeg": 3.2,
-   "sunPct": 28.0,
-   "earthPct": 60.0,
-   "longestDarkH": 599,
-   "longestLightH": 280,
-   "rejected": false,
-   "reason": ""
-  },
-  {
-   "candidateId": "MMA04",
-   "lat": -86.30985,
-   "lon": -0.45928,
-   "slopeDeg": 3.91,
-   "sunPct": 15.9,
-   "earthPct": 0.0,
-   "longestDarkH": 2814,
-   "longestLightH": 242,
-   "rejected": false,
-   "reason": ""
-  }
- ]
+  "regionId": "malapert_massif",
+  "method": "published",
+  "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434",
+  "maxSlopeDeg": 10.0,
+  "observerHeightM": 2.0,
+  "start": "2026-11-01T00:00:00Z",
+  "end": "2035-12-31T23:00:00Z",
+  "litThresholdPct": 50,
+  "best": "MMA_K2023",
+  "candidates": [
+    {
+      "candidateId": "MMA_K2023",
+      "lat": -85.99192,
+      "lon": 2.0564,
+      "slopeDeg": 2.24,
+      "sunPct": 77.5,
+      "earthPct": 67.1,
+      "longestDarkH": 342,
+      "longestLightH": 4165,
+      "rejected": false,
+      "reason": ""
+    },
+    {
+      "candidateId": "MMA03",
+      "lat": -85.95772,
+      "lon": -3.27827,
+      "slopeDeg": 2.96,
+      "sunPct": 67.6,
+      "earthPct": 70.2,
+      "longestDarkH": 479,
+      "longestLightH": 696,
+      "rejected": false,
+      "reason": ""
+    },
+    {
+      "candidateId": "MMA01",
+      "lat": -85.94247,
+      "lon": -0.94365,
+      "slopeDeg": 2.93,
+      "sunPct": 45.3,
+      "earthPct": 96.3,
+      "longestDarkH": 406,
+      "longestLightH": 339,
+      "rejected": false,
+      "reason": ""
+    },
+    {
+      "candidateId": "MMA02",
+      "lat": -86.01532,
+      "lon": 3.38206,
+      "slopeDeg": 3.2,
+      "sunPct": 28.0,
+      "earthPct": 60.0,
+      "longestDarkH": 599,
+      "longestLightH": 280,
+      "rejected": false,
+      "reason": ""
+    },
+    {
+      "candidateId": "MMA04",
+      "lat": -86.30985,
+      "lon": -0.45928,
+      "slopeDeg": 3.91,
+      "sunPct": 15.9,
+      "earthPct": 0.0,
+      "longestDarkH": 2814,
+      "longestLightH": 242,
+      "rejected": false,
+      "reason": ""
+    }
+  ],
+  "provenance": "Pipeline code written with AI assistance (Claude Code). The values are not AI-generated: they are computed deterministically from NASA LRO LOLA terrain and JPL DE421 / NAIF ephemerides (Skyfield) and validated against JPL Horizons and the NASA LOLA illumination maps."
 }
