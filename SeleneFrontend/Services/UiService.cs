@@ -273,7 +273,8 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
 
     /// <summary>
     /// ▶ QUICK DEMO: a real decision, not "always 100 %" — Blue Ghost at Nobile Rim 1 on a date where the mission works
-    /// but one 11 h darkness drains the battery to ~28 % (<see cref="DemoScenario"/>) → landing → verdict → replay.
+    /// but one 11 h darkness, with the night heaters running, drains the battery to ~6 % (MARGINAL; ~28 % battery-only;
+    /// <see cref="DemoScenario"/>) → landing → verdict → replay.
     /// The summary then offers the counter-example (same site 4 weeks later: MISSION LOST) and the best landing window.
     /// </summary>
     public async Task QuickDemoAsync()

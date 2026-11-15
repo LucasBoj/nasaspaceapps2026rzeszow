@@ -364,6 +364,7 @@ and at the actual landing point, hourly from 2025-03-06 17:00 UTC for 15 days.
 
 ```bash
 python case_study_im2.py --dem dem/ldem_75s_120m_float.lbl   # → SeleneFrontend/wwwroot/data/casestudy/im2/, docs/im2_case_study.png
+python diviner_temperatures.py [--refresh]                    # LRO Diviner ground temperatures → SeleneFrontend/wwwroot/data/thermal/diviner.json
 ```
 
 ![IM-2 Athena: Sun elevation, terrain horizon and crater-shadow depth](docs/im2_case_study.png)
@@ -498,6 +499,54 @@ python build_psr.py --psr /path/to/lpsr_75s_120m_201608.lbl     # ~15 s → Sele
 
 \* = our site (the sunniest candidate). Limits: distances are straight lines, not walking paths; permanent shadow marks
 where ice *can* be trapped (cold traps), not where it has been detected; the PSR map is the 2016 release at 120 m.
+
+## Thermal: night heaters and LRO Diviner ground temperatures
+
+```bash
+python diviner_temperatures.py            # offline: snapshot → SeleneFrontend/wwwroot/data/thermal/diviner.json
+python diviner_temperatures.py --refresh  # re-read the Diviner tables over HTTP (~4 min, ~1,200 requests)
+```
+
+**Data:** LRO Diviner Polar Cumulative Product (PCP), diurnal, south pole, binned by subsolar longitude
+(Williams et al. 2019, *JGR Planets* 124, 2505–2521, doi:10.1029/2019JE006028; PDS4 bundle
+`urn:nasa:pds:lro_diviner_derived1`, doi:10.17189/wj0s-w188). 96 bins of 3.75° of subsolar longitude × 2 seasons
+(summer = subsolar latitude < 0), average bolometric surface temperature of 2009–2019 nadir observations in 240 m bins.
+Each table is ~190 MB of fixed 59-byte ASCII records sorted by (x, y), so the script reads only the 3×3 bins around each
+point with multi-range HTTP requests. The bin grid is fitted once (centres at integer multiples of 0.000138158 in
+normalised stereographic x, y = 240.04 m); a point's bin centre is 36–116 m from it.
+
+**Gaps:** bins without an observation take the mean of the 8 neighbouring 240 m bins, else linear interpolation along
+the subsolar longitude. Per site 15–50 of 96 bins per season are interpolated (`*Bins` in the JSON).
+
+**Hourly ground temperature (frontend, `DivinerPoint`):** the subsolar point seen from the site is the point
+90° − elevation away along the Sun's azimuth (both stored in the yearly files), so each hour gets the curve value at
+that subsolar longitude and season. No new hourly data.
+
+**Independent check (two NASA data sets):** Diviner temperature in the hours our LOLA horizon model calls lit
+(sunFraction ≥ 50) vs dark, 2027–2028, panels 2 m:
+
+| Site | lit, mean K | dark, mean K | dark, 90th pct K |
+|---|---|---|---|
+| Cabeus B | 216.0 | 79.4 | 91.0 |
+| Haworth | 153.7 | 75.5 | 117.1 |
+| Malapert Massif | 149.0 | 75.7 | 123.8 |
+| Mons Mouton Plateau | 187.9 | 69.5 | 84.6 |
+| Mons Mouton | 155.7 | 72.1 | 101.3 |
+| Nobile Rim 1 | 159.3 | 93.8 | 154.3 |
+| Nobile Rim 2 | 166.8 | 63.9 | 73.9 |
+| de Gerlache Rim 2 | 176.6 | 85.4 | 115.9 |
+| Slater Plain | 182.6 | 71.2 | 99.9 |
+
+Where our terrain model says "shadow", Diviner sees cold ground at every site (64–94 K vs 149–216 K).
+
+**Heater model (frontend, `Services/ThermalModel.cs`, figures in `landers.json → thermal`, all ASSUMPTION):** one warm
+box (battery + avionics). Lit: held at +20 °C. Dark: loss Q = G·(T⁴ − F·T_ground⁴) with G = heatLossW / T_op⁴, heatLossW
+= the day load (radiators sized to dump it, no louvers), F = 0.5; the survival electronics heat the box; it cools
+(C·dT/dt = P_int − Q, C = 10% of the dry mass × 0.897 kJ/(kg·K)) to −20 °C, then heaters supply max(0, Q(−20 °C) − P_int).
+Sanity check: Blue Ghost (600 Wh, 120 W) carries ~4.6 h of darkness with heaters; Mission 1 ran about 5 h after sunset.
+Nova-C's 104 W survival load keeps it at about −6 °C on its own (no heaters). Limits: one node, no louvers or variable
+heat pipes, the box re-warms instantly when lit, the 240 m bin average is not the lander's own footprint, and the cold sky
+dominates the loss at night (ground at 60–100 K returns 1–6% of it).
 
 ## Landing ellipse
 

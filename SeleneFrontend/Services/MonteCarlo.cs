@@ -103,6 +103,7 @@ public static class MonteCarlo
             SunAzCentiDeg = Cut(s.SunAzCentiDeg, start, count), EarthVisible = Cut(s.EarthVisible, start, count),
             EarthElevCentiDeg = Cut(s.EarthElevCentiDeg, start, count), EarthAzCentiDeg = Cut(s.EarthAzCentiDeg, start, count),
             HorizonDeg = s.HorizonDeg,
+            Ground = s.Ground,   // Diviner ground temperatures for the heater model
         };
     }
 }

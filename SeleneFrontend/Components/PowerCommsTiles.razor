@@ -66,10 +66,8 @@
             <span class="metric-label"><Term Key="heaters">HEATERS</Term></span>
             <span class="metric-value">@(M.HeaterEnergyWh > 0 ? $"{Energy(M.HeaterEnergyWh)} · {D0(M.HeaterHours)} h on" : "not needed")</span>
             <span class="metric-sub">
-                box ≥ @D0(M.BoxMinTempC) °C@if (M.HeaterPeakW > 0)
-                {
-                    <text> · peak @D0(M.HeaterPeakW) W</text>
-                }@if (M.GroundFromDiviner)
+                @HeaterSub
+                @if (M.GroundFromDiviner)
                 {
                     <text> · ground @D0(M.GroundMinK)–@D0(M.GroundMaxK) K (<Term Key="diviner">Diviner</Term>)</text>
                 }
@@ -97,6 +95,10 @@
     [Parameter] public double CapDays { get; set; } = AnalysisService.MaxSurvivableCapDays;
 
     private static string D0(double v) => v.ToString("0", CultureInfo.InvariantCulture);
+
+    /// <summary>"box ≥ −20 °C · peak 29 W" (coldest warm-box temperature and the heaters' peak power).</summary>
+    private string HeaterSub =>
+        $"box ≥ {D0(M.BoxMinTempC).Replace('-', '−')} °C" + (M.HeaterPeakW > 0 ? $" · peak {D0(M.HeaterPeakW)} W" : "");
     private static string D1(double v) => v.ToString("0.0", CultureInfo.InvariantCulture);
     private static string D2(double v) => v.ToString("0.00", CultureInfo.InvariantCulture);
     private static string Hours(double h) => h >= 48 ? $"{D1(h / 24)} d" : $"{D0(h)} h";

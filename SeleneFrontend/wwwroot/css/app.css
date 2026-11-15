@@ -658,6 +658,15 @@ html, body {
     color: var(--text-secondary);
 }
 
+/* "Night heaters · model, not lander data": the thermal model's figures under the lander's own SPECS. */
+.specs-table .specs-subhead th {
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: normal;
+}
+
 .lander-impact {
     display: flex;
     flex-direction: column;

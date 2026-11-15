@@ -6,7 +6,10 @@ namespace SeleneFrontend.Models;
 /// one mid-mission darkness of 5–12 h, Earth contact ≥ 80 % and the lowest battery between 30 and 70 % without failing.
 /// Nova-C's battery is too large for such a dip (its 7 h darkness at Haworth 2028-10-24 keeps 100 %).
 /// <list type="bullet">
-/// <item>Demo: Blue Ghost at Nobile Rim 1, landing 2028-12-26 — FEASIBLE, 11 h of darkness from day 3.9, lowest battery ≈ 28 % with the panels 1 m above the ground (landers.json → panelHeightM; ≈ 41 % at the old 2 m).</item>
+/// <item>Demo: Blue Ghost at Nobile Rim 1, landing 2028-12-26 — 11 h of darkness from day 3.9. With the night heaters
+/// (2026-11-15, ThermalModel + LRO Diviner) it is MARGINAL, lowest battery ≈ 6 %; battery-only (what-if heaters OFF) it is
+/// FEASIBLE at ≈ 28 % with the panels 1 m above the ground (≈ 41 % at the old 2 m). Re-searched with heaters: no Blue Ghost
+/// date in 2027–2029 keeps a 22–70 % dip; the date was kept because the cold is the point of the example.</item>
 /// <item>Counter-example: the same site and lander 4 weeks later (2029-01-23) — 33 h of darkness from day 5, battery empty → MISSION LOST.</item>
 /// </list>
 /// Values are checked by <c>DemoScenarioTests</c>. UI-free.

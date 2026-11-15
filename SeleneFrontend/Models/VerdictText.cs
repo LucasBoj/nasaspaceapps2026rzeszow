@@ -73,9 +73,9 @@ public static class VerdictText
         if (!m.ThermalModel) return null;
         var inv = CultureInfo.InvariantCulture;
         var ground = m.GroundFromDiviner && !double.IsNaN(m.GroundMinK)
-            ? $"Nights here are cold: the ground drops to {m.GroundMinK.ToString("0", inv)} K ({(m.GroundMinK - ThermalModel.ZeroCelsiusK).ToString("0", inv)} °C, LRO Diviner). "
+            ? $"Nights here are cold: the ground drops to {m.GroundMinK.ToString("0", inv)} K ({(m.GroundMinK - ThermalModel.ZeroCelsiusK).ToString("0", inv).Replace('-', '−')} °C, LRO Diviner). "
             : "No Diviner temperatures for this point: the ground is treated as cold as the sky. ";
-        var setPoint = $"{m.HeaterSetPointC.ToString("0", inv)} °C";
+        var setPoint = $"{m.HeaterSetPointC.ToString("0", inv).Replace('-', '−')} °C";
         if (m.HeaterEnergyWh <= 0.5)
         {
             return m.LongestDarkH <= 0
