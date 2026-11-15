@@ -871,12 +871,21 @@ export async function play(viewer, options) {
     skipHandler = onSkip;
 
     // After touchdown keep the landed marker on the terrain that is actually rendered: finer tiles
-    // can keep streaming in for a few seconds and shift the surface by tens of metres.
+    // can keep streaming in for a few seconds and shift the surface by tens of metres. Every 400 ms for
+    // the first 8 s, then once a second for as long as the lander stands there: a camera that comes
+    // close later (QUICK DEMO's replay, a zoom) refines the tiles again (+68 m at Nobile Rim 1), which
+    // buried the lander and its locked close-up camera (a black scene). liftMarker() stops the loop.
     const startSettle = () => {
       stopSettle();
       const t0s = performance.now();
+      let lastSlow = 0;
       settleTimer = setInterval(() => {
-        if (viewer.isDestroyed() || performance.now() - t0s > 8000) { stopSettle(); return; }
+        if (viewer.isDestroyed()) { stopSettle(); return; }
+        const nowMs = performance.now();
+        if (nowMs - t0s > 8000) {
+          if (nowMs - lastSlow < 1000) return;
+          lastSlow = nowMs;
+        }
         const g = renderedGround();
         if (!acceptGround(g)) return;
         const delta = g - ground - groundAdj;
