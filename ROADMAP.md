@@ -21,7 +21,7 @@ Cel: zero zgrzytów na ścieżce jurora i QUICK DEMO, które pokazuje sens narz�
 
 1. [x] Etap 1 — porządek w ROADMAP (ta sekcja, „🧊 Po hackathonie”)
 2. [x] Etap 2 — pakiet błędów: niemodalna karta podsumowania, tooltipy HUD bez nakładania, pakiet A planu UI, przejście ścieżki jurora 1366×768 i 1920×1080
-3. [ ] Etap 3 — QUICK DEMO z realną decyzją (spadek baterii, napisy ciemność/powrót Słońca, kontrprzykład MISSION LOST, link do najlepszego okna)
+3. [x] Etap 3 — QUICK DEMO z realną decyzją (spadek baterii, napisy ciemność/powrót Słońca, kontrprzykład MISSION LOST, link do najlepszego okna)
 4. [ ] Pakiet B planu UI (intuicyjność SIMPLE)
 5. [ ] Pakiet C planu UI (czytelność ANALYST)
 6. [ ] Test ścieżki jurora (całość, oba tryby, obie rozdzielczości)
@@ -128,6 +128,14 @@ Cel: zero zgrzytów na ścieżce jurora i QUICK DEMO, które pokazuje sens narz�
   - Podpowiedzi HUD bez nakładania: przyciski (⌂ View, ⚙, Candidates) mają podpowiedź w tym samym wierszu za ostatnim przyciskiem, chipy („3D MODE”, model 3D) otwierają ją w prawo i w dół, panel opadania w prawo od panelu, przełącznik róży w lewo. Natywne `title` w HUD usunięte. Chipy znikają na czas opadania i odtwarzania.
   - Pakiet A planu UI: panel „SIMULATED DESCENT” pod wierszem przycisków (`top: 52px`); w czasie opadania nie ma wyłączonego „New landing” (jest Skip). Po lądowaniu prawy panel pokazuje krok **Result** (werdykt, miejsce · lądownik · data · długość, „Try another date”, „Change lander”, „New landing”) zamiast „Land & analyze”. Karta werdyktu: „Energy made vs. used ×”, „Longest possible stay”, „Lowest battery”, „Landing area OK %” (elipsa), data; mieści się w 1366×768 razem z przyciskami. Mapa ciepła: etykieta „BEST WINDOW” w wierszu nad mapą (z kreską do kolumny), nie na komórkach; przyciski najlepszych dat z rokiem („8 Aug 2028”).
   - Testy: `tools/e2e/stage2.mjs` (nowy katalog z testami przeglądarkowymi w repo, README) — 44/44 w Chromium w 1366×768 i 1920×1080, bez błędów konsoli; Firefox i WebKit też 44/44; regresja w 3 silnikach: UX 39/39 (Firefox 38/39 — znany czas karty powitalnej 3,46 s, patrz Known issues), blokady 15/15, replay 17/17, custom 12/12; xUnit 102/102. Zrzuty „po”: `docs/screenshots/stage2-after-*.png` — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+
+- **Etap 3 planu niedzieli — QUICK DEMO pokazuje realną decyzję** (2026-11-15)
+  - Sprawdzone w `MissionSimulator` (jednorazowa sonda w xUnit, usunięta): proponowany Nova-C · Haworth · 2028-10-24 daje FEASIBLE, ale bateria nie spada (100 %, 7 h ciemności nie wystarcza przy baterii Nova-C); Nova-C · Mons Mouton · 2027-11-26 to MARGINAL (kontakt 44 %), nie MISSION LOST. Przeszukanie 2027–2028 (9 regionów × Nova-C / Blue Ghost × każdy dzień, 7 dni; jeden okres ciemności 5–12 h w środku misji, kontakt ≥ 80 %, najniższa bateria 30–70 %) dało jeden scenariusz.
+  - **QUICK DEMO:** Blue Ghost · Nobile Rim 1 · lądowanie 2028-12-26 · 7 dni → FEASIBLE, słońce 93 %, jeden okres ciemności 11 h od dnia 3,9, najniższa bateria 41 %, kontakt z Ziemią 100 %. **Kontrprzykład:** to samo miejsce i lądownik 4 tygodnie później, 2029-01-23 → 33 h ciemności od 5. dnia, MISSION LOST w 5. dniu (bateria wyczerpana w ciemności). Okno demo 2027-02-01 … 2029-01-31 (24 miesiące, obie daty w środku). `Models/DemoScenario.cs` + `DemoScenarioTests` (3 testy).
+  - Data przypięta przez `AnalysisService.PinLanding` (w `Signature()`, poza kluczem mapy ciepła; zmiana miejsca, lądownika, długości lub okna i New landing ją kasują). Krok 3 pisze wtedy „landing on 26 Dec 2028 (example date) · Use the best day instead”, karta werdyktu „Landing date” zamiast „Best landing date”.
+  - HUD odtwarzania: „Sun hidden behind terrain — running on battery” (albo „Sun below the horizon …”, gdy Słońce jest pod płaskim horyzontem) na początku ciemności, „Sunlight back — recharging” po jej końcu; bateria i kursor mini-osi idą razem.
+  - Karta podsumowania demo: „The same site 4 weeks later would fail →” (przelicza i odtwarza, lądownik zostaje) i „Show the best landing window” (optymalizator jak dotąd); po kontrprzykładzie zdanie z obiema datami.
+  - Testy: xUnit 105/105; `tools/e2e/stage3.mjs` 10/10 (bateria w HUD 74 → 42 % w ciemności, kontrprzykład MISSION LOST · day 5); regresja stage2 44/44, replay 17/17, UX 39/39, blokady 15/15, custom 12/12 w Chromium; Firefox i WebKit: stage3 10/10, stage2 44/44, replay 17/17, blokady 15/15, UX 39/39 (Firefox 38/39 — znany czas karty powitalnej 3,55 s). Zrzuty: `docs/screenshots/stage3-*.png` — 2026-11-15 — commit z tym wpisem — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -257,7 +265,10 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — Play mission: przewinięcie do Księżyca, mini-oś czasu w HUD replayu, róża Słońce/Ziemia zsynchronizowana z replayem, aktualizacja testów E2E
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — porządek w ROADMAP: plan niedzieli, sekcja „Po hackathonie”, zmiana priorytetów
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — etap 2: niemodalna karta podsumowania, podpowiedzi HUD bez nakładania, krok Result, liczby w karcie werdyktu, etykieta BEST WINDOW, testy E2E w `tools/e2e` i zrzuty
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — etap 3: przeszukanie scenariuszy w MissionSimulator, scenariusz QUICK DEMO i kontrprzykład, przypięta data lądowania, napisy w HUD, testy xUnit i E2E
 ## ⚠️ Known issues / ryzyka
+
+- **QUICK DEMO to wybrany przykład, nie najlepsze okno** — data 2028-12-26 jest przypięta, żeby pokazać spadek baterii; najlepszy dzień w tym oknie (27 Oct 2028) daje 86 % baterii. Karta i krok 3 mówią „example date”, a „Show the best landing window” wraca do optymalizatora. Na prezentacji mówić „an example landing”, nie „the best landing”.
 
 - **Optymizm względem mapy NASA 60 m (+7…+22 pp słońca)** — nasze horyzonty z DEM 120 m dają więcej światła niż mapa NASA 60 m (porównanie 120 m vs 120 m jest zgodne). **Opisać w zgłoszeniu jako ograniczenie.**
 - **Custom: promienie horyzontu urywają się na 80°S** — wycięty DEM sięga do 80°S (cel rozmiaru ≤ 8 MB), więc dla punktów blisko 80°S część promieni do 150 km kończy się wcześniej (jak w pipeline: liczy się maksimum wewnątrz DEM). Skutek: horyzont od strony równika może być zaniżony.

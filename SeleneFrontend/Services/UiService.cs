@@ -271,14 +271,22 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         state.ResetWhatIf();
     }
 
-    /// <summary>▶ QUICK DEMO: recommended scenario → landing (animation + analysis in parallel) → BEST WINDOW pulse.</summary>
+    /// <summary>
+    /// ▶ QUICK DEMO: a real decision, not "always 100 %" — Blue Ghost at Nobile Rim 1 on a date where the mission works
+    /// but one 11 h darkness drains the battery to ~41 % (<see cref="DemoScenario"/>) → landing → verdict → replay.
+    /// The summary then offers the counter-example (same site 4 weeks later: MISSION LOST) and the best landing window.
+    /// </summary>
     public async Task QuickDemoAsync()
     {
         DismissWelcome();
-        RecommendedSiteId ??= await PickRecommendedSiteAsync();
-        if (RecommendedSiteId is null) return;
         state.Reset();
-        await ApplyRecommendedScenarioAsync(fly: false);   // the landing (or its fallback fly-to) moves the camera
+        if (!await ApplyDemoScenarioAsync())
+        {
+            // Demo data missing: fall back to the recommended (best-lit) scenario and its best window.
+            RecommendedSiteId ??= await PickRecommendedSiteAsync();
+            if (RecommendedSiteId is null) return;
+            await ApplyRecommendedScenarioAsync(fly: false);   // the landing (or its fallback fly-to) moves the camera
+        }
         ResultsTab = "mission";
         Notify();
         // Clicked right after opening the page: wait for the 3D view (≤ 15 s) so the demo shows the landing
@@ -294,6 +302,47 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
             await Task.Delay(ReducedMotion ? 0 : 2500);
             if (Landed && CanPlayMission && !ReplayPlaying && ReplayOutcome is null) await PlayMissionAsync();
         }
+    }
+
+    private async Task<bool> ApplyDemoScenarioAsync()
+    {
+        if (!state.AvailableSites.Any(s => s.Id == DemoScenario.SiteId) || !state.AllLanders.Any(l => l.Id == DemoScenario.LanderId)) return false;
+        if (state.SelectedLanderClass != "clps") await state.SelectLanderClass("clps");
+        await state.SelectSite(DemoScenario.SiteId, fly: false);
+        await state.SelectLander(DemoScenario.LanderId);
+        await state.UpdateMissionDuration(DemoScenario.MissionDays);
+        await state.SetWindow(DemoScenario.WindowStart, DemoScenario.WindowEnd);
+        state.ResetWhatIf();
+        analysis.PinLanding(DemoScenario.LandingUtc);
+        return true;
+    }
+
+    /// <summary>The shown result is the QUICK DEMO landing (its summary offers the counter-example).</summary>
+    public bool IsDemoResult => IsPinnedResult(DemoScenario.LandingUtc);
+
+    /// <summary>The shown result is the counter-example.</summary>
+    public bool IsCounterResult => IsPinnedResult(DemoScenario.CounterLandingUtc);
+
+    private bool IsPinnedResult(DateTime utc) =>
+        analysis.PinnedLandingUtc == utc && analysis.Mission?.LandingUtc == utc && analysis.MissionSiteId == DemoScenario.SiteId
+        && !analysis.IsOutdated;
+
+    /// <summary>"The same site 4 weeks later would fail →": recompute for that date and play it (the lander stays landed).</summary>
+    public async Task ShowCounterExampleAsync()
+    {
+        CloseReplay();
+        analysis.PinLanding(DemoScenario.CounterLandingUtc);
+        await analysis.RunAsync(expand: false);
+        if (Landed && CanPlayMission) await PlayMissionAsync();
+    }
+
+    /// <summary>"Show the best landing window": drop the pinned date — the optimizer picks the day again.</summary>
+    public async Task ShowBestWindowAsync()
+    {
+        CloseReplay();
+        analysis.PinLanding(null);
+        await analysis.RunAsync(expand: false, highlightBest: true);
+        Notify();
     }
 
     // ------------------------------------------------------------------ mission replay
@@ -527,6 +576,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     public void NewLanding()
     {
         CloseReplay();
+        analysis.PinLanding(null);
         Landed = false;
         _landedLanderId = null;
         ContactText = null;

@@ -48,6 +48,9 @@ function buildHud(host, data, st) {
   const sun = el("dd", null, "—"), earth = el("dd", null, "—");
   rows.append(el("dt", null, "Battery"), battery, el("dt", null, "Sunlight"), sun, el("dt", null, "Earth"), earth);
   const strip = buildStrip(data, st.endStep);
+  // Narration: what the battery is doing and why (darkness starts / ends). Polite live region.
+  const note = el("div", "replay-note"); note.setAttribute("role", "status"); note.setAttribute("aria-live", "polite"); note.hidden = true;
+  let wasDark = null, noteUntil = 0;
   const banner = el("div", "replay-banner"); banner.hidden = true;
   banner.setAttribute("role", "status");
 
@@ -68,10 +71,25 @@ function buildHud(host, data, st) {
   skip.addEventListener("click", () => finish(st, true));
   controls.append(playBtn, scrub, speeds, skip);
 
-  root.append(head, clock, rows, strip.root, banner, controls);
+  root.append(head, clock, rows, note, strip.root, banner, controls);
   host.append(root);
   return {
-    update(f, socPct, sunPct, earthOn) {
+    update(f, socPct, sunPct, earthOn, sunEl) {
+      const dark = sunPct < 50;
+      const now = performance.now();
+      if (wasDark !== null && dark !== wasDark) {
+        if (dark) {
+          // Sun still above the flat horizon → terrain hides it; otherwise it has set.
+          note.textContent = sunEl > 0.27 ? "Sun hidden behind terrain — running on battery" : "Sun below the horizon — running on battery";
+          note.dataset.kind = "dark"; note.className = "replay-note dark"; noteUntil = Infinity;
+        } else {
+          note.textContent = "Sunlight back — recharging";
+          note.dataset.kind = "back"; note.className = "replay-note back"; noteUntil = now + 3500;
+        }
+        note.hidden = false;
+      }
+      if (!dark && now > noteUntil && !note.hidden) note.hidden = true;
+      wasDark = dark;
       const t = new Date(Date.parse(data.startUtc) + f * data.stepHours * 3600000);
       const day = Math.floor((f * data.stepHours) / 24) + 1;
       clock.textContent = `DAY ${day} · ${t.toISOString().slice(0, 16).replace("T", " ")} UTC`;
@@ -176,7 +194,7 @@ function tick(st, now) {
     const f = st.progress * st.endStep;
     const s = sample(st, f);
     hooks.setSun(s.az, s.el, s.pct);
-    st.hud.update(f, s.soc, s.pct, s.earth);
+    st.hud.update(f, s.soc, s.pct, s.earth, s.el);
     if (s.step !== st.lastStep && now - st.lastStepSent > 120) {   // timeline cursor, ~8 updates/s
       st.lastStep = s.step; st.lastStepSent = now;
       hooks.onStep(s.step);
@@ -238,7 +256,7 @@ function finish(st, skipped) {
     // Jump to the end state without the ending animation.
     const s = sample(st, st.endStep);
     hooks.setSun(s.az, s.el, s.pct);
-    st.hud.update(st.endStep, s.soc, s.pct, s.earth);
+    st.hud.update(st.endStep, s.soc, s.pct, s.earth, s.el);
     hooks.onStep(st.endStep);
   }
   st.fx?.destroy(); st.fx = null;

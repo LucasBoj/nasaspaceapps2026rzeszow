@@ -62,7 +62,7 @@
                 </div>
             }
             <div>
-                <dt>@(Analysis.Heatmap is not null ? "Best landing date" : "Landing date")</dt>
+                <dt>@(Analysis.Heatmap is not null && Analysis.PinnedLandingUtc is null ? "Best landing date" : "Landing date")</dt>
                 <dd class="date">@VerdictText.Date(m.LandingUtc)</dd>
             </div>
         </dl>

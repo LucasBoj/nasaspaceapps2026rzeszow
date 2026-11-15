@@ -80,9 +80,27 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             l.Panels, state.HeadingOverrideDeg, state.IdealTracking, state.BatteryRoundTripEff);
     }
 
+    /// <summary>
+    /// A landing date chosen for the user (QUICK DEMO and its counter-example) instead of the optimizer's best day.
+    /// It holds only for the site, lander, mission length and window it was pinned with: any change drops it.
+    /// </summary>
+    private (DateTime Utc, string SiteId, string LanderId, double Days, int WindowRevision)? _pin;
+
+    public DateTime? PinnedLandingUtc =>
+        _pin is { } p && p.SiteId == state.SelectedSite?.Id && p.LanderId == state.SelectedLander?.Id
+        && p.Days == state.MissionDurationDays && p.WindowRevision == state.WindowRevision ? p.Utc : null;
+
+    /// <summary>Pin the landing date for the current selection (null: back to the best landing window).</summary>
+    public void PinLanding(DateTime? utc) =>
+        _pin = utc is { } u && state.SelectedSite is { } site && state.SelectedLander is { } l
+            ? (TimeUtil.AsUtc(u), site.Id, l.Id, state.MissionDurationDays, state.WindowRevision) : null;
+
     private MissionThresholds Thresholds => new(state.MinBatteryPercent, state.MinCommsPercent);
 
-    private string Signature()
+    /// <summary>Inputs of the result: the heatmap's inputs plus the pinned landing date (which only phase 1 uses).</summary>
+    private string Signature() => HeatmapSignature() + "|" + (PinnedLandingUtc?.ToString("yyyy-MM-dd") ?? "best");
+
+    private string HeatmapSignature()
     {
         var l = BuildLanderInputs();
         return string.Join("|", state.SelectedLander?.Id, l?.SolarArrayW, l?.BatteryWh, l?.DayLoadW, l?.SurvivalLoadW,
@@ -117,7 +135,8 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
 
         var key = Signature();
         // A custom point adds its own heatmap row, so its heatmap is not shared with the regions-only one.
-        var heatmapKey = state.SelectedSite is { IsCustom: true } cs ? $"{key}|{cs.Id}" : key;
+        var hkey = HeatmapSignature();
+        var heatmapKey = state.SelectedSite is { IsCustom: true } cs ? $"{hkey}|{cs.Id}" : hkey;
         var heatmapReusable = heatmapKey == _heatmapKey && _heatmapTask is { IsFaulted: false, IsCanceled: false };
         IsRunning = true;
         HeatmapPending = !(heatmapReusable && _heatmapTask!.IsCompletedSuccessfully);
@@ -147,6 +166,11 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             // Nothing feasible: show the landing that lasts longest, not simply the first day of the window.
             var quickDay = quick.BestDayFor(row);
             if (quickDay < 0) quickDay = Math.Max(0, quick.LongestSurvivalDayFor(row));
+            if (PinnedLandingUtc is { } pinned)
+            {
+                var pinnedDay = (int)Math.Round((pinned.Date - quick.DayUtc(0).Date).TotalDays);
+                if (pinnedDay >= 0 && pinnedDay < quick.Days) quickDay = pinnedDay;
+            }
             SimulateSite(selectedSite, quick.DayUtc(quickDay), lander);
             _signature = key;
             Progress = 0.15;

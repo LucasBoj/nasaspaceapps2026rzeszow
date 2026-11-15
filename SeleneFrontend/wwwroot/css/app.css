@@ -2786,3 +2786,12 @@ html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: aut
 /* Verdict card over the Moon: compact enough that the whole card (incl. its buttons) fits 1366×768 without scrolling. */
 .verdict-card.overlay { max-height: min(44vh, 360px); padding: var(--s3) var(--s5); gap: var(--s2); }
 .verdict-card.overlay .verdict-sentence, .verdict-card.overlay .verdict-ellipse { max-width: 80ch; }
+
+/* QUICK DEMO next steps on the summary card (counter-example, best window). */
+.demo-next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding-top: var(--s2); border-top: 1px solid var(--border-color); }
+.demo-next .counter-example { border-color: var(--status-error); color: var(--text-primary); }
+.demo-note { font-size: var(--fs-s); color: var(--text-secondary); }
+.replay-note { font-size: var(--fs-s); font-weight: 600; padding: 4px var(--s2); border-radius: 2px; border-left: 2px solid; }
+.replay-note.dark { color: var(--status-warn); border-color: var(--status-warn); background: rgba(255, 176, 32, 0.1); }
+.replay-note.back { color: var(--status-ok); border-color: var(--status-ok); background: rgba(61, 220, 132, 0.1); }
+.replay-note[hidden] { display: none; }

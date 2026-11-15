@@ -14,6 +14,7 @@ cd tools/e2e && npm install && npx playwright install chromium firefox webkit
 BR=chromium node stage2.mjs                     # summary card, HUD tooltips, Result step, juror path at 1366×768 and 1920×1080
 SHOTS=../../docs/screenshots BR=chromium node stage2.mjs   # also saves the "after" screenshots
 BR=chromium node replay.mjs                     # Play mission: endings, HUD timeline, compass, scrolling to the Moon
+BR=chromium node stage3.mjs                     # QUICK DEMO: battery dip, HUD narration, counter-example, best window
 ```
 
 Each script prints `PASS` / `FAIL` lines and exits non-zero on a failure or a console error. Without
@@ -23,4 +24,5 @@ in `replay.mjs` (lift-off height) need the 3D terrain.
 | Script | What it checks |
 |---|---|
 | `stage2.mjs` | Descent panel clear of the HUD buttons; descent / button / chip tooltips cover no control (bounding boxes); verdict card fits 1366×768 with its buttons clickable; differentiating verdict numbers; Result step after touchdown; the mission summary folds on ⌂ View, Esc, camera drag and wheel and opens again from “Mission summary”; compass hidden under the card; Try another date → heatmap; best-date chips with the year; New landing; custom point → Land & analyze; QUICK DEMO replay HUD and summary cover no control; no console errors. |
+| `stage3.mjs` | QUICK DEMO lands Blue Ghost at Nobile Rim 1 on 26 Dec 2028: not NOT FEASIBLE, lowest battery < 100 %; HUD says “Sun hidden behind terrain — running on battery” and then “Sunlight back — recharging” while the battery falls and the cursor moves on; MISSION COMPLETE; “The same site 4 weeks later would fail →” ends MISSION LOST; “Show the best landing window” goes back to the optimizer. |
 | `replay.mjs` | Mission replay: light moves, HUD mini timeline and cursor, compass follows replay time, the Moon is scrolled into view, timeline cursor sync, CLPS / HLS / failure endings, skip, cleanup. |

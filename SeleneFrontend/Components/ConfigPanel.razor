@@ -160,10 +160,21 @@
             @if (open == 3)
             {
                 <div class="step-body" id="step-body-3">
-                    <p class="step-summary">
-                        Stay <strong>@VerdictText.Days(MissionState.MissionDurationDays)</strong> on the surface, landing on the best day
-                        between <span class="num">@ShortDate(MissionState.WindowStart)</span> and <span class="num">@ShortDate(MissionState.WindowEnd)</span>.
-                    </p>
+                    @if (Analysis.PinnedLandingUtc is { } pinned)
+                    {
+                        <p class="step-summary">
+                            Stay <strong>@VerdictText.Days(MissionState.MissionDurationDays)</strong> on the surface, landing on
+                            <span class="num">@ShortDate(pinned)</span> (example date).
+                            <button type="button" class="link-btn best-window" @onclick="Ui.ShowBestWindowAsync">Use the best day instead</button>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="step-summary">
+                            Stay <strong>@VerdictText.Days(MissionState.MissionDurationDays)</strong> on the surface, landing on the best day
+                            between <span class="num">@ShortDate(MissionState.WindowStart)</span> and <span class="num">@ShortDate(MissionState.WindowEnd)</span>.
+                        </p>
+                    }
                     <details class="change-dates" open="@Ui.AnalystMode">
                         <summary>Change dates</summary>
                         <div class="change-dates-body">

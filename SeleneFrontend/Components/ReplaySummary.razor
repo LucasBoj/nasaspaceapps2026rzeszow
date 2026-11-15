@@ -28,6 +28,21 @@ else if (Ui.ReplayOutcome is { } outcome && Analysis.Mission is { } m)
             <div><dt>Earth contact</dt><dd>@P(m.CommsPct)<small>%</small></dd></div>
             <div><dt>Longest darkness</dt><dd>@Hours(m.LongestDarkH)</dd></div>
         </dl>
+        @if (Ui.IsDemoResult)
+        {
+            @* QUICK DEMO: the same tool tells a working date from a failing one. *@
+            <div class="demo-next">
+                <button type="button" class="btn-secondary small counter-example" @onclick="Ui.ShowCounterExampleAsync">@DemoScenario.CounterText</button>
+                <button type="button" class="link-btn best-window" @onclick="Ui.ShowBestWindowAsync">Show the best landing window</button>
+            </div>
+        }
+        else if (Ui.IsCounterResult)
+        {
+            <div class="demo-next">
+                <span class="demo-note">Same site and lander as the demo, landing @VerdictText.Date(DemoScenario.CounterLandingUtc) instead of @VerdictText.Date(DemoScenario.LandingUtc).</span>
+                <button type="button" class="link-btn best-window" @onclick="Ui.ShowBestWindowAsync">Show the best landing window</button>
+            </div>
+        }
         <div class="verdict-actions">
             <button type="button" class="btn-primary small replay-again" @onclick="Ui.PlayMissionAsync" disabled="@(!Ui.CanPlayMission || Ui.ReducedMotion)"
                     aria-describedby="@(Ui.ReducedMotion ? "replay-reason" : null)">↻ Replay</button>
