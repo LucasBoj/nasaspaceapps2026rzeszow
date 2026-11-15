@@ -469,6 +469,22 @@ function el(tag, cls, text) {
 function buildHud(host, opts, onSkip) {
   host.replaceChildren();
   const root = el("div", "landing-hud");
+  // "Preparing landing…" while the scene has no picture yet (model / terrain loading): from the click until the
+  // first animation frame (update), the end of the landing (done / destroy) or, as a safety net, 20 s.
+  const prep = el("div", "landing-prep");
+  prep.setAttribute("aria-hidden", "true");
+  const prepText = el("p", "landing-prep-text", "Preparing landing…");
+  prepText.setAttribute("role", "status"); prepText.setAttribute("aria-live", "polite");
+  const prepBox = el("div", "landing-prep-box");
+  prepBox.append(el("span", "landing-prep-spinner"), prepText);
+  prep.append(prepBox);
+  let prepTimer = setTimeout(() => hidePrep(), 20000);
+  function hidePrep() {
+    if (!prep.isConnected || prep.classList.contains("out")) return;
+    clearTimeout(prepTimer);
+    prep.classList.add("out");                 // 150 ms fade, then gone
+    setTimeout(() => prep.remove(), 160);
+  }
   const catcher = el("div", "landing-catcher");          // click-anywhere-to-skip; also blocks map clicks
   catcher.addEventListener("click", onSkip);
   const panel = el("div", "landing-panel");
@@ -505,6 +521,7 @@ function buildHud(host, opts, onSkip) {
   skip.type = "button";
   skip.addEventListener("click", (e) => { e.stopPropagation(); onSkip(); });
   panel.append(badge, title, status, rows, phases, skip, tip);
+  root.append(prep);
   root.append(catcher, panel);
   host.append(root);
 
@@ -512,19 +529,20 @@ function buildHud(host, opts, onSkip) {
   return {
     update(t) {
       status.remove();
+      hidePrep();
       value.alt.textContent = `${fmt(t.alt)} m`;
       value.vs.textContent = `${t.vs <= 0 ? "−" : "+"}${Math.abs(t.vs).toFixed(1)} m/s`;
       value.range.textContent = `${fmt(t.range)} m`;
       for (const [p, node] of Object.entries(phaseEl)) node.classList.toggle("on", p === t.phase);
     },
     setYaw(text) { value.yaw.textContent = text; },
-    done() { root.classList.add("done"); skip.remove(); catcher.remove(); },
+    done() { hidePrep(); root.classList.add("done"); skip.remove(); catcher.remove(); },
     status(text) { status.textContent = text; },
     model(credit) {
       badge.dataset.tip = "Illustrative descent profile: altitude, vertical speed and range follow the animated trajectory, " +
         "not a flight-dynamics simulation. Lander model scaled to its approximate real size." + (credit ? ` ${credit}.` : "");
     },
-    destroy() { host.replaceChildren(); },
+    destroy() { clearTimeout(prepTimer); host.replaceChildren(); },
   };
 }
 
