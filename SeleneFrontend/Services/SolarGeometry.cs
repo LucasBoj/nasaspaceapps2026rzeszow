@@ -92,9 +92,9 @@ public sealed class PanelModel
 ///   K      = max of the same sum over Sun directions az 0–359°, el 0–10° (the polar regime)
 ///   P(t)   = solarArrayW × factor × sunFraction/100
 /// </code>
-/// K makes the published array power (e.g. "~200 W on the surface") the output at the best Sun
-/// direction for that layout, so a perfectly aimed lander reproduces the ideal-tracking result and
-/// every other Sun direction costs power. The Sun's azimuth sweeps the whole horizon each lunar day
+/// K makes the array power in landers.json the output at the best Sun direction for that layout, so a
+/// perfectly aimed lander reproduces the ideal-tracking result and every other Sun direction costs power.
+/// A published summed panel rating converts as rating × K (Nova-C: FCC "maximum of 788 W" × 0.626 = 494 W). The Sun's azimuth sweeps the whole horizon each lunar day
 /// at the pole, so the result depends on the landing date and the lander's heading at touchdown.
 /// </summary>
 public static class SolarGeometry
