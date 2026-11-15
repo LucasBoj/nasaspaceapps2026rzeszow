@@ -1,0 +1,154 @@
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject UiService Ui
+@inject MissionConfigState MissionState
+
+@* Guided tour: a non-modal card that explains the app part by part. A ring (positioned by ui.js) marks the
+   part being explained; the app stays usable while the tour is open. *@
+@if (Ui.TourOpen)
+{
+    var step = Steps[Math.Clamp(Ui.TourStep, 0, Steps.Length - 1)];
+    var last = Ui.TourStep >= Steps.Length - 1;
+    <div class="tour-ring" aria-hidden="true"></div>
+    <section class="tour-card" role="dialog" aria-modal="false" aria-labelledby="tour-title" @onkeydown="OnKey">
+        <button type="button" class="welcome-close" aria-label="Close the guided tour" @onclick="Ui.CloseTour">×</button>
+        <p class="tour-count">Guided tour · @(Ui.TourStep + 1) of @Steps.Length</p>
+        <div aria-live="polite">
+            <h2 id="tour-title">@step.Title</h2>
+            @foreach (var paragraph in step.Text)
+            {
+                <p>@paragraph</p>
+            }
+        </div>
+        <div class="tour-progress" aria-hidden="true">
+            @for (var i = 0; i < Steps.Length; i++)
+            {
+                <span class="@(i <= Ui.TourStep ? "done" : "")"></span>
+            }
+        </div>
+        <div class="tour-actions">
+            @if (Ui.TourStep > 0)
+            {
+                <button type="button" class="btn-secondary tour-back" @onclick="Back">Back</button>
+            }
+            <button type="button" class="btn-primary" @ref="primaryBtn" disabled="@(last && !MissionState.IsLoaded)" @onclick="PrimaryAsync">
+                @(last ? "▶ Quick demo" : "Next")
+            </button>
+            @if (last)
+            {
+                <button type="button" class="btn-secondary" @onclick="Ui.CloseTour">Explore on my own</button>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    /// <param name="Selector">Element the ring marks (first match); null = no ring.</param>
+    /// <param name="OpenStep">Setup step (1–3) to open when the tour step is shown; 0 = leave the panel as it is.</param>
+    private sealed record TourStep(string Title, string[] Text, string? Selector = null, int OpenStep = 0);
+
+    private static readonly TourStep[] Steps =
+    [
+        new("What SELENE OPS answers",
+        [
+            "At the Moon's south pole the Sun only skims the horizon, so mountains and crater rims cast shadows that can last for days. A lander there lives on sunlight and needs a clear line of sight to Earth for radio.",
+            "The app answers one question: if this lander lands at this site on this day, does it survive — and which day is the best? This tour shows where everything is. It takes about a minute.",
+        ]),
+        new("The Moon view",
+        [
+            "This is the lunar south pole, built from NASA Lunar Reconnaissance Orbiter data. Drag to rotate, scroll to zoom.",
+            "The markers are NASA's nine Artemis III candidate regions. The buttons on the view bring you back to the pole or zoom to the chosen site.",
+        ], ".moon-panel"),
+        new("Step 1 · Choose a site",
+        [
+            "The nine regions are sorted by how much of the time they are sunlit. The one marked “suggested” is the best lit.",
+            "Not sure? Keep the suggestion. This step can also check a point of your own between 80° and 90° south as a quick estimate.",
+        ], "#step-1", 1),
+        new("Step 2 · Choose a lander",
+        [
+            "Five landers, from small robotic cargo landers to crewed ones. They differ in solar panels, battery size and how much power they need, so the same site can work for one lander and fail for another.",
+            "Figures marked ASSUMPTION are our estimates where no published number exists.",
+        ], "#step-2", 2),
+        new("Step 3 · When to land",
+        [
+            "Set how many days the lander should work on the surface and the range of dates in which it may land (up to 24 months).",
+            "The app simulates a landing on every day of that range and picks the best one.",
+        ], "#step-3", 3),
+        new("Land & analyze",
+        [
+            "The main button lands the lander in 3D and runs the simulation: sunlight, Earth contact and battery charge for every hour of the mission.",
+            "If the button is greyed out, the line under it says what is still missing.",
+        ], ".run-main, #step-result", 3),
+        new("The verdict",
+        [
+            "After touchdown one card gives the answer: FEASIBLE (the mission works), MARGINAL (it works, but the battery drops below your safety limit) or NOT FEASIBLE (the battery runs out).",
+            "It also names the landing date and says how sure the answer is: in how many of 400 slightly different simulated landings the mission works. “Play mission” replays the whole stay in about 25 seconds.",
+        ], ".verdict-card, #step-result"),
+        new("Analyst mode",
+        [
+            "The simple view hides most numbers. Analyst mode adds the hour-by-hour timeline, a heatmap of every landing day for all nine regions, a site comparison, lander specifications and what-if switches.",
+            "Every result names its weakest input: SOURCED, DERIVED, ASSUMPTION or WHAT-IF. The “?” button brings back the welcome card with the glossary and this tour.",
+        ], ".analyst-btn"),
+        new("Ready",
+        [
+            "The quickest way to see it all is the Quick demo: one click lands Blue Ghost at Nobile Rim 1 on a day when the mission only just works, then replays it.",
+            "Or close the tour and plan your own landing with steps 1–3.",
+        ]),
+    ];
+
+    private ElementReference primaryBtn;
+    private int shownStep = -1;
+
+    protected override void OnInitialized()
+    {
+        Ui.OnChanged += Refresh;
+        MissionState.OnStateChanged += Refresh;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Ui.TourStep == shownStep) return;
+        var opened = shownStep < 0;
+        shownStep = Ui.TourStep;
+        if (!Ui.TourOpen)
+        {
+            await Ui.TourHighlightAsync(null);
+            return;
+        }
+        var step = Steps[Math.Clamp(Ui.TourStep, 0, Steps.Length - 1)];
+        if (step.OpenStep > 0 && Ui.OpenStep != step.OpenStep) Ui.SetOpenStep(step.OpenStep);
+        await Ui.TourHighlightAsync(step.Selector);
+        if (opened)
+        {
+            try { await primaryBtn.FocusAsync(); } catch { /* not rendered */ }
+        }
+    }
+
+    private void Back() => Ui.SetTourStep(Ui.TourStep - 1);
+
+    private async Task PrimaryAsync()
+    {
+        if (Ui.TourStep < Steps.Length - 1)
+        {
+            Ui.SetTourStep(Ui.TourStep + 1);
+            return;
+        }
+        Ui.CloseTour();
+        await Ui.QuickDemoAsync();
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Ui.CloseTour();
+        else if (e.Key == "ArrowRight" && Ui.TourStep < Steps.Length - 1) Ui.SetTourStep(Ui.TourStep + 1);
+        else if (e.Key == "ArrowLeft" && Ui.TourStep > 0) Ui.SetTourStep(Ui.TourStep - 1);
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Ui.OnChanged -= Refresh;
+        MissionState.OnStateChanged -= Refresh;
+    }
+}

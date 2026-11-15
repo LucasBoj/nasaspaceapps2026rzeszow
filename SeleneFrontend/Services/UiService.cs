@@ -279,6 +279,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     /// </summary>
     public async Task QuickDemoAsync()
     {
+        CloseTour();
         DismissWelcome();
         state.Reset();
         if (!await ApplyDemoScenarioAsync())
@@ -701,6 +702,42 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     }
 
     public void SetHelp(bool open) { HelpOpen = open; Notify(); }
+
+    // ------------------------------------------------------------------ guided tour
+
+    /// <summary>Step of the guided tour (<c>GuidedTour.razor</c>); −1 = closed. Not persisted.</summary>
+    public int TourStep { get; private set; } = -1;
+    public bool TourOpen => TourStep >= 0;
+
+    /// <summary>Start the tour from its first step; it replaces the welcome card and the help dialog.</summary>
+    public void StartTour()
+    {
+        DismissWelcome();
+        HelpOpen = false;
+        TourStep = 0;
+        Notify();
+    }
+
+    public void SetTourStep(int step)
+    {
+        if (step < 0 || step == TourStep) return;
+        TourStep = step;
+        Notify();
+    }
+
+    public void CloseTour()
+    {
+        if (TourStep < 0) return;
+        TourStep = -1;
+        Notify();
+    }
+
+    /// <summary>Move the tour's ring to the first element matching <paramref name="selector"/> (null hides it).</summary>
+    public async Task TourHighlightAsync(string? selector)
+    {
+        try { await (await Ui()).InvokeVoidAsync("tourHighlight", selector); }
+        catch (JSDisconnectedException) { }
+    }
 
     public void ToggleCandidates() { CandidatesOn = !CandidatesOn; Notify(); }
 

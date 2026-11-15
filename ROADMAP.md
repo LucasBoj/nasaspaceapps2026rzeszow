@@ -198,6 +198,11 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
   - Bez zmian: przeciąganie kamery nie otwiera karty (Cesium LEFT_CLICK tylko bez ruchu), podwójne kliknięcie przybliża, w Surface view klik nie pyta.
   - Testy: `tools/e2e/landed-click.mjs` 8/8 (przeciąganie bez karty, karta przy pinezce, pulsowanie, Cancel bez zmian, Esc, Land here → lądowanie i werdykt dla klikniętego miejsca); hak testowy `window.__seleneSitePx` (pozycja pinezki na renderowanym terenie) — 2026-11-15 — commit z tym wpisem — AI: Claude Code
 - [x] Prezentacja demo w Canvie (7 slajdów 16:9, EN, wg `docs/slides.md`): https://www.canva.com/d/hlbxP_Xmy88jDgG — zrzuty z `docs/screenshots/` ze znakiem wodnym SI + `pipeline/docs/nasa_vs_ours.png`; usunięte zmyślone przez Canva AI grafiki, heatmapa, tabela liczb i data; slajd 2 = `stage2-…-descent` zamiast `stage3-replay-dark` (stare FEASIBLE dla 26.12.2028), slajd 6 sam tekst; link w `docs/submission.md` — 2026-11-15 12:20 — AI: Claude Code
+- [x] Przewodnik po aplikacji (guided tour, 9 kroków, EN) — niższy próg wejścia dla nowego użytkownika — 2026-11-15 12:20 — commit z tym wpisem — AI: Claude Code. W zakresie:
+  - `Components/GuidedTour.razor`: niemodalna karta (lewy dolny róg, `role="dialog"`, `aria-live`), kroki: pytanie aplikacji → widok Księżyca → krok 1 miejsce → krok 2 lądownik → krok 3 termin → Land & analyze → werdykt → Analyst mode → Quick demo. Kroki 1–3 otwierają właściwy krok panelu (`Ui.SetOpenStep`). Sterowanie: Next / Back, strzałki ← →, Esc. Ostatni krok: „▶ Quick demo” albo „Explore on my own”.
+  - Ramka podświetlenia `.tour-ring` pozycjonowana w `ui.js → tourHighlight` (rAF, `getBoundingClientRect`, przyciemnia resztę ekranu, `pointer-events: none` — aplikacja działa w trakcie przewodnika). Gdy karta przewodnika zasłaniałaby opisywany element w dolnej części ekranu (karta werdyktu po lądowaniu), przenosi się na górę (`data-pos="top"`).
+  - Wejścia: przycisk „Take the guided tour · 1 min” na karcie powitalnej (także z „?”) i w oknie pomocy. Stan w `UiService` (`TourStep`, `StartTour`, `SetTourStep`, `CloseTour`); QUICK DEMO zamyka przewodnik.
+  - Sprawdzone w przeglądarce (dev, 2D): 9 kroków przed lądowaniem i po lądowaniu (ramka na karcie werdyktu), Esc, strzałki; `dotnet build` 0 ostrzeżeń, testy 161/161. Nie sprawdzone: widok mobilny i produkcja 3D.
 
 ## 🔄 In progress
 
@@ -354,6 +359,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Antigravity (Google DeepMind) — płomień silnika w animacji lądowania i replayu: diagnoza smugi cząstek w układzie świata (ECEF) przy prędkości opadania ~3500 m/s; implementacja ruchomego układu odniesienia (Moving Reference Frame) w engineFx.js z zerowym lagiem (emitter.emit + updateCallback), dostrojenie czasu życia i prędkości cząstek dla naddźwiękowego strumienia w próżni
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — test ścieżki jurora na produkcji (przeglądarka z GPU, 2 tryby, 2 rozdzielczości), diagnoza czarnej sceny (kamera i lądownik pod kaflami 3D: elipsoida zamiast terenu, potem skok kafli po 8 s), poprawki lądowania, wiersza PANELS i New landing, weryfikacja na produkcji z wymuszonym wolnym terenem
 - 2026-11-15 — Claude Code (Claude Opus 5.5) + Canva AI (generator układu) — prezentacja demo w Canvie: wgranie obrazów, wygenerowanie układu, usunięcie zmyślonych przez Canva treści, podmiana na nasze zrzuty i wykres, poprawki tekstu
+- 2026-11-15 — Claude Code (Claude Fable 5.2) — przewodnik po aplikacji (guided tour): projekt kroków i tekstów, komponent Blazor, ramka podświetlenia w JS, style, test w przeglądarce
 
 ## ⚠️ Known issues / ryzyka
 

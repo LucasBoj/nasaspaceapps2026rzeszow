@@ -2938,3 +2938,54 @@ html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: aut
 .hud-btn.new-landing.pulse { animation: new-landing-pulse 0.5s ease-in-out 2; }
 @keyframes new-landing-pulse { 50% { background: rgba(79, 195, 247, 0.35); box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.35); } }
 @media (prefers-reduced-motion: reduce) { .hud-btn.new-landing.pulse { animation: none; box-shadow: 0 0 0 2px var(--accent-cyan); } }
+
+/* ---- Guided tour (GuidedTour.razor; the ring is positioned by ui.js → tourHighlight) ---- */
+.welcome-tour { display: block; width: 100%; margin-bottom: var(--s3); }
+.tour-card {
+    position: fixed;
+    left: var(--s3);
+    bottom: var(--s3);
+    z-index: 80;
+    width: min(420px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: var(--s5);
+    background: rgba(10, 14, 19, 0.97);
+    border: 1px solid var(--border-color);
+    border-left: 2px solid var(--accent-cyan);
+    border-radius: 2px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    animation: card-in var(--t-slow) var(--ease) both;
+}
+.tour-card[data-pos="top"] { bottom: auto; top: 56px; max-height: calc(100dvh - 68px); }
+.tour-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: var(--fs-s);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    padding-right: var(--s5);
+}
+.tour-card h2 { font-size: var(--fs-l); font-weight: 600; margin: var(--s2) 0; }
+.tour-card p:not(.tour-count) { font-size: var(--fs-m); line-height: 1.5; color: var(--text-primary); }
+.tour-card p + p { margin-top: var(--s2); }
+.tour-progress { display: flex; gap: var(--s1); margin: var(--s4) 0 var(--s3); }
+.tour-progress span { flex: 1; height: 2px; background: var(--border-color); }
+.tour-progress span.done { background: var(--accent-cyan); }
+.tour-actions { display: flex; gap: var(--s2); }
+.tour-actions .btn-primary, .tour-actions .btn-secondary { flex: 1; width: auto; }
+.tour-actions .tour-back { flex: none; }
+.tour-ring {
+    display: none;
+    position: fixed;
+    z-index: 79;
+    pointer-events: none;
+    border: 2px solid var(--accent-cyan);
+    border-radius: 2px;
+    box-shadow: 0 0 0 200vmax rgba(5, 8, 12, 0.5);
+}
+@media (max-width: 800px) {
+    .tour-card, .tour-card[data-pos="top"] { left: var(--s2); right: var(--s2); width: auto; max-height: 48dvh; padding: var(--s4); }
+    .tour-card { bottom: var(--s2); }
+}
+@media (prefers-reduced-motion: reduce) { .tour-card { animation: none; } }

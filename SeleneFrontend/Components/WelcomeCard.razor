@@ -18,6 +18,7 @@
             <button type="button" class="btn-primary quick-demo" disabled="@(!MissionState.IsLoaded)" @onclick="Ui.QuickDemoAsync">@(MissionState.IsLoaded ? "▶ Quick demo" : "Loading data…")</button>
             <button type="button" class="btn-secondary try-it" @onclick="TryIt">Try it yourself</button>
         </div>
+        <button type="button" class="btn-secondary welcome-tour" @onclick="Ui.StartTour">Take the guided tour · 1 min</button>
         <button type="button" class="link-btn welcome-help" @onclick="() => Ui.SetHelp(true)">How to read the results · glossary</button>
     </section>
 }

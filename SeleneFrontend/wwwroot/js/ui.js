@@ -133,6 +133,48 @@ export function attachResultsResize(handle) {
   });
 }
 
+// ---- Guided tour: a ring (.tour-ring, rendered by GuidedTour.razor) that follows the explained element ----
+
+let tourRaf = 0;
+
+/** Put the ring around the first element matching `selector`; null or no match hides it. */
+export function tourHighlight(selector) {
+  cancelAnimationFrame(tourRaf);
+  tourRaf = 0;
+  const ring = document.querySelector(".tour-ring");
+  if (!ring) return false;
+  let el = null;
+  try { el = selector ? document.querySelector(selector) : null; } catch { el = null; }
+  const card = document.querySelector(".tour-card");
+  if (card) delete card.dataset.pos;
+  if (!el) { ring.style.display = "none"; return false; }
+  // The step body opens in the same render: scroll once it has its size.
+  setTimeout(() => {
+    if (!el.isConnected) return;
+    el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: window.innerWidth < 800 ? "center" : "nearest" });
+  }, 80);
+  // The tour card sits bottom-left. If it would cover an element in the lower part of the screen
+  // (the verdict card), it moves to the top; decided once per step so it never flips back and forth.
+  setTimeout(() => {
+    if (!card?.isConnected || !el.isConnected) return;
+    const t = el.getBoundingClientRect(), c = card.getBoundingClientRect();
+    const overlap = t.left < c.right && t.right > c.left && t.top < c.bottom && t.bottom > c.top;
+    if (overlap && t.top > window.innerHeight * 0.3) card.dataset.pos = "top";
+  }, 450);
+  const place = () => {
+    if (!el.isConnected || !ring.isConnected) { ring.style.display = "none"; tourRaf = 0; return; }
+    const r = el.getBoundingClientRect();
+    ring.style.display = r.width > 0 && r.height > 0 ? "block" : "none";
+    ring.style.left = `${r.left}px`;
+    ring.style.top = `${r.top}px`;
+    ring.style.width = `${r.width}px`;
+    ring.style.height = `${r.height}px`;
+    tourRaf = requestAnimationFrame(place);
+  };
+  place();
+  return true;
+}
+
 export function focusSelector(selector) {
   try { document.querySelector(selector)?.focus({ preventScroll: true }); } catch { /* ignore */ }
 }
