@@ -2050,6 +2050,8 @@ a { color: var(--accent-cyan); }
 }
 
 .landing-hud-host.fade { animation: landing-fade 300ms ease both; }
+/* Terrain warm-up before the first landing at a site: dark cover while the close-up tiles load. */
+.landing-hud-host.warmup { background: rgba(5, 8, 11, 0.94); }
 @keyframes landing-fade { 0% { background: rgba(5, 8, 11, 0.85); } 100% { background: transparent; } }
 
 .landing-hud { position: absolute; inset: 0; }
