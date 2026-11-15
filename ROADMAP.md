@@ -202,7 +202,7 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
   - `Components/GuidedTour.razor`: niemodalna karta (lewy dolny róg, `role="dialog"`, `aria-live`), kroki: pytanie aplikacji → widok Księżyca → krok 1 miejsce → krok 2 lądownik → krok 3 termin → Land & analyze → werdykt → Analyst mode → Quick demo. Kroki 1–3 otwierają właściwy krok panelu (`Ui.SetOpenStep`). Sterowanie: Next / Back, strzałki ← →, Esc. Ostatni krok: „▶ Quick demo” albo „Explore on my own”.
   - Ramka podświetlenia `.tour-ring` pozycjonowana w `ui.js → tourHighlight` (rAF, `getBoundingClientRect`, przyciemnia resztę ekranu, `pointer-events: none` — aplikacja działa w trakcie przewodnika). Gdy karta przewodnika zasłaniałaby opisywany element w dolnej części ekranu (karta werdyktu po lądowaniu), przenosi się na górę (`data-pos="top"`).
   - Wejścia: przycisk „Take the guided tour · 1 min” na karcie powitalnej (także z „?”) i w oknie pomocy. Stan w `UiService` (`TourStep`, `StartTour`, `SetTourStep`, `CloseTour`); QUICK DEMO zamyka przewodnik.
-  - Sprawdzone w przeglądarce (dev, 2D): 9 kroków przed lądowaniem i po lądowaniu (ramka na karcie werdyktu), Esc, strzałki; `dotnet build` 0 ostrzeżeń, testy 161/161. Nie sprawdzone: widok mobilny i produkcja 3D.
+  - Sprawdzone w przeglądarce (dev, 2D): 9 kroków przed lądowaniem i po lądowaniu (ramka na karcie werdyktu), Esc, strzałki; `dotnet build` 0 ostrzeżeń, testy 161/161. Na produkcji (`4d45262`, live 12:20, 3D TERRAIN): przewodnik startuje z karty powitalnej, krok 3 podświetla listę miejsc, konsola bez błędów. Nie sprawdzone: widok mobilny; na produkcji tylko kroki 1–3 (pełne przejście z lądowaniem — na dev).
 
 ## 🔄 In progress
 
