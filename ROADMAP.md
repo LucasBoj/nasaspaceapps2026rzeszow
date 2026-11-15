@@ -210,6 +210,8 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
 
 - **Bez żargonu w SIMPLE i bez dymka na modelu** (2026-11-15 12:3x–12:4x) — przełącznik „Water ice areas” (ANALYST: „Ice (PSR)”), zdanie P(FEASIBLE) bez „heading” w SIMPLE (ANALYST bez zmian, test w `MonteCarloTests`); natywny dymek „Landed — start a new landing…” usunięty z płótna (leżał na modelu) — po wylądowaniu klik daje kartę „Start a new landing at …?”. Produkcja sprawdzona po pierwszej zmianie: QUICK DEMO od zimnego startu, lądownik na powierzchni, 0 błędów, brak żargonu — 2026-11-15 — AI: Claude Code
 
+- **„Preparing landing…” zamiast czarnego widoku przy pierwszym lądowaniu** (2026-11-15 13:15, `737f8df`) — nakładka w HUD opadania (kręcący się okrąg, tekst aria-live, przy ograniczonym ruchu pulsowanie) od kliknięcia QUICK DEMO / Land & analyze do pierwszej klatki opadania (`hud.update`), końca lądowania albo 20 s; fade 150 ms; logika terenu i lądowania bez zmian. Lokalnie (3D): zimny start 3,2 s, z cache 2,7 s, nigdy nie zostaje, 0 błędów; stage2 44/44, stage3 10/10, xUnit 161/161. Produkcja 13:17: nakładka 2,7 s, lądownik na powierzchni, MISSION COMPLETE, 0 błędów konsoli — AI: Claude Code
+
 ## 🔄 In progress
 
 _(nic przypisanego — wpisz się tutaj, gdy zaczynasz zadanie)_
@@ -370,6 +372,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — blokada lądowania do wczytania terenu 3D, sprawdzenie baterii QUICK DEMO na produkcji, siatka etapów opadania
 - 2026-11-15 — Claude Code (Claude Fable 5.2) — animacja lądowania: zwolnienie zegara w fazie TERMINAL (funkcja czasu i jej odwrotność), antyaliasing MSAA, test w przeglądarce
 - 2026-11-15 — Claude Code (Claude Fable 5.2) — warmup kafli terenu przed pierwszym lądowaniem: diagnoza z kodu, implementacja, test ścieżki 2D
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — wskaźnik „Preparing landing…”, testy lokalne (zimny start / cache) i kontrola produkcji
 ## ⚠️ Known issues / ryzyka
 
 - **Warmup terenu (`40c6b00`) na produkcji nie włącza się przy pierwszym lądowaniu** — sprawdzone 12:50 na https://selene.byst.re/ (świeże wejście, 3D, QUICK DEMO): brak zasłony „LOADING TERRAIN…”, lądowanie poprawne (werdykt MARGINAL, kurs 74° = docelowy, 0 błędów renderowania), faza TERMINAL 3,95 s (zwolnienie działa). Prawdopodobna przyczyna (nie potwierdzona): przy pierwszym lądowaniu `groundHeight` nie zdąża w 700 ms (`sampledGround == null`), a warmup jest wtedy celowo pomijany, żeby nie stawiać kamery pod terenem — czyli pomija dokładnie ten przypadek, o który chodzi. Zmiana jest nieszkodliwa (no-op). W tym samym teście pierwsza klatka opadania przyszła ~0,85 s po starcie zegara (pierwszy odczyt 8 389 m, faza DEORBIT prawie niewidoczna) — to jest przycięcie pierwszego uruchomienia; nie wiadomo, czy to kafle, czy kompilacja shaderów efektów. Do zrobienia po terminie: przy nieznanym gruncie najpierw poczekać pod zasłoną na `sampleHeightMostDetailed` (≤ 2,5 s), potem rozgrzać zbliżenie; zmierzyć w widocznym oknie. Na prezentacji: puścić QUICK DEMO raz przed pokazem.
