@@ -28,6 +28,8 @@
     <Compile Include="..\SeleneFrontend\Models\NasaIlluminationCheck.cs" Link="Linked\NasaIlluminationCheck.cs" />
     <Compile Include="..\SeleneFrontend\Models\VerdictText.cs" Link="Linked\VerdictText.cs" />
     <Compile Include="..\SeleneFrontend\Services\IlluminationRepository.cs" Link="Linked\IlluminationRepository.cs" />
+    <Compile Include="..\SeleneFrontend\Models\LandingEllipseData.cs" Link="Linked\LandingEllipseData.cs" />
+    <Compile Include="..\SeleneFrontend\Services\LandingEllipse.cs" Link="Linked\LandingEllipse.cs" />
   </ItemGroup>
 
   <ItemGroup>

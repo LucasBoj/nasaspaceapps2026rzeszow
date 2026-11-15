@@ -81,6 +81,37 @@ public sealed class IlluminationRepository(HttpClient http)
         return task;
     }
 
+    private readonly Dictionary<string, Task<LandingEllipseData?>> _ellipses = [];
+
+    /// <summary>
+    /// The landing-ellipse grid of a site (<c>{siteId}/ellipse.json</c>), cached; null when the file is missing or
+    /// unreadable — it is optional, the app then shows no ellipse row.
+    /// </summary>
+    public Task<LandingEllipseData?> GetEllipse(string siteId)
+    {
+        if (!_ellipses.TryGetValue(siteId, out var task))
+        {
+            task = LoadOptionalAsync<LandingEllipseData>($"data/illumination/{Uri.EscapeDataString(siteId)}/ellipse.json");
+            _ellipses[siteId] = task;
+        }
+        return task;
+    }
+
+    private async Task<T?> LoadOptionalAsync<T>(string url) where T : class
+    {
+        try
+        {
+            using var response = await http.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<T>(JsonOpts);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
+        {
+            Console.Error.WriteLine($"[Data] optional {url} not loaded: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>Data range: first sample … last sample (inclusive), UTC.</summary>
     public async Task<(DateTime Start, DateTime End)> GetRangeAsync()
     {

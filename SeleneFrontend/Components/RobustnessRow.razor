@@ -18,6 +18,45 @@
             </span>
         </div>
     }
+    @if (Ellipse is { } e)
+    {
+        var share = e.FeasibleShare * 100;
+        var holds = share >= EllipseOkPct;
+        <div class="robust-item ellipse-item">
+            <span class="robust-label"><Term Key="ellipse">ELLIPSE ±@Pct0Num(e.RadiusM) m</Term></span>
+            <span class="robust-badge @(holds ? "ok" : "warn")">@Pct0(share) FEASIBLE</span>
+            <span class="robust-detail">
+                @e.Count spots within @Pct0Num(e.RadiusM) m:
+                <span class="v-feasible">@e.Feasible FEASIBLE</span>
+                @if (e.Marginal > 0) { <text> · </text><span class="v-marginal">@e.Marginal MARGINAL</span> }
+                @if (e.NotFeasible > 0) { <text> · </text><span class="v-nogo">@e.NotFeasible NOT FEASIBLE</span> }
+                · sunlight @Pct0(e.MinSunPct)–@Pct0(e.MaxSunPct) of the mission
+                @if (e.MaxSlopeDeg is { } slope)
+                {
+                    <text> · steepest slope @slope.ToString("0.0", CultureInfo.InvariantCulture)° (120 m DEM)</text>
+                }
+                @if (Accuracy is { } acc)
+                {
+                    <text> · </text>
+                    <span class="robust-source" title="@acc.Note">radius @KindLabel(acc.Kind)@if (!string.IsNullOrEmpty(acc.SourceUrl))
+                        {
+                            <text> (</text><a href="@acc.SourceUrl" target="_blank" rel="noopener">source</a><text>)</text>
+                        }</span>
+                }
+            </span>
+            <svg class="ellipse-map" viewBox="@ViewBox(e)" role="img" aria-label="@MapLabel(e)">
+                <title>@MapLabel(e)</title>
+                @foreach (var p in e.Points)
+                {
+                    <rect x="@Num(p.E - e.SpacingM / 2)" y="@Num(-p.N - e.SpacingM / 2)" width="@Num(e.SpacingM)" height="@Num(e.SpacingM)"
+                          class="ep @PointClass(p.Verdict)" />
+                }
+                <circle cx="0" cy="0" r="@Num(e.RadiusM)" class="ep-ring" />
+                <path d="@Cross(e)" class="ep-target" />
+                <text x="0" y="@Num(-e.RadiusM - e.SpacingM * 0.9)" class="ep-north">N</text>
+            </svg>
+        </div>
+    }
     @if (Nasa is { } n && !double.IsNaN(n.NearLossPp))
     {
         <div class="robust-item">
@@ -38,9 +77,43 @@
 @code {
     [Parameter] public LoadSensitivity? Load { get; set; }
     [Parameter] public NasaSiteCheck? Nasa { get; set; }
+    [Parameter] public EllipseResult? Ellipse { get; set; }
+    /// <summary>The lander's landing accuracy (radius of the ellipse) with its provenance.</summary>
+    [Parameter] public NumberParam? Accuracy { get; set; }
 
     /// <summary>Sunlight lost within one pixel above which a site counts as point-sensitive (pp).</summary>
     private const double SpreadWarnPp = 10;
+
+    /// <summary>Share of the landing area that must stay FEASIBLE for the ellipse badge to show as fine (%).</summary>
+    private const double EllipseOkPct = 90;
+
+    private static string Num(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string Pct0Num(double v) => Math.Round(v).ToString("0", CultureInfo.InvariantCulture);
+
+    private static string ViewBox(EllipseResult e)
+    {
+        var half = e.RadiusM + e.SpacingM * 1.6;      // room for the cells on the rim and the N label
+        return $"{Num(-half)} {Num(-half)} {Num(2 * half)} {Num(2 * half)}";
+    }
+
+    private static string Cross(EllipseResult e)
+    {
+        var a = e.SpacingM * 0.9;
+        return $"M{Num(-a)} 0H{Num(a)}M0 {Num(-a)}V{Num(a)}";
+    }
+
+    private static string PointClass(Verdict v) => v switch
+    {
+        Verdict.Feasible => "ep-ok",
+        Verdict.Marginal => "ep-marginal",
+        _ => "ep-nogo",
+    };
+
+    private static string MapLabel(EllipseResult e) =>
+        $"Landing ellipse map, north up, target in the middle: {e.Feasible} of {e.Count} spots FEASIBLE, " +
+        $"{e.Marginal} MARGINAL, {e.NotFeasible} NOT FEASIBLE.";
+
+    private static string KindLabel(string kind) => ParamKind.Label(kind);
 
     private static string BreakEven(LoadSensitivity s) => s.FeasibleUpToFactor switch
     {

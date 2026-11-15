@@ -354,6 +354,57 @@ exceptions differ by 0.5–2.3 days (HW_K2023 2027, SP09 2027, NR205 2028), whic
 plausible given their much finer DEMs. This is a consistency check, not a
 like-for-like validation.
 
+## Landing ellipse
+
+Landers miss their target. Blue Ghost Mission 1 touched down within its 100 m target, Nova-C IM-2 more than
+400 m off (NASA), and NASA requires Artemis landers to land within 100 m of a target. Near the pole one
+120 m pixel can decide between a lit ridge and a shadow, so the app re-checks the verdict over the whole
+landing area instead of a single point.
+
+```bash
+python build_ellipse.py --dem /path/to/ldem_75s_120m_float.lbl              # all sites, ~30 s per site
+python build_ellipse.py --dem /path/to/ldem_75s_120m_float.lbl --validate   # + the checks below
+```
+
+`build_ellipse.py` writes `illumination/{siteId}/ellipse.json`: a 60 m grid (half a DEM pixel, bilinear
+heights) of 197 points within 480 m of each site, the largest landing radius in `landers.json`. Each point
+stores its own horizon mask and three frame numbers; no hourly series. The frontend rebuilds sunFraction and
+earthVisible at every point from the **site's** Sun and Earth series and re-runs the shown mission there
+(`LandingEllipse.cs`, same heading, date and duration).
+
+Why that is enough (`ellipse.py`): the Sun and the Earth are so far away that their direction is the same
+480 m away. What changes is the terrain horizon and the local frame. Near the pole, local north turns by
+up to ~0.6° over 480 m (meridian convergence) and the vertical tilts by d/R = 0.016°. The point's mask stays
+in its own 1° grid and the site's azimuth is shifted into it (`azShiftDeg`), and the elevation gets the tilt
+term (`tiltDeg`, `tiltAzDeg`). An earlier version resampled each mask into the site frame; that second
+interpolation smoothed sharp horizon features and cost up to 15 pp in single hours.
+
+`--validate` recomputes 5 points per site (0, 480 m E, 480 m S, 424 m NW, 170 m NE) directly, with their own
+ephemeris and horizon, over 2027–28 (17,544 h), and compares with the reconstruction from the shipped site
+series (`docs/ellipse_validation.json`). It also compares our sunlit range over the 3×3 points 120 m apart
+(2027–28, any Sun) with the NASA LOLA map's 3×3-pixel range (18.6 years):
+
+| Site | Max Δ sunFraction | Hours > 1 pp | Earth hours differing | Ours ±120 m | NASA 3×3 px |
+|---|---|---|---|---|---|
+| Peak near Cabeus B | 2 pp | 0.1% | 5 | 49.1–56.0% | 39.0–55.0% |
+| Haworth | 2 pp | 0.61% | 7 | 53.8–70.5% | 47.7–67.7% |
+| Malapert Massif | 2 pp | 0.34% | 6 | 53.5–83.7% | 42.7–74.3% |
+| Mons Mouton Plateau | 2 pp | 0.15% | 3 | 41.5–43.1% | 41.4–42.8% |
+| Mons Mouton | 2 pp | 0.54% | 4 | 56.9–81.6% | 37.3–78.4% |
+| Nobile Rim 1 | 2 pp | 0.39% | 4 | 54.9–84.2% | 52.5–83.5% |
+| Nobile Rim 2 | 2 pp | 0.15% | 5 | 45.4–53.8% | 29.3–52.4% |
+| de Gerlache Rim 2 | 2 pp | 0.39% | 4 | 48.9–79.7% | 48.9–78.5% |
+| Slater Plain | 2 pp | 0.2% | 4 | 50.7–65.0% | 50.1–59.1% |
+
+* The reconstruction error (≤ 2 pp, a few Earth hours out of 17,544) is the same as at the site itself:
+  it comes from the centi-degree rounding of the shipped files, not from the method.
+* Against NASA, the upper ends agree within 0–9 pp, and Nobile Rim 1, de Gerlache Rim 2, Mons Mouton
+  Plateau and Haworth match closely. Our lower ends are often higher than NASA's (Mons Mouton 57% vs
+  37%). The NASA pixels are not the same points (map grid vs our east/north grid), the period differs
+  (18.6 years vs 2027–28), and the 120 m DEM smooths small ridges. Read the ellipse as "at least this
+  sensitive", not as an upper bound on the risk.
+* Slopes come from the 120 m DEM (Horn, 3×3 pixels) and are smoother than the real surface.
+
 ## Output format
 
 `illumination/{siteId}/{year}.json` (one file per site and calendar year, 2026-11 … 2035; same fields in every file):
@@ -375,6 +426,23 @@ like-for-like validation.
 
 `illumination/index.json` lists every site with `pctSunlit` (share of hours with
 `sunFraction > 0`), `pctComms`, `longestDarkHours`, and `horizonCoveragePct`.
+
+`illumination/{siteId}/ellipse.json` (`build_ellipse.py`, optional for the app):
+
+```jsonc
+{
+  "siteId": "malapert_massif", "lat": -85.99, "lon": 2.06, "observerHeightM": 2,
+  "spacingM": 60, "radiusM": 480,
+  "points": [{
+    "e": -120, "n": 60,                      // offset east / north of the site (m)
+    "lat": ..., "lon": ..., "groundM": ..., "slopeDeg": 3.1,
+    "azShiftDeg": -0.06, "tiltDeg": 0.0045, "tiltAzDeg": 296.6,   // site frame → point frame
+    "pctSunlit": 61.2, "pctComms": 74.0,     // whole data range, like index.json
+    "horizonCentiDeg": [360 ints]            // the point's own horizon × 100, azimuth in its own frame
+  }],
+  "generatedWith": { "dem": "...", "method": "own-frame horizon + azShift/tilt (pipeline/ellipse.py)" }
+}
+```
 
 ## Data sources
 

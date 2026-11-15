@@ -31,6 +31,13 @@
                 @VerdictText.Label(m.Verdict)
             </h2>
             <p class="verdict-sentence">@VerdictText.Sentence(m, Analysis.MissionSiteName, MissionState.MinBatteryPercent, MissionState.MinCommsPercent)</p>
+            @if (Analysis.Ellipse is { } ellipse)
+            {
+                <p class="verdict-ellipse">
+                    <Term Key="ellipse" AriaLabel="How is the landing ellipse checked?">ⓘ</Term>
+                    @VerdictText.EllipseSentence(ellipse, m.Verdict)
+                </p>
+            }
         </div>
 
         <dl class="verdict-numbers">

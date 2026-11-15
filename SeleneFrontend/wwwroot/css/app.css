@@ -954,6 +954,23 @@ html, body {
 .robust-badge.ok { color: var(--status-ok); }
 .robust-badge.warn { color: var(--status-warn); }
 .robust-detail { color: var(--text-primary); }
+.robust-source { color: var(--text-secondary); }
+.robust-source a { color: var(--accent-cyan, var(--text-primary)); }
+
+/* Landing ellipse: verdict per 60 m cell, north up (viewBox in metres around the target) */
+.ellipse-item { align-items: center; }
+.ellipse-item .robust-detail { flex: 1 1 20rem; }
+.ellipse-map { width: 6.5rem; height: 6.5rem; flex: 0 0 auto; }
+.ellipse-map .ep { stroke: var(--bg-raised); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ellipse-map .ep-ok { fill: var(--status-ok); fill-opacity: 0.75; }
+.ellipse-map .ep-marginal { fill: var(--status-warn); fill-opacity: 0.85; }
+.ellipse-map .ep-nogo { fill: var(--status-error); fill-opacity: 0.85; }
+.ellipse-map .ep-ring { fill: none; stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.ellipse-map .ep-target { stroke: var(--text-primary); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.ellipse-map .ep-north { fill: var(--text-secondary); font: 600 70px 'IBM Plex Mono', monospace; text-anchor: middle; }
+
+.verdict-ellipse { font-size: var(--fs-s, 0.85rem); margin-top: var(--s1); color: var(--text-secondary); max-width: 64ch; }
+.verdict-ellipse .term-btn { margin-right: 0.25rem; }
 
 .results-grid {
     display: grid;

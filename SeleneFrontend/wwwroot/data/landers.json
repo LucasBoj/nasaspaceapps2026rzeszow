@@ -72,6 +72,13 @@
       "note": "",
       "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
     },
+    "landingAccuracyM": {
+      "value": 400,
+      "unit": "m",
+      "kind": "sourced",
+      "note": "Radius of the landing ellipse the verdict is re-checked over. IM-2 Athena (6 Mar 2025, Mons Mouton) landed more than 400 m from its target according to NASA (Intuitive Machines: 250 m); IM-1 (Feb 2024) came down ~1.5 km off after a laser rangefinder failure.",
+      "sourceUrl": "https://spacepolicyonline.com/news/im-2-mission-ends-one-day-after-lunar-landing/"
+    },
     "modelUri": "models/nova_c.glb",
     "modelHeightM": 3.94,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
@@ -143,6 +150,13 @@
       "kind": "sourced",
       "note": "M1 configuration ended ~5 h after sunset",
       "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
+    },
+    "landingAccuracyM": {
+      "value": 100,
+      "unit": "m",
+      "kind": "sourced",
+      "note": "Radius of the landing ellipse the verdict is re-checked over. Blue Ghost Mission 1 (2 Mar 2025) touched down within its 100 m landing target in Mare Crisium.",
+      "sourceUrl": "https://fireflyspace.com/news/firefly-aerospace-becomes-first-commercial-company-to-successfully-land-on-the-moon/"
     },
     "modelUri": "models/blue_ghost.glb",
     "modelHeightM": 2,
@@ -221,6 +235,13 @@
       "note": "",
       "sourceUrl": "https://astrobotic.com/lunar-delivery/landers"
     },
+    "landingAccuracyM": {
+      "value": 250,
+      "unit": "m",
+      "kind": "assumption",
+      "note": "Radius of the landing ellipse the verdict is re-checked over. Griffin has not landed yet; assumed between the results CLPS landers have demonstrated (Blue Ghost 100 m, Nova-C IM-2 400 m).",
+      "sourceUrl": ""
+    },
     "modelUri": "models/griffin.glb",
     "modelScaleBy": "width",
     "modelWidthM": 4.5,
@@ -297,6 +318,13 @@
       "note": "",
       "sourceUrl": "https://ntrs.nasa.gov/api/citations/20230013222/downloads/DRAFT-%20IAC%20Final_Sept14.pdf"
     },
+    "landingAccuracyM": {
+      "value": 100,
+      "unit": "m",
+      "kind": "sourced",
+      "note": "Radius of the landing ellipse the verdict is re-checked over. NASA Artemis III landing requirement: land within 100 m of a target (Artemis HLS Update 2024, slides 19 and 26). A requirement, not yet a demonstrated result.",
+      "sourceUrl": "https://ntrs.nasa.gov/api/citations/20240009596/downloads/ArtemisHLSUpdate_2024.pdf"
+    },
     "modelUri": "models/starship_hls.glb",
     "modelHeightM": 50,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
@@ -371,6 +399,13 @@
       "kind": "sourced",
       "note": "",
       "sourceUrl": "https://www.collectspace.com/news/news-051923a-nasa-artemis-5-blue-moon-lunar-lander-selection.html"
+    },
+    "landingAccuracyM": {
+      "value": 100,
+      "unit": "m",
+      "kind": "sourced",
+      "note": "Radius of the landing ellipse the verdict is re-checked over. NASA Artemis III landing requirement: land within 100 m of a target (Artemis HLS Update 2024, slides 19 and 26). A requirement, not yet a demonstrated result.",
+      "sourceUrl": "https://ntrs.nasa.gov/api/citations/20240009596/downloads/ArtemisHLSUpdate_2024.pdf"
     },
     "modelUri": "models/blue_moon_mk2.glb",
     "modelHeightM": 16,

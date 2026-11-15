@@ -95,6 +95,8 @@ public class LanderPreset
     public BoolParam? DesignedForNight { get; set; }
     public NumberParam? Crew { get; set; }
     public NumberParam? PayloadKg { get; set; }
+    /// <summary>Landing accuracy: radius (m) of the landing ellipse the verdict is re-checked over; null = no ellipse row.</summary>
+    public NumberParam? LandingAccuracyM { get; set; }
 
     /// <summary>Solar array mounting (fixed facets or ideal tracking); null = ideal tracking.</summary>
     public PanelLayout? Panels { get; set; }
@@ -132,7 +134,7 @@ public class LanderPreset
 
     /// <summary>All present parameters, in display order.</summary>
     public IEnumerable<LanderParam> AllParams =>
-        new LanderParam?[] { SolarArrayW, Panels, BatteryWh, BatteryRoundTripEff, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg }
+        new LanderParam?[] { SolarArrayW, Panels, BatteryWh, BatteryRoundTripEff, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg, LandingAccuracyM }
             .OfType<LanderParam>();
 
     public int CountKind(string kind) => AllParams.Count(p => p.Kind == kind);

@@ -262,6 +262,7 @@
         if (l.DesignedForNight is { } n) yield return new("night", "Night survival", n, n.Value ? "DESIGNED" : "NOT DESIGNED");
         if (l.Crew is { } c) yield return new("crew", "Crew", c, Num(c));
         if (l.PayloadKg is { } p) yield return new("payload", "Payload", p, Num(p));
+        if (l.LandingAccuracyM is { } acc) yield return new("ellipse", "Landing accuracy", acc, $"±{Fmt(acc.Value)} m");
     }
 
     private static string PanelsText(PanelLayout p)

@@ -47,7 +47,7 @@ Change it only deliberately: describe the change here, then update both the pipe
 
 Time for sample `i` is `start + i × stepHours`.
 
-**Contract changelog:** 2026-11-14 added `earthAzCentiDeg` (additive; readers must tolerate missing fields in older files). 2026-11-15 **one file per site and calendar year** (`{siteId}/{year}.json`, same fields, own `start`/`count`), range 2026-11 … 2035; `index.json` gains `years`, `files`, `byYear` and drops `file`; the single `{siteId}.json` files are removed (`build.py` deletes them).
+**Contract changelog:** 2026-11-14 added `earthAzCentiDeg` (additive; readers must tolerate missing fields in older files). 2026-11-15 **one file per site and calendar year** (`{siteId}/{year}.json`, same fields, own `start`/`count`), range 2026-11 … 2035; `index.json` gains `years`, `files`, `byYear` and drops `file`; the single `{siteId}.json` files are removed (`build.py` deletes them). 2026-11-15 added `{siteId}/ellipse.json` (additive, separate file from `build_ellipse.py`; optional for the app): a 60 m grid of 197 points within 480 m, each with its own `horizonCentiDeg` (own azimuth frame), `azShiftDeg`, `tiltDeg`, `tiltAzDeg`, `slopeDeg`, `pctSunlit`, `pctComms`. Format in `pipeline/README.md` → Output format.
 
 ## Energy model (fixed panels, Lambert incidence)
 
@@ -61,7 +61,7 @@ Time for sample `i` is `start + i × stepHours`.
 - Score = `35·minSoC + 20·comms + 10·light + 20·clamp(produced/used − 1, 0, 1) + 15·terrainMargin` (`WindowOptimizer.Score`). `terrainMargin = ½·m(min Sun clearance) + ½·m(min Earth clearance)` with `m(c) = 1 − e^(−max(c,0)/2°)`. Clearance is the height above the LOLA horizon, from `IlluminationSeries.SunClearanceDeg()` / `EarthClearanceDeg()`. Without this term every fully lit, fully connected window scored the same (ties across all 9 regions with ideal tracking). Do not cap it linearly: a cap brings the ties back.
 - **Battery:** `landers.json → batteryRoundTripEff` (η, default 1 = ideal). Loads are served from the array first; a surplus charges at ×√η, a deficit is drawn at ÷√η; surplus with a full battery is shunted without loss (`SimulationResult.BatteryLossWh`). What-if `idealBattery` sets η = 1. Depth of discharge is the section-04 battery threshold, not a separate parameter.
 - **Heatmap is shared per input signature** (`AnalysisService._heatmapTask`): it does not depend on the selected site, so a run with the same inputs (QUICK DEMO / Land & analyze after the startup run, another site) reuses it or joins the computation in flight, and phase 1 takes the site's row from it. Anything new that changes the analysis result must be part of `Signature()`, or a stale heatmap is reused.
-- **Robustness row** under the verdict (`RobustnessRow.razor`): (1) `SensitivityAnalysis.ForLoad` re-runs the shown mission with day + survival loads ×0.8 / ×1.2 (heading pinned) and bisects the break-even load factor (verdict is monotone in load); (2) the NASA 120 m map's 3×3-pixel range (`nasaSunRangePct` in `data/validation/nasa_illumination.json`), POINT-SENSITIVE at ≥ 10 pp loss within 120 m.
+- **Robustness row** under the verdict (`RobustnessRow.razor`): (1) `SensitivityAnalysis.ForLoad` re-runs the shown mission with day + survival loads ×0.8 / ×1.2 (heading pinned) and bisects the break-even load factor (verdict is monotone in load); (2) the NASA 120 m map's 3×3-pixel range (`nasaSunRangePct` in `data/validation/nasa_illumination.json`), POINT-SENSITIVE at ≥ 10 pp loss within 120 m; (3) **landing ellipse** (`LandingEllipse.Analyze`, `AnalysisService.Ellipse`): the shown mission (same date, duration, heading) re-run at every `ellipse.json` point within `landers.json → landingAccuracyM` (sourced per lander: Blue Ghost 100 m, Nova-C 400 m, HLS 100 m NASA requirement; Griffin 250 m ASSUMPTION). Each point's sunFraction/earthVisible is rebuilt from the SITE's Sun/Earth series with the point's own horizon: `h_p(az + azShift) − tilt·cos(az − tiltAz)`, validated ≤ 2 pp against a full recomputation (`build_ellipse.py --validate`). Do not resample the masks into the site frame (the second interpolation cost up to 15 pp). The target keeps the nominal verdict. SIMPLE shows one plain sentence (`VerdictText.EllipseSentence`).
 
 ## Commands
 
@@ -83,6 +83,7 @@ python download_kernels.py
 python build.py --dem /path/ldem_75s_120m_float.lbl [--site ID]
 python -m pytest -q
 python validate_horizons.py [--refresh]   # Sun/Earth az/el vs JPL Horizons (offline snapshots in data/horizons/)
+python build_ellipse.py --dem /path/ldem_75s_120m_float.lbl [--validate]   # landing-ellipse horizons → illumination/{site}/ellipse.json
 python compare_nasa_illumination.py [--refresh]   # sunlit/Earth time vs NASA LOLA maps (Mazarico 2011) → README table, docs/nasa_vs_ours.png, frontend data/validation/
 ```
 
@@ -131,7 +132,7 @@ python compare_nasa_illumination.py [--refresh]   # sunlit/Earth time vs NASA LO
 - Lunar site coordinates in JPL Horizons are in the Mean-Earth frame, the same as `MOON_ME_DE421`. Do not convert to PA (`pipeline/validate_horizons.py`).
 - NASA LOLA illumination maps (PDS `extras/illumination/img/`) have labels that name `*.IMG` in upper case, while the server stores lower case. GDAL cannot open the remote pair. `compare_nasa_illumination.py` reads the geometry from the `.lbl` and fetches pixels with HTTP Range. The PGDA COG directory returns 404. Compare like-for-like against the **120 m** map (our DEM resolution); the 60 m map is 7–22 pp darker at peaks.
 - `wwwroot/data/validation/nasa_illumination.json` is generated by `compare_nasa_illumination.py` and is optional for the app (`MissionConfigState.NasaCheck`). It is not part of the `illumination/*` contract. Do not edit it by hand.
-- Any new UI-free logic file used by the simulator must also be linked in `SeleneFrontend.Tests.csproj` (as `SolarGeometry.cs`, `SensitivityAnalysis.cs` and `NasaIlluminationCheck.cs` are).
+- Any new UI-free logic file used by the simulator must also be linked in `SeleneFrontend.Tests.csproj` (as `SolarGeometry.cs`, `SensitivityAnalysis.cs`, `NasaIlluminationCheck.cs`, `LandingEllipse.cs` and `LandingEllipseData.cs` are).
 - `*.sh`, `*.conf` and `*.yml` are forced to LF by `.gitattributes`. With `core.autocrlf=true` a CRLF script fails on the server and in CI (`$'\r': command not found`). Clones from before `.gitattributes` keep CRLF until refreshed (`deploy/README.md`, step 2).
 - On Windows `python3` is often the Microsoft Store stub. Scripts must pick the first Python that actually runs (as `deploy.sh` does) and set `PYTHONIOENCODING=utf-8`: piped Windows Python crashes on `→` otherwise.
 - The published `index.html` names `blazor.webassembly` twice: the importmap alias (plain name) and the `<script src>` (fingerprinted). Checks must read the `src=` one.

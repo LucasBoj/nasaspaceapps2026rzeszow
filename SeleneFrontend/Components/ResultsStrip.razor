@@ -86,7 +86,8 @@
                 }
                 else
                 {
-                    <RobustnessRow Load="Analysis.LoadSensitivity" Nasa="MissionState.NasaCheckFor(Analysis.MissionSiteId)" />
+                    <RobustnessRow Load="Analysis.LoadSensitivity" Nasa="MissionState.NasaCheckFor(Analysis.MissionSiteId)"
+                                   Ellipse="Analysis.Ellipse" Accuracy="Analysis.EllipseAccuracy" />
                     <PowerCommsTiles M="mission" MaxStayDays="Analysis.MaxSurvivableDays" />
                     <div class="results-grid">
                         <section class="results-panel" aria-label="Mission timeline" id="results-timeline">

@@ -226,10 +226,20 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     /// <summary>Verdict at loads ±20% and the break-even load for the shown mission (null before the first run).</summary>
     public LoadSensitivity? LoadSensitivity { get; private set; }
 
+    /// <summary>The shown mission re-run over the landing ellipse (null until loaded, or without ellipse data / accuracy).</summary>
+    public EllipseResult? Ellipse { get; private set; }
+
+    /// <summary>Landing accuracy of the selected lander (m) and its parameter (provenance shown in the row).</summary>
+    public NumberParam? EllipseAccuracy { get; private set; }
+
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
     {
         Mission = MissionSimulator.Run(site.Series, lander, landingUtc, state.MissionDurationDays, Thresholds);
         MissionVersion++;
+        Ellipse = null;
+        EllipseAccuracy = state.SelectedLander?.LandingAccuracyM;
+        if (EllipseAccuracy is { Value: > 0 } accuracy)
+            _ = UpdateEllipseAsync(MissionVersion, site, Mission, lander, Thresholds, accuracy.Value);
         // Same heading as the shown mission, so "max stay" and the verdict describe the same landing.
         MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
             landingUtc, Thresholds, MaxSurvivableCapDays);
@@ -237,6 +247,25 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         MissionSiteId = site.Id;
         MissionSiteName = site.Name;
         ThresholdBatteryPct = state.MinBatteryPercent;
+    }
+
+    /// <summary>Load the site's ellipse grid (once) and re-run the mission over it; dropped if a newer mission replaced it.</summary>
+    private async Task UpdateEllipseAsync(int version, OptimizerSite site, SimulationResult mission, LanderInputs lander,
+                                          MissionThresholds thresholds, double radiusM)
+    {
+        try
+        {
+            var data = await repo.GetEllipse(site.Id);
+            if (data is null || version != MissionVersion) return;
+            await Task.Yield();          // let the verdict render first; the re-run takes a few ms
+            if (version != MissionVersion) return;
+            Ellipse = LandingEllipse.Analyze(site.Series, data, lander, mission, thresholds, radiusM);
+            Notify();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Analysis] landing ellipse: {ex.Message}");
+        }
     }
 
     public (int Site, int Day) SelectedCell =>

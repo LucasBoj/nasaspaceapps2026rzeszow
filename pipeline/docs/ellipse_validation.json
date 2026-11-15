@@ -1,0 +1,140 @@
+{
+  "generatedAt": "2026-11-15T00:13:16Z",
+  "sites": [
+    {
+      "siteId": "cabeus_b",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.1,
+      "earthMismatchHours": 5,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        49.1,
+        56.0
+      ],
+      "nasa3x3SunPct": [
+        39.0,
+        55.0
+      ]
+    },
+    {
+      "siteId": "haworth",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.61,
+      "earthMismatchHours": 7,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        53.8,
+        70.5
+      ],
+      "nasa3x3SunPct": [
+        47.7,
+        67.7
+      ]
+    },
+    {
+      "siteId": "malapert_massif",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.34,
+      "earthMismatchHours": 6,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        53.5,
+        83.7
+      ],
+      "nasa3x3SunPct": [
+        42.7,
+        74.3
+      ]
+    },
+    {
+      "siteId": "mons_mouton_plateau",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.15,
+      "earthMismatchHours": 3,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        41.5,
+        43.1
+      ],
+      "nasa3x3SunPct": [
+        41.4,
+        42.8
+      ]
+    },
+    {
+      "siteId": "mons_mouton",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.54,
+      "earthMismatchHours": 4,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        56.9,
+        81.6
+      ],
+      "nasa3x3SunPct": [
+        37.3,
+        78.4
+      ]
+    },
+    {
+      "siteId": "nobile_rim_1",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.39,
+      "earthMismatchHours": 4,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        54.9,
+        84.2
+      ],
+      "nasa3x3SunPct": [
+        52.5,
+        83.5
+      ]
+    },
+    {
+      "siteId": "nobile_rim_2",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.15,
+      "earthMismatchHours": 5,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        45.4,
+        53.8
+      ],
+      "nasa3x3SunPct": [
+        29.3,
+        52.4
+      ]
+    },
+    {
+      "siteId": "degerlache_rim_2",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.39,
+      "earthMismatchHours": 4,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        48.9,
+        79.7
+      ],
+      "nasa3x3SunPct": [
+        48.9,
+        78.5
+      ]
+    },
+    {
+      "siteId": "slater_plain",
+      "maxSunDeltaPp": 2,
+      "hoursOver1PpPct": 0.2,
+      "earthMismatchHours": 4,
+      "hours": 17544,
+      "ours3x3SunPct2027": [
+        50.7,
+        65.0
+      ],
+      "nasa3x3SunPct": [
+        50.1,
+        59.1
+      ]
+    }
+  ]
+}
