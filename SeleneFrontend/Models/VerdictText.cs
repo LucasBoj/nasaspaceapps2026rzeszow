@@ -80,6 +80,24 @@ public static class VerdictText
             : $"{P(share)}% of the spots within {r} m of the target would work.";
     }
 
+    /// <summary>
+    /// What the chance means: plain words in SIMPLE ("In 348 of 400 simulated landings…"), the interval and the verdict
+    /// split in ANALYST. Lists only the uncertainties that were actually sampled.
+    /// </summary>
+    public static string UncertaintySentence(MonteCarloResult r, bool analyst)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var parts = new List<string>();
+        if (r.LandingPoints > 1) parts.Add($"touching down anywhere within {Math.Round(r.Spec.RadiusM).ToString("0", inv)} m of the target");
+        if (r.Spec.LoadDelta > 0) parts.Add($"power use {P(r.Spec.LoadDelta * 100)}% higher or lower");
+        if (r.HeadingVaried && r.Spec.HeadingErrorDeg > 0) parts.Add($"the lander turned up to {P(r.Spec.HeadingErrorDeg)}° off its planned heading");
+        var what = parts.Count == 0 ? "" : " — " + string.Join(", ", parts);
+        if (!analyst)
+            return $"The mission works in {r.Feasible} of {r.Samples} simulated landings{what}.";
+        return $"Monte Carlo, {r.Samples} landings{what}: FEASIBLE {P(r.PFeasible * 100)}% (95% interval {P(r.CiLow * 100)}–{P(r.CiHigh * 100)}%), " +
+               $"MARGINAL {P(r.PMarginal * 100)}%, NOT FEASIBLE {P(r.PNotFeasible * 100)}%.";
+    }
+
     /// <summary>"7 days", "6.5 days", "1 day".</summary>
     public static string Days(double d) =>
         Math.Abs(d - 1) < 1e-9 ? "1 day" : $"{d.ToString(Math.Abs(d % 1) < 1e-9 ? "0" : "0.#", CultureInfo.InvariantCulture)} days";

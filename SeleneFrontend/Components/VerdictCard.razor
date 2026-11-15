@@ -29,8 +29,25 @@
             <h2 id="verdict-title" class="verdict-big">
                 <span class="verdict-icon" aria-hidden="true">@VerdictText.Icon(m.Verdict)</span>
                 @VerdictText.Label(m.Verdict)
+                @if (Analysis.Uncertainty is { } mc)
+                {
+                    <span class="verdict-prob @(mc.PFeasible < 0.5 ? "low" : mc.PFeasible < 0.9 ? "mid" : "")">
+                        @(Ui.AnalystMode ? $"P(FEASIBLE) = {P(mc.PFeasible * 100)}%" : $"{P(mc.PFeasible * 100)}% chance")
+                    </span>
+                }
+                else
+                {
+                    <span class="verdict-prob pending" aria-hidden="true">chance: computing…</span>
+                }
             </h2>
             <p class="verdict-sentence">@VerdictText.Sentence(m, Analysis.MissionSiteName, MissionState.MinBatteryPercent, MissionState.MinCommsPercent)</p>
+            @if (Analysis.Uncertainty is { } unc)
+            {
+                <p class="verdict-ellipse verdict-mc">
+                    <Term Key="montecarlo" AriaLabel="How is the chance computed?">ⓘ</Term>
+                    @VerdictText.UncertaintySentence(unc, Ui.AnalystMode)
+                </p>
+            }
             @if (Analysis.Ellipse is { } ellipse)
             {
                 <p class="verdict-ellipse">

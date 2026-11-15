@@ -267,15 +267,20 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     /// <summary>The shown mission one height step below and above the lander's panel height (null until loaded, or without heights data).</summary>
     public PanelHeightSensitivity? PanelHeight { get; private set; }
 
+    /// <summary>P(FEASIBLE) of the shown mission over landing point, loads and heading (null until computed).</summary>
+    public MonteCarloResult? Uncertainty { get; private set; }
+
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
     {
         Mission = MissionSimulator.Run(site.Series, lander, landingUtc, state.MissionDurationDays, Thresholds);
         MissionVersion++;
         Ellipse = null;
         PanelHeight = null;
+        Uncertainty = null;
         EllipseAccuracy = state.SelectedLander?.LandingAccuracyM;
         if (EllipseAccuracy is { Value: > 0 } accuracy)
             _ = UpdateEllipseAsync(MissionVersion, site, Mission, lander, Thresholds, accuracy.Value, state.PanelHeightM);
+        _ = UpdateUncertaintyAsync(MissionVersion, site, Mission, lander, Thresholds, EllipseAccuracy?.Value ?? 0, state.PanelHeightM);
         _ = UpdatePanelHeightAsync(MissionVersion, site, Mission, lander, Thresholds, state.PanelHeightM);
         // Same heading as the shown mission, so "max stay" and the verdict describe the same landing.
         MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
@@ -306,6 +311,34 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         catch (Exception ex)
         {
             Console.Error.WriteLine($"[Analysis] landing ellipse: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Monte Carlo of the shown mission: touchdown uniform within the landing accuracy (ellipse grid; target only without
+    /// ellipse data), loads ±20 % (as the robustness row) and heading ±15° (ASSUMPTION). Dropped if a newer mission replaced it.
+    /// </summary>
+    private async Task UpdateUncertaintyAsync(int version, OptimizerSite site, SimulationResult mission, LanderInputs lander,
+                                              MissionThresholds thresholds, double radiusM, double panelHeightM)
+    {
+        try
+        {
+            var data = radiusM > 0 ? await repo.GetEllipse(site.Id) : null;
+            if (version != MissionVersion) return;
+            var delta = data is null || PanelHeightAnalysis.IsSeriesHeight(panelHeightM) || await repo.GetHorizonHeights(site.Id) is not { } heights
+                ? null : PanelHeightAnalysis.HorizonDelta(heights, panelHeightM);
+            await Task.Yield();          // the verdict renders first; ~400 short re-runs follow
+            if (version != MissionVersion) return;
+            var spec = new UncertaintySpec(radiusM, SensitivityAnalysis.DefaultLoadDelta, MonteCarlo.DefaultHeadingErrorDeg,
+                                           MonteCarlo.DefaultSamples, MonteCarlo.DefaultSeed);
+            var result = MonteCarlo.Run(site.Series, data, lander, mission, thresholds, spec, delta);
+            if (version != MissionVersion) return;
+            Uncertainty = result;
+            Notify();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Analysis] Monte Carlo: {ex.Message}");
         }
     }
 

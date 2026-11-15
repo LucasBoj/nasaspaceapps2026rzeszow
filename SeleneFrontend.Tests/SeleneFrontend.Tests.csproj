@@ -32,6 +32,7 @@
     <Compile Include="..\SeleneFrontend\Services\IlluminationRepository.cs" Link="Linked\IlluminationRepository.cs" />
     <Compile Include="..\SeleneFrontend\Models\LandingEllipseData.cs" Link="Linked\LandingEllipseData.cs" />
     <Compile Include="..\SeleneFrontend\Services\LandingEllipse.cs" Link="Linked\LandingEllipse.cs" />
+    <Compile Include="..\SeleneFrontend\Services\MonteCarlo.cs" Link="Linked\MonteCarlo.cs" />
     <Compile Include="..\SeleneFrontend\Services\PanelHeight.cs" Link="Linked\PanelHeight.cs" />
     <Compile Include="..\SeleneFrontend\Models\PolarDem.cs" Link="Linked\PolarDem.cs" />
     <Compile Include="..\SeleneFrontend\Models\MoonEphemeris.cs" Link="Linked\MoonEphemeris.cs" />

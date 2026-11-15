@@ -2473,6 +2473,11 @@ body { font-size: var(--fs-m); line-height: 1.45; }
 .v-feasible .verdict-big { color: var(--status-ok); }
 .v-marginal .verdict-big { color: var(--status-warn); }
 .v-nogo .verdict-big { color: #ff6b6d; }   /* AA on the dark overlay */
+.verdict-prob { margin-left: var(--s2, 0.5rem); font-family: 'IBM Plex Mono', monospace; font-size: 0.55em; font-weight: 500;
+    color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 2px; padding: 0.1em 0.45em; vertical-align: middle; white-space: nowrap; }
+.verdict-prob.mid { color: var(--status-warn); border-color: var(--status-warn); }
+.verdict-prob.low { color: #ff6b6d; border-color: #ff6b6d; }
+.verdict-prob.pending { color: var(--text-secondary); font-weight: 400; }
 .verdict-sentence { font-size: var(--fs-m); margin-top: var(--s1); color: var(--text-primary); max-width: 64ch; }
 .verdict-numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); margin: 0; }
 .verdict-numbers.n5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
