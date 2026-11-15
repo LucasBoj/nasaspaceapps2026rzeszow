@@ -2059,7 +2059,7 @@ a { color: var(--accent-cyan); }
     position: absolute;
     left: var(--s3);
     top: var(--s3);
-    width: 260px;
+    width: 320px;
     display: flex;
     flex-direction: column;
     gap: var(--s2);
