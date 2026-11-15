@@ -218,6 +218,7 @@
         Ui.LandingRequested += HandleLandingRequested;
         Ui.NewLandingRequested += HandleNewLanding;
         Ui.ReplayRequested += HandleReplayRequested;
+        Ui.SiteHoverChanged += HandleSiteHover;
         Custom.OnChanged += HandleCustomChanged;
         Ui.HoverTimeChanged += HandleHoverTime;
     }
@@ -365,6 +366,15 @@
     [JSInvokable] public void OnReplayStep(int step) => Ui.SetReplayStep(step);
 
     [JSInvokable] public void OnReplayEnded(string outcome) => Ui.ReplayEnded(outcome);
+
+    /// <summary>Panel site list → light up that pin on the globe (name shown, pin grows).</summary>
+    private void HandleSiteHover(string? siteId) => _ = InvokeAsync(async () =>
+    {
+        if (!moonLoaded || moonModule is null) return;
+        try { await moonModule.InvokeVoidAsync("highlightSite", siteId); }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+    });
 
     /// <summary>The user dragged / scrolled the camera or pressed Esc: the mission summary folds away.</summary>
     [JSInvokable] public void OnViewerInteraction() => Ui.CollapseSummary();
@@ -645,12 +655,14 @@
     [JSInvokable]
     public Task OnSiteSelected(string siteId)
     {
+        Ui.ConfirmSite();
         return MissionState.SelectSite(siteId);
     }
 
     [JSInvokable]
     public async Task OnCustomSiteCreated(double lat, double lon)
     {
+        Ui.ConfirmSite();
         var customSite = new Site
         {
             Id = "CUSTOM_" + DateTime.UtcNow.Ticks,
@@ -684,6 +696,7 @@
         Ui.LandingRequested -= HandleLandingRequested;
         Ui.NewLandingRequested -= HandleNewLanding;
         Ui.ReplayRequested -= HandleReplayRequested;
+        Ui.SiteHoverChanged -= HandleSiteHover;
         Custom.OnChanged -= HandleCustomChanged;
         Ui.HoverTimeChanged -= HandleHoverTime;
 

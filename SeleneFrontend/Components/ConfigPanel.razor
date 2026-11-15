@@ -14,11 +14,11 @@
         <li class="step-item @StepState(1)" id="step-1">
             <h2 class="step-head">
                 <button type="button" aria-expanded="@(open == 1 ? "true" : "false")" aria-controls="step-body-1" @onclick="() => Toggle(1)">
-                    <span class="step-num" aria-hidden="true">@(Done(1) && open != 1 ? "✓" : "1")</span>
+                    <span class="step-num" aria-hidden="true">@(Done(1) && Ui.SiteConfirmed && open != 1 ? "✓" : "1")</span>
                     <span class="step-title">Choose a site</span>
                     @if (open != 1 && MissionState.SelectedSite is { } cur)
                     {
-                        <span class="step-value">@cur.Name</span>
+                        <span class="step-value">@cur.Name@(Ui.SiteConfirmed ? "" : " · suggested")</span>
                     }
                 </button>
             </h2>
@@ -31,17 +31,28 @@
                         <button type="button" class="btn-secondary small" @onclick="Ui.NewLanding">New landing</button>
                     }
                     <div class="site-list" role="radiogroup" aria-label="Landing sites">
-                        @foreach (var site in MissionState.AvailableSites)
+                        @* Sorted by sunlight (the best-lit first), with a bar to compare at a glance. Hovering a row lights up its pin. *@
+                        @foreach (var site in MissionState.AvailableSites.OrderByDescending(x => IndexFor(x.Id)?.PctSunlit ?? -1))
                         {
                             var selected = MissionState.SelectedSite?.Id == site.Id;
                             var info = IndexFor(site.Id);
+                            var suggested = site.Id == Ui.RecommendedSiteId;
                             <button type="button" role="radio" aria-checked="@(selected ? "true" : "false")"
                                     class="site-row @(selected ? "selected" : "")" disabled="@Ui.Landed"
+                                    @onmouseenter="() => Ui.HoverSite(site.Id)" @onmouseleave="() => Ui.HoverSite(null)"
+                                    @onfocus="() => Ui.HoverSite(site.Id)" @onblur="() => Ui.HoverSite(null)"
                                     @onclick="() => OnSiteSelected(site.Id)">
-                                <span class="site-row-name">@site.Name</span>
+                                <span class="site-row-name">
+                                    @site.Name
+                                    @if (suggested)
+                                    {
+                                        <span class="site-suggested">suggested</span>
+                                    }
+                                </span>
                                 @if (info is not null)
                                 {
                                     <span class="site-row-fact">sunlit <span class="num">@Pct0(info.PctSunlit)</span> of the time</span>
+                                    <span class="site-row-bar" aria-hidden="true"><span style="width: @Pct0(info.PctSunlit)"></span></span>
                                 }
                             </button>
                         }
@@ -49,8 +60,14 @@
                     @if (UiService.IsCustom(MissionState.SelectedSite) && MissionState.SelectedSite is { } custom)
                     {
                         <section class="custom-card @(custom.CustomUnavailable is null ? "" : "unavailable")" aria-labelledby="custom-title">
-                            <h3 id="custom-title">Custom site</h3>
+                            @* Same language as the region list: name, one fact, and a plain "quick estimate" tag (not a second kind of result). *@
+                            <h3 id="custom-title" class="site-row-name">Custom site <span class="site-suggested quick">quick estimate</span></h3>
                             <p class="num">@Coords(custom)</p>
+                            @if (Analysis.MissionSiteId == custom.Id && Analysis.Mission is { } cm)
+                            {
+                                <p class="site-row-fact">sunlit <span class="num">@Pct0(cm.SunPct)</span> of the mission</p>
+                                <span class="site-row-bar" aria-hidden="true"><span style="width: @Pct0(cm.SunPct)"></span></span>
+                            }
                             @if (!custom.CustomChecked)
                             {
                                 <p class="reason" role="status">Checking the terrain at this point… @(CustomSvc.Status is not null ? "(first click loads the 240 m terrain, ~5 MB)" : "")</p>
@@ -61,7 +78,7 @@
                             }
                             else
                             {
-                                <p class="custom-slope">Slope <span class="num">@(custom.SlopeDeg is { } sd ? $"{sd:0.0}°" : "—")</span> · LOLA 240 m terrain</p>
+                                <p class="custom-slope">Slope <span class="num">@(custom.SlopeDeg is { } sd ? $"{sd:0.0}°" : "—")</span> · computed here from the 240 m LOLA terrain (the 9 regions use 120 m)</p>
                                 @if (custom.SlopeDeg is > 10)
                                 {
                                     <p class="custom-steep" role="status">⚠ Steep terrain — risky landing (over 10°).</p>
@@ -116,7 +133,7 @@
                         </div>
                     }
                     <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedSite is null)"
-                            aria-describedby="@(MissionState.SelectedSite is null ? "next1-reason" : null)" @onclick="() => Open(2)">Next: choose a lander</button>
+                            aria-describedby="@(MissionState.SelectedSite is null ? "next1-reason" : null)" @onclick="() => { Ui.ConfirmSite(); Open(2); }">Next: choose a lander</button>
                     @if (MissionState.SelectedSite is null)
                     {
                         <p class="reason" id="next1-reason">Choose a site above (or click a pin on the Moon) first.</p>
@@ -129,11 +146,11 @@
         <li class="step-item @StepState(2)" id="step-2">
             <h2 class="step-head">
                 <button type="button" aria-expanded="@(open == 2 ? "true" : "false")" aria-controls="step-body-2" @onclick="() => Toggle(2)">
-                    <span class="step-num" aria-hidden="true">@(Done(2) && open != 2 ? "✓" : "2")</span>
+                    <span class="step-num" aria-hidden="true">@(Done(2) && Ui.LanderConfirmed && open != 2 ? "✓" : "2")</span>
                     <span class="step-title">Choose a lander</span>
                     @if (open != 2 && MissionState.SelectedLander is { } l)
                     {
-                        <span class="step-value">@l.Name</span>
+                        <span class="step-value">@l.Name@(Ui.LanderConfirmed ? "" : " · suggested")</span>
                     }
                 </button>
             </h2>
@@ -142,7 +159,7 @@
                 <div class="step-body" id="step-body-2">
                     <LanderPicker />
                     <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedLander is null)"
-                            aria-describedby="@(MissionState.SelectedLander is null ? "next2-reason" : null)" @onclick="() => Open(3)">Next: when to land</button>
+                            aria-describedby="@(MissionState.SelectedLander is null ? "next2-reason" : null)" @onclick="() => { Ui.ConfirmLander(); Open(3); }">Next: when to land</button>
                     @if (MissionState.SelectedLander is null)
                     {
                         <p class="reason" id="next2-reason">Choose a lander card above first.</p>
@@ -334,7 +351,9 @@
         _ => Analysis.HasResults && !Analysis.IsOutdated,
     };
 
-    private string StepState(int n) => n == open ? "active" : Done(n) ? "done" : "next";
+    private string StepState(int n) => n == open ? "active"
+        : Done(n) && (n != 1 || Ui.SiteConfirmed) && (n != 2 || Ui.LanderConfirmed) ? "done"
+        : Done(n) ? "suggested" : "next";
 
     private void Toggle(int n) => open = open == n ? 0 : n;
 
@@ -399,6 +418,7 @@
     private async Task OnSiteSelected(string siteId)
     {
         if (Ui.Landed) return;
+        Ui.ConfirmSite();
         await MissionState.SelectSite(siteId);
     }
 

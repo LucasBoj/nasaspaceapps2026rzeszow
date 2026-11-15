@@ -51,6 +51,7 @@ const PITCH_MAX_DEG = -10;                   // never flatter than this (no look
 const PITCH_MIN_DEG = -89;                   // never exactly straight down (heading would flip)
 const LOCKED_TITLE = "Landed — start a new landing to change the site";
 let hoveredId = null;
+let listHoverId = null;   // site row under the mouse in the panel's site list (highlights its pin)
 let pendingHoverPos = null;
 let hoverFrame = 0;
 
@@ -343,10 +344,7 @@ export function setViewerFlags(isLocked, isEnhanced) {
   viewer.scene.canvas.title = locked ? LOCKED_TITLE : "";
   if (locked && hoveredId) { const prev = hoveredId; hoveredId = null; restylePin(prev); }
   viewer.scene.canvas.style.cursor = "";
-  // While landed only the selected site keeps its label: the others must not cover the lander.
-  for (const e of viewer.entities.values) {
-    if (entityKind(e) === "site" && e.label) e.label.show = !locked || e.id === selectedSiteId;
-  }
+  for (const e of viewer.entities.values) if (entityKind(e) === "site") styleSitePin(e, e.id === selectedSiteId);
   if (enhanceChanged && lastSun) { sunLightKey = null; setSunLight(...lastSun); }
 }
 
@@ -384,8 +382,10 @@ export function introFlight() {
 
 function southPoleView() {
   return {
-    destination: Cesium.Cartesian3.fromDegrees(0, -72, 420000, Cesium.Ellipsoid.MOON),
-    orientation: { heading: Cesium.Math.toRadians(180), pitch: Cesium.Math.toRadians(-38), roll: 0 },
+    // The 9 regions sit in the middle of the frame with a thin strip of horizon above (was -72°, 420 km, -38°:
+    // half the view was black sky). Compared on screenshots 2026-11-15.
+    destination: Cesium.Cartesian3.fromDegrees(0, -76, 380000, Cesium.Ellipsoid.MOON),
+    orientation: { heading: Cesium.Math.toRadians(180), pitch: Cesium.Math.toRadians(-50), roll: 0 },
   };
 }
 
@@ -493,8 +493,8 @@ function pinGraphics(color, pixelSize, text) {
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
     label: {
-      text: text.toUpperCase(),
-      font: '11px "IBM Plex Mono", monospace',
+      text,
+      font: '600 12px "IBM Plex Sans", sans-serif',
       fillColor: color,
       style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       outlineColor: Cesium.Color.BLACK,
@@ -517,7 +517,7 @@ function placeCustomPin(lat, lon) {
     id: CUSTOM_SITE_ID,
     position: Cesium.Cartesian3.fromDegrees(lon, lat, 0, Cesium.Ellipsoid.MOON),
     properties: { kind: "custom" },
-    ...pinGraphics(CUSTOM_COLOR, PIN_SIZE.custom, `CUSTOM ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`),
+    ...pinGraphics(CUSTOM_COLOR, PIN_SIZE.custom, `Custom site ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`),
   });
 }
 
@@ -528,12 +528,13 @@ export function loadSites(sites) {
   for (const e of stale) viewer.entities.remove(e);
 
   for (const s of sites ?? []) {
-    viewer.entities.add({
+    const e = viewer.entities.add({
       id: s.id,
       position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 0, Cesium.Ellipsoid.MOON),
       properties: { kind: "site", approximate: !!s.approximate },
       ...pinGraphics(SITE_COLOR, PIN_SIZE.site, s.name ?? s.id),
     });
+    styleSitePin(e, false);
   }
 
   if (selectedSiteId) {
@@ -543,11 +544,36 @@ export function loadSites(sites) {
   }
 }
 
+/**
+ * Site pins: the full name only for the selected site and the one under the mouse (globe or the panel's site list),
+ * so labels never pile up over each other. While landed only the selected site keeps its label (it must not cover the lander).
+ */
 function styleSitePin(entity, selected) {
   const color = selected ? SELECTED_COLOR : SITE_COLOR;
+  const hot = !locked && (entity.id === hoveredId || entity.id === listHoverId);
   entity.point.color = color;
-  entity.point.pixelSize = (selected ? PIN_SIZE.selected : PIN_SIZE.site) + (entity.id === hoveredId ? HOVER_GROW_PX : 0);
-  entity.label.fillColor = color;
+  entity.point.pixelSize = (selected ? PIN_SIZE.selected : PIN_SIZE.site) + (hot ? HOVER_GROW_PX : 0);
+  if (entity.label) {
+    entity.label.fillColor = color;
+    entity.label.show = selected || hot;
+  }
+}
+
+/** Test hook: ids of the site pins whose name label is shown (E2E checks that labels do not pile up). */
+window.__seleneSiteLabels = () => viewer && !viewer.isDestroyed()
+  ? viewer.entities.values.filter((e) => entityKind(e) === "site" && e.label?.show?.getValue(viewer.clock.currentTime)).map((e) => e.id)
+  : [];
+
+/** The panel's site list highlights the pin of the row under the mouse (null clears). */
+export function highlightSite(siteId) {
+  if (!viewer || viewer.isDestroyed()) return;
+  const prev = listHoverId;
+  listHoverId = siteId ?? null;
+  for (const id of [prev, listHoverId]) {
+    const e = id ? viewer.entities.getById(id) : null;
+    if (e && entityKind(e) === "site") styleSitePin(e, id === selectedSiteId);
+  }
+  fullRate(300);
 }
 
 export function selectSite(siteId) {

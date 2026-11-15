@@ -375,6 +375,20 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         Notify();
     }
 
+    /// <summary>
+    /// Steps 1–2 show ✓ only after the user picked or confirmed the site / lander (or landed); the start-up
+    /// pre-selection is shown as "suggested".
+    /// </summary>
+    public bool SiteConfirmed { get; private set; }
+    public bool LanderConfirmed { get; private set; }
+
+    public void ConfirmSite() { if (SiteConfirmed) return; SiteConfirmed = true; Notify(); }
+    public void ConfirmLander() { if (LanderConfirmed) return; LanderConfirmed = true; Notify(); }
+
+    /// <summary>A site row under the mouse / focus in the panel (the viewer lights up its pin); null clears.</summary>
+    public event Action<string?>? SiteHoverChanged;
+    public void HoverSite(string? siteId) => SiteHoverChanged?.Invoke(siteId);
+
     /// <summary>"Change lander" from the Result step: open step 2 (picking another lander ends the landing).</summary>
     public void ChangeLander()
     {
@@ -476,6 +490,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     public async Task ConfirmLandingAsync(bool highlightBest = false)
     {
         if (!CanConfirmLanding) return;
+        SiteConfirmed = LanderConfirmed = true;   // landing there confirms both choices
         var site = state.SelectedSite!;
         var lander = state.SelectedLander!;
         ContactText = null;

@@ -32,6 +32,14 @@
             <LanderSilhouette Kind="@lander.Id" />
             <span class="lander-card-name">@lander.Name</span>
             <span class="lander-card-maker">@lander.Manufacturer</span>
+            @if (CardNumbers(lander) is { } nums)
+            {
+                <span class="lander-card-nums num">@nums</span>
+            }
+            @if (Difference(lander, landers) is { } diff)
+            {
+                <span class="lander-card-diff">@diff</span>
+            }
             <span class="lander-card-quality" title="@QualityTitle(lander)">
                 <span class="quality-dot" aria-hidden="true" style="--q: @QualityShare(lander)"></span>@QualityText(lander)
             </span>
@@ -41,12 +49,7 @@
 
 @if (MissionState.SelectedLander is { } simple && !Ui.AnalystMode)
 {
-    <dl class="lander-keys" aria-label="@($"{simple.Name} key figures")">
-        @foreach (var (label, value) in KeyFacts(simple))
-        {
-            <div><dt>@label</dt><dd>@value</dd></div>
-        }
-    </dl>
+    @* The cards carry solar power · battery · built-to-last; only the provenance note stays below them. *@
     <p class="lander-keys-note">
         <Term Key="quality" AriaLabel="About data quality">ⓘ</Term>
         @QualityTitle(simple)
@@ -227,11 +230,30 @@
         return string.Join(", ", parts) + ".";
     }
 
-    private static IEnumerable<(string Label, string Value)> KeyFacts(LanderPreset l)
+    /// <summary>Hours the battery carries the survival load in darkness, down to the battery threshold (derived from landers.json).</summary>
+    private double? DarkHours(LanderPreset l) =>
+        l.BatteryWh is { } b && l.SurvivalLoadW is { Value: > 0 } s ? b.Value * (1 - MissionState.MinBatteryPercent / 100) / s.Value : null;
+
+    private string? CardNumbers(LanderPreset l)
     {
-        if (l.SolarArrayW is { } a) yield return ("Solar power", $"{Fmt(a.Value)} W");
-        if (l.BatteryWh is { } b) yield return ("Battery", $"{Fmt(b.Value)} Wh");
-        if (l.MissionDurationDays is { } m) yield return ("Built to last", VerdictText.Days(m.Value));
+        if (l.SolarArrayW is null || l.BatteryWh is null) return null;
+        var kwh = l.BatteryWh.Value / 1000;
+        var days = l.MissionDurationDays is { } m ? $" · {m.Value.ToString("0.#", CultureInfo.InvariantCulture)} d" : "";
+        return $"{Fmt(l.SolarArrayW.Value)} W · {kwh.ToString(kwh >= 10 ? "0" : "0.0", CultureInfo.InvariantCulture)} kWh{days}";
+    }
+
+    /// <summary>One sentence on what sets this lander apart from the others in its class (ranks of the data, nothing invented).</summary>
+    private string? Difference(LanderPreset l, List<LanderPreset> all)
+    {
+        if (DarkHours(l) is not { } h) return null;
+        var hs = all.Select(DarkHours).OfType<double>().ToList();
+        var hours = h.ToString("0", CultureInfo.InvariantCulture);
+        if (hs.Count < 3) return $"Battery carries it ~{hours} h through darkness.";
+        if (h >= hs.Max()) return $"Longest reserve: ~{hours} h on battery in darkness.";
+        if (h <= hs.Min()) return $"Smallest reserve: ~{hours} h on battery — needs steady sunlight.";
+        if (l.SolarArrayW is { } a && all.All(x => x.SolarArrayW is null || x.SolarArrayW.Value <= a.Value))
+            return l.DayLoadW is { } d ? $"Most solar power, but also the largest day load ({Fmt(d.Value)} W)." : "Most solar power.";
+        return $"~{hours} h on battery in darkness.";
     }
 
     private ElementReference gridRef;
@@ -387,6 +409,7 @@
     private Task SelectLander(string id)
     {
         openInfo = null;
+        Ui.ConfirmLander();
         return MissionState.SelectLander(id);
     }
 
