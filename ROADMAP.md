@@ -372,6 +372,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Fable 5.2) — warmup kafli terenu przed pierwszym lądowaniem: diagnoza z kodu, implementacja, test ścieżki 2D
 ## ⚠️ Known issues / ryzyka
 
+- **Warmup terenu (`40c6b00`) na produkcji nie włącza się przy pierwszym lądowaniu** — sprawdzone 12:50 na https://selene.byst.re/ (świeże wejście, 3D, QUICK DEMO): brak zasłony „LOADING TERRAIN…”, lądowanie poprawne (werdykt MARGINAL, kurs 74° = docelowy, 0 błędów renderowania), faza TERMINAL 3,95 s (zwolnienie działa). Prawdopodobna przyczyna (nie potwierdzona): przy pierwszym lądowaniu `groundHeight` nie zdąża w 700 ms (`sampledGround == null`), a warmup jest wtedy celowo pomijany, żeby nie stawiać kamery pod terenem — czyli pomija dokładnie ten przypadek, o który chodzi. Zmiana jest nieszkodliwa (no-op). W tym samym teście pierwsza klatka opadania przyszła ~0,85 s po starcie zegara (pierwszy odczyt 8 389 m, faza DEORBIT prawie niewidoczna) — to jest przycięcie pierwszego uruchomienia; nie wiadomo, czy to kafle, czy kompilacja shaderów efektów. Do zrobienia po terminie: przy nieznanym gruncie najpierw poczekać pod zasłoną na `sampleHeightMostDetailed` (≤ 2,5 s), potem rozgrzać zbliżenie; zmierzyć w widocznym oknie. Na prezentacji: puścić QUICK DEMO raz przed pokazem.
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — nazwa narzędzia SI szkieletu w README/AI log, teksty SIMPLE bez żargonu, usunięcie dymka LANDED, kontrole produkcji
 ## ⚠️ Known issues / ryzyka
 
