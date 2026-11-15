@@ -12,5 +12,6 @@ builder.Services.AddScoped<IlluminationRepository>();
 builder.Services.AddScoped<MissionConfigState>();
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<UiService>();
+builder.Services.AddScoped<CustomSiteService>();
 
 await builder.Build().RunAsync();

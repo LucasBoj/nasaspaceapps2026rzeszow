@@ -1,0 +1,47 @@
+{
+  "width": 2536,
+  "height": 2536,
+  "pixelM": 240.0,
+  "originX": -304320.0,
+  "originY": 304320.0,
+  "crs": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs +type=crs",
+  "moonRadiusM": 1737400.0,
+  "dtype": "int16-le",
+  "nodata": -32768,
+  "encoding": "row-delta",
+  "heightUnit": "m",
+  "source": "ldem_75s_120m_float.lbl",
+  "method": "mean of 2\u00d72 source pixels (120 m), rounded to 1 m",
+  "checkPoints": [
+    {
+      "lat": -80.0,
+      "lon": 0.0,
+      "x": 0.0,
+      "y": 304005.6080198807
+    },
+    {
+      "lat": -85.0,
+      "lon": 90.0,
+      "x": 151713.04441849753,
+      "y": 9.289744711800661e-12
+    },
+    {
+      "lat": -89.5,
+      "lon": -45.0,
+      "x": -10720.991394207604,
+      "y": 10720.991394207605
+    },
+    {
+      "lat": -83.0,
+      "lon": 170.0,
+      "x": 36905.07776286417,
+      "y": -209299.0965681095
+    },
+    {
+      "lat": -87.2,
+      "lon": -120.0,
+      "x": -73544.85426434621,
+      "y": -42461.14140703207
+    }
+  ]
+}

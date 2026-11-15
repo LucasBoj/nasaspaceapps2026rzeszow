@@ -178,12 +178,13 @@ if new != html:
 PY
   recompress "$WWW/index.html"
 
-  # 3D models are not compressed by dotnet publish; pre-compress them for gzip_static.
+  # 3D models and binary data (DEM, ephemeris for custom sites) are not compressed by dotnet publish;
+  # pre-compress them for gzip_static.
   local glb
   while IFS= read -r -d '' glb; do
     gzip -9 -k -f "$glb"
     echo "  ok  pre-compressed ${glb#"$WWW/"} ($(human "$(wc -c < "$glb")") → $(human "$(wc -c < "$glb.gz")"))"
-  done < <(find "$WWW" -name '*.glb' -print0)
+  done < <(find "$WWW" \( -name '*.glb' -o -name '*.bin' \) -print0)
 
   say "Size"
   local total raw files

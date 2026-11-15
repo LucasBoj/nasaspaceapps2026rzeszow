@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-15 01:25 CET
+**Ostatnia aktualizacja:** 2026-11-15 CET (scalone `custom-sites`)
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -91,6 +91,14 @@
 
 - [x] **Elipsa lądowania zamiast punktu** (P1, największa luka Validity): pipeline `build_ellipse.py` + `ellipse.py` liczy dla każdego z 9 miejsc siatkę 197 punktów co 60 m w promieniu 480 m (horyzont LOLA każdego punktu, 0,12 s na punkt, ~30 s na miejsce) → `illumination/{siteId}/ellipse.json` (addytywnie, ~90 KB gzip na miejsce, ładowane tylko dla wybranego miejsca). Frontend (`LandingEllipse.cs`) odtwarza światło i łączność w każdym punkcie z serii Słońca/Ziemi miejsca (kierunki są te same 480 m dalej; zmienia się horyzont i lokalny układ: obrót północy do ~0,6°, pochylenie pionu 0,016°) i powtarza pokazaną misję (ta sama data, długość, kurs). Promień = celność lądownika, nowe pole `landers.json → landingAccuracyM` ze źródłami: Blue Ghost 100 m (M1 w celu 100 m, Firefly), Nova-C 400 m (IM-2 > 400 m od celu wg NASA, IM: 250 m), Starship HLS / Blue Moon 100 m (wymaganie NASA Artemis III, NTRS 20240009596), Griffin 250 m ASSUMPTION (jeszcze nie lądował). UI: wiersz ELLIPSE ±R m w panelu odporności (odsetek FEASIBLE, liczby punktów, zakres światła, najostrzejsze nachylenie, mini-mapa N↑), zdanie prostym językiem w karcie werdyktu (SIMPLE i ANALYST), wiersz „Landing accuracy” w specyfikacji lądownika, termin w słowniku. **Walidacja** (`build_ellipse.py --validate`, `pipeline/docs/ellipse_validation.json`): 5 punktów × 9 miejsc × 17 544 h liczone bezpośrednio (własne efemerydy i horyzont) vs rekonstrukcja: maks. 2 pp, ≤ 0,61% godzin > 1 pp, ≤ 7 h różnicy widoczności Ziemi — tyle samo co zaokrąglenia w samym miejscu. Pierwsza wersja (horyzont przepróbkowany do układu miejsca) myliła się do 15 pp — poprawione. Zakres ±120 m vs mapa NASA 3×3: górne końce zgodne w 0–9 pp, Nobile Rim 1 55–84% vs 53–84%, de Gerlache Rim 2 49–80% vs 49–79%. Wynik QUICK DEMO (Nova-C, Nobile Rim 1, 7 d): **78% FEASIBLE** (107 z 137 punktów w 400 m; niewykonalne na SE). Testy: xUnit 91/91 (15 nowych), pipeline 64 passed (7 nowych + test na prawdziwym DEM), build 0 ostrzeżeń, sprawdzone w przeglądarce (ANALYST i SIMPLE, Nova-C i Blue Ghost, brak błędów w konsoli) — 2026-11-15 01:25 CET — commit z tym wpisem — AI: Claude Code
 
+- [x] **Analiza dowolnego punktu w czapie polarnej 80–90°S (gałąź `custom-sites`, scalone do `main` 2026-11-15):**
+  - Pipeline `export_browser_data.py` (~1 s): efemerydy godzinowe 2026-11 … 2035 (punkt pod Słońcem i pod Ziemią + odległości, pozorne, `MOON_ME_DE421`, Float32, 1,9 MB) i DEM LOLA 80–90°S 240 m (średnia 2×2, Int16 + kodowanie różnicowe wierszy, 12,9 MB → 6,6 MB gzip / 5,2 MB brotli). Kontrakt w CLAUDE.md, opis i tabela w pipeline/README.md. deploy.sh kompresuje teraz także `*.bin`.
+  - Przeglądarka (`PolarDem`, `CustomSiteMath`, `CustomSiteService`): te same wzory co pipeline (horyzont z krzywizną, 360 promieni do 150 km, obserwator 2 m; topocentryczna paralaksa Ziemi do 0,26°; `sunFraction` i margines Ziemi 0,5°) → seria w formacie illumination, więc symulator, optymalizator, oś czasu, mapa ciepła (wiersz Custom obok 9 regionów) i replay działają bez zmian. Maska horyzontu 20–30 ms obliczeń, seria 3 lata ~10 ms (Release, WASM); DEM ładowany przy pierwszym kliknięciu, cache; postęp w HUD.
+  - UI: klik w teren → pinezka i karta „Custom site” (współrzędne, nachylenie z DEM, „Analyse this point”, ostrzeżenie > 10°, „Nearest region” jako podpowiedź); poza 80–90°S komunikat „Custom analysis covers the south polar region (80–90°S)”; wynik oznaczony „Quick estimate · 240 m terrain” (tooltip z wynikami walidacji). Usunięty komunikat „Custom points can't be analysed yet”.
+  - Walidacja: Słońce/Ziemia vs JPL Horizons ≤ 0,005° (3 miejsca × 42 epoki 2026–2035); rzutowanie vs pyproj < 1 cm; syntetyczny DEM (płaski −0,03°, ściana 600 m → znany kąt); metoda przeglądarkowa vs pipeline dla 9 regionów 2027–2028: % słońca ≤ 2,1 pp (mediana 0,5), kontakt z Ziemią ≤ 1,9 pp; najdłuższa noc różni się do ~70 h (Nobile Rim 1) przez gładszy teren 240 m.
+  - Ręcznie (skrypt E2E w 3 silnikach): płaski 86,0°S 100,0°W — 100 % słońca, nachylenie 2,3°; ściana Shackletona 89,55°S — 18,2°, ostrzeżenie, 0 % słońca (horyzont 17°); dno Shackletona — 0 % słońca; 78°S — komunikat; pierwszy wynik ~6,7 s (z animacją lądowania), brak błędów w konsoli.
+  - Testy: xUnit 86/86 (nowe `CustomSiteTests`), pipeline 56 passed, E2E custom 12/12 i blokady 15/15 w Chromium, Firefox, WebKit; regresja UX/replay/modele — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+
 ## 🔄 In progress
 
 _(nic przypisanego — wpisz się tutaj, gdy zaczynasz zadanie)_
@@ -112,6 +120,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - Gotowe, gdy: wideo ≤ 30 s z angielskimi napisami jest podpięte do zgłoszenia.
 
 - [x] **Scalić `polish-timelapse` do `main`** — scalone w `e67f5c2` (2026-11-15 00:46) i wdrożone; **czy ręczne sprawdzenie poniżej zostało zrobione — do potwierdzenia przez zespół**. Było: po ręcznym sprawdzeniu — każdy lądownik × ≥ 2 miejsca (w tym Nobile Rim 2, najbardziej nachylone 3,9°), Chrome/Firefox/Safari, 1920×1080 i 1366×768, ≥ 30 fps na laptopie do prezentacji (headless renderuje programowo 8–25 fps, tego nie da się tu zmierzyć). Polecenie: `git checkout main && git merge --no-ff polish-timelapse && git push origin main` — zespół
+
 
 ### P1
 
@@ -197,7 +206,13 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — elipsa lądowania: pobranie DEM LOLA i kerneli, moduł pipeline (siatka horyzontów, transformacja układu, walidacja vs pełne przeliczenie i mapa NASA 3×3), źródła celności lądowników (Firefly, NASA/IM-2, NASA HLS), logika i UI we frontendzie, testy
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — pakiet polish-timelapse: przeliczenie danych 2026–2035 w plikach rocznych i walidacje (Horizons, NASA, Mazarico), kalendarz, panel analizy, płomień i pył (ParticleSystem), Mission replay z zakończeniami HLS/CLPS/porażka, testy jednostkowe i E2E w 3 silnikach
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — analiza dowolnego punktu 80–90°S: eksport efemeryd i DEM 240 m, obliczenia w przeglądarce (horyzont, paralaksa, seria), walidacja vs JPL Horizons i pipeline, UI karty Custom, testy jednostkowe i E2E
 ## ⚠️ Known issues / ryzyka
+
+- **Custom: promienie horyzontu urywają się na 80°S** — wycięty DEM sięga do 80°S (cel rozmiaru ≤ 8 MB), więc dla punktów blisko 80°S część promieni do 150 km kończy się wcześniej (jak w pipeline: liczy się maksimum wewnątrz DEM). Skutek: horyzont od strony równika może być zaniżony.
+- **Custom: najdłuższa noc mniej dokładna niż % słońca** — teren 240 m wygładza małe grzbiety; w walidacji różnica do ~70 h (Nobile Rim 1), stąd oznaczenie „Quick estimate”.
+- **Dane dla punktów custom: +14 MB w repo** (DEM 12,9 MB + efemerydy 1,9 MB); przeglądarka pobiera DEM (~6,6 MB gzip) dopiero przy pierwszym kliknięciu w teren.
+- **Hak testowy `window.__seleneTestClick(lat, lon)`** w moonViewer.js — ta sama ścieżka co kliknięcie w teren; używany tylko przez testy E2E.
 
 - **Ciemna klatka tuż nad gruntem (headless)** — przy zbliżeniu kamery do terenu kafle Cesium Moon doczytują się z opóźnieniem i przez ułamek sekundy tło jest czarne; w wariancie z pyłem bywa to wyraźniejsze. Pył startuje dopiero ≤ 5× rozmiar lądownika, shadery są rozgrzewane wcześniej. Sprawdzić na laptopie z GPU.
 - **Rozmiar danych oświetlenia 18 MB w repo i na serwerze** (wcześniej 3,9 MB) — przeglądarka pobiera tylko lata okna (domyślnie 2027–2029, ~1,6 MB gzip dla 9 miejsc).

@@ -380,7 +380,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
 
     public bool CanConfirmLanding =>
         !LandingInProgress && state.SelectedLander is not null
-        && state.SelectedSite is { } s && state.AvailableSites.Any(a => a.Id == s.Id);
+        && analysis.CanRun;   // one of the 9 regions, or a checked custom point in 80–90°S
 
     /// <summary>
     /// CONFIRM LANDING SITE: the analysis starts immediately and runs in parallel with the landing
@@ -530,8 +530,9 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         if (LandingInProgress) { list.Add(new(0, "Landing in progress — wait for touchdown")); return list; }
         var site = state.SelectedSite;
         if (site is null) list.Add(new(1, "Choose one of the 9 landing regions"));
-        else if (IsCustom(site)) list.Add(new(1, "Custom points can't be analysed yet — choose one of the 9 regions", NearestRegion: true));
-        else if (!state.AvailableSites.Any(a => a.Id == site.Id)) list.Add(new(1, "Choose one of the 9 landing regions"));
+        else if (site is { IsCustom: true, CustomUnavailable: { } why }) list.Add(new(1, why, NearestRegion: true));
+        else if (site is { IsCustom: true, CustomChecked: false }) list.Add(new(0, "Checking the terrain at this point…"));
+        else if (!site.IsCustom && !state.AvailableSites.Any(a => a.Id == site.Id)) list.Add(new(1, "Choose one of the 9 landing regions"));
         if (state.SelectedLander is null) list.Add(new(2, "Choose a lander"));
         return list;
     }

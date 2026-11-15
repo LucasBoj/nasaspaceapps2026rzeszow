@@ -2684,3 +2684,14 @@ html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: aut
     .replay-numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .replay-speeds { display: inline-flex; flex: none; }
+
+/* ---- Custom site (any point in 80–90°S) ---- */
+.custom-card { display: grid; gap: 6px; padding: var(--s3); background: var(--bg-panel); border-left: 2px solid var(--accent-cyan); border-radius: 2px; }
+.custom-card.unavailable { border-left-color: var(--status-warn); }
+.custom-card h3 { font-size: var(--fs-m); font-weight: 600; }
+.custom-card .btn-secondary { justify-self: start; flex: none; }
+.custom-slope { font-size: var(--fs-s); color: var(--text-dim); }
+.custom-steep { color: var(--status-warn); font-size: var(--fs-s); }
+.custom-out { color: var(--status-warn); }
+.quick-estimate .term-btn { font-size: var(--fs-s); }
+.custom-progress { width: 320px; }

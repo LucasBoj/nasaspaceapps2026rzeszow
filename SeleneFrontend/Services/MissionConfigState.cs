@@ -178,15 +178,20 @@ public class MissionConfigState
         }
     }
 
+    /// <summary>The last point clicked on the terrain (80–90°S analysis), kept so the heatmap row can select it again.</summary>
+    public Site? CustomSite { get; private set; }
+
     public async Task SelectSite(string siteId, Site? customSite = null, bool fly = true)
     {
         if (customSite != null)
         {
             SelectedSite = customSite;
+            if (customSite.IsCustom) CustomSite = customSite;
         }
         else
         {
-            SelectedSite = AvailableSites.FirstOrDefault(s => s.Id == siteId);
+            SelectedSite = AvailableSites.FirstOrDefault(s => s.Id == siteId)
+                           ?? (CustomSite is { } c && c.Id == siteId ? c : null);
         }
         OnStateChanged?.Invoke();
         // Every explicit site selection (map pin or list) flies the camera there,
@@ -194,6 +199,9 @@ public class MissionConfigState
         if (fly) RequestFlyTo();
         await Task.CompletedTask;
     }
+
+    /// <summary>The selected site's details changed (e.g. a custom point's slope arrived): re-render.</summary>
+    public void NotifySiteChanged() => OnStateChanged?.Invoke();
 
     public void RequestFlyTo()
     {

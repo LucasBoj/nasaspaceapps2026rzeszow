@@ -166,6 +166,15 @@ export async function initViewer(elementId, token, dotNetReference) {
   viewer.screenSpaceEventHandler.setInputAction(onDoubleClick, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   viewer.screenSpaceEventHandler.setInputAction(onMouseMove, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
   setupCameraControls();
+  // Test hook: the same path as a click on the terrain at a given point (E2E tests pick exact coordinates).
+  window.__seleneTestClick = (lat, lon) => {
+    if (locked) return false;
+    placeCustomPin(lat, lon);
+    selectSite(null);
+    decorate(CUSTOM_SITE_ID);
+    dotNetRef?.invokeMethodAsync("OnCustomSiteCreated", lat, lon);
+    return true;
+  };
 
   return { terrainLoaded, hasToken };
 }

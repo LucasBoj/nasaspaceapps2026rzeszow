@@ -405,6 +405,60 @@ series (`docs/ellipse_validation.json`). It also compares our sunlit range over 
   sensitive", not as an upper bound on the risk.
 * Slopes come from the 120 m DEM (Horn, 3×3 pixels) and are smoother than the real surface.
 
+## Custom sites: data for the in-browser analysis (80–90°S)
+
+The app can analyse **any point** of the south polar cap, not only the 9 regions. The browser cannot run
+Skyfield or read the 230 MB DEM, so `export_browser_data.py` exports two compact datasets
+(contract in CLAUDE.md):
+
+```bash
+python export_browser_data.py --dem /path/ldem_75s_120m_float.lbl     # ~1 s
+```
+
+| Data | Content | Size (raw → gzip / brotli) |
+|---|---|---|
+| `data/ephem/{year}.bin` 2026-11 … 2035 | per hour: sub-solar and sub-Earth latitude/longitude and distance, apparent, seen from the Moon's centre in `MOON_ME_DE421` (Float32 × 6) | 0.21 MB → 0.19 MB per year, 1.9 MB in total |
+| `data/dem/south80_240m.bin` | LOLA heights 80–90°S, 2 536 × 2 536 px at 240 m (mean of 2 × 2 120 m pixels), Int16 metres, row-delta encoded | 12.9 MB → 6.6 MB / 5.2 MB |
+
+The browser (`PolarDem`, `CustomSiteMath`, `CustomSiteService`) does what `horizon.py` and `illumination.py` do:
+
+* **Sun and Earth:** the body vector minus the observer's position on the sphere (R = 1 737.4 km), projected
+  on the local east/north/up axes. This topocentric step adds the Earth's parallax, up to 0.26°, which is more
+  than half of the 0.5° Earth margin, so it is needed. The Sun's parallax is below 0.001°.
+* **Horizon:** 360 rays to 150 km with a step of one DEM pixel (240 m), bilinear heights, curvature drop
+  `elev = atan2(dh − d²/2R, d)`, observer 2 m above the terrain. Points along a ray are built as unit
+  vectors and projected with x = 2R·Y/(1−Z), y = 2R·X/(1−Z), so there is no trigonometry per sample.
+  Rays leaving the DEM keep their maximum inside it (as in the pipeline). The exported DEM stops at 80°S,
+  so near that latitude some rays are cut.
+* **Visibility:** the same `sunFraction` (linear disk, r = 0.267°) and Earth margin 0.5°.
+
+**Validation** (`SeleneFrontend.Tests/CustomSiteTests.cs`):
+
+* Sun and Earth direction vs JPL Horizons, 3 sites × 42 epochs 2026–2035: ≤ 0.005° (the 0.01° storage step).
+* Projection vs pyproj check points: < 1 cm.
+* Synthetic terrain: flat ground gives a horizon of −0.03° (observer 2 m + curvature). A 600 m wall 6 km
+  away gives its known angle.
+* Browser method (240 m) vs pipeline (120 m) for the 9 regions, 2027–2028:
+
+| Region | Sunlit % pipeline (120 m) | browser (240 m) | Δ pp | Earth % pipeline | browser | Δ pp | Longest dark h pipeline | browser | horizon ms |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Peak near Cabeus B | 53.8 | 53.2 | −0.6 | 70.2 | 71.4 | +1.2 | 359 | 362 | 66 |
+| Haworth | 70.3 | 70.6 | +0.3 | 55.3 | 55.3 | 0.0 | 397 | 382 | 14 |
+| Malapert Massif | 81.9 | 81.8 | −0.1 | 67.4 | 68.6 | +1.2 | 325 | 323 | 13 |
+| Mons Mouton Plateau | 42.8 | 43.3 | +0.5 | 73.9 | 75.3 | +1.4 | 464 | 461 | 14 |
+| Mons Mouton | 79.5 | 80.0 | +0.5 | 70.8 | 71.4 | +0.6 | 226 | 216 | 14 |
+| Nobile Rim 1 | 84.2 | 86.3 | +2.1 | 62.4 | 62.3 | −0.1 | 283 | 210 | 14 |
+| Nobile Rim 2 | 53.8 | 53.4 | −0.4 | 60.6 | 60.7 | 0.0 | 356 | 399 | 13 |
+| de Gerlache Rim 2 | 79.6 | 79.8 | +0.2 | 54.9 | 54.9 | 0.0 | 246 | 246 | 14 |
+| Slater Plain | 60.8 | 60.2 | −0.6 | 33.7 | 35.5 | +1.9 | 333 | 357 | 14 |
+
+Target was ≤ 5 percentage points of sunlit time for every region: the worst is **2.1 pp (Nobile Rim 1)**,
+the median 0.5 pp. Earth contact is within 1.9 pp. The longest night can differ by tens of hours
+(Nobile Rim 1: 210 h vs 283 h), because the 240 m terrain smooths small ridges that briefly block a Sun
+skimming the horizon. That is why the app marks custom results as *Quick estimate · 240 m terrain*.
+Horizon times in the last column are native .NET; in the browser (Release build) a mask takes ~20–30 ms of
+compute and a 3-year series ~10 ms.
+
 ## Output format
 
 `illumination/{siteId}/{year}.json` (one file per site and calendar year, 2026-11 … 2035; same fields in every file):
