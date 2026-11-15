@@ -161,6 +161,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="panel/antenna height above terrain in m (default 2)")
     p.add_argument("--max-distance-km", type=float, default=horizon.DEFAULT_MAX_DISTANCE_M / 1000,
                    help="horizon ray length in km (default 150)")
+    p.add_argument("--no-index", action="store_true",
+                   help="do not add the sites to index.json (extra sites such as the ice-first candidates, build_psr.py)")
     p.add_argument("--dem-units", choices=["auto", "m", "km"], default="auto",
                    help="height units of the DEM (default: auto-detect)")
     return p.parse_args(argv)
@@ -221,7 +223,9 @@ def main(argv: list[str] | None = None) -> int:
         tqdm.write(f"  ✓ {site['id']}: sunlit {stats['pctSunlit']}%, comms {stats['pctComms']}%, "
                    f"longest dark {stats['longestDarkHours']} h, DEM coverage {coverage:.0%}")
 
-    if entries:
+    if entries and args.no_index:
+        print(f"Wrote {len(entries)} site(s) without touching index.json (--no-index)")
+    elif entries:
         meta = {"start": iso_z(start), "end": iso_z(end), "stepHours": STEP_HOURS,
                 "years": list(range(start.year, end.year + 1)),
                 "observerHeightM": args.observer_height, "dem": dem.name,

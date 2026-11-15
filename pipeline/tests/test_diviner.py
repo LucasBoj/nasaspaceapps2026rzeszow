@@ -50,8 +50,11 @@ def test_subsolar_point_geometry():
 
 def test_app_file_lit_hours_are_warmer_than_dark_hours():
     app = json.loads(d.FRONTEND_JSON.read_text(encoding="utf-8"))
+    regions = {s["id"] for s in json.loads(d.build.DEFAULT_SITES.read_text(encoding="utf-8"))}
     sites = [p for p in app["points"] if "check" in p]
-    assert len(sites) == 9
+    # The 9 regions, plus the ice-first alternatives of build_psr.py (ids "{region}_ice"), which have their own series.
+    assert {p["id"] for p in sites if p["id"] in regions} == regions
+    assert all(p["id"] in regions or p["id"].removesuffix("_ice") in regions for p in sites)
     for p in sites:
         assert len(p["summerK"]) == len(p["winterK"]) == 96
         assert p["check"]["litMeanK"] > p["check"]["darkMeanK"] + 40, p["id"]

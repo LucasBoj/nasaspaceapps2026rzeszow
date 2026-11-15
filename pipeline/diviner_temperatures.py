@@ -246,6 +246,11 @@ def window_3x3(block_rows: list[list[tuple]], cell: GridCell) -> list[float | No
 
 def points() -> list[tuple[str, str, float, float]]:
     sites = json.loads(build.DEFAULT_SITES.read_text(encoding="utf-8"))
+    # The ice-first alternatives (build_psr.py) get their own ground temperatures, so the sun-vs-ice verdicts compare
+    # like with like (a missing curve would mean 0 K ground for the heater model).
+    ice = build.DEFAULT_SITES.parent / "science" / "ice_sites.json"
+    if ice.exists():
+        sites += json.loads(ice.read_text(encoding="utf-8"))
     return [(s["id"], s["name"], s["lat"], s["lon"]) for s in sites] + REFERENCE_POINTS
 
 

@@ -6,6 +6,7 @@
 @inject UiService Ui
 @inject IlluminationRepository Repo
 @inject CustomSiteService CustomSvc
+@inject IceComparisonService IceCompare
 @implements IDisposable
 
 <div class="config-panel-content">
@@ -142,6 +143,10 @@
                                 <text>&#32;@trade</text>
                             }
                         </p>
+                        @if (IceCompare.IsCurrent && IceCompare.Result is { } iceCmp && Analysis.MissionSiteId == psr.SiteId)
+                        {
+                            <p class="site-ice" role="status">@IceComparison.Sentence(iceCmp)</p>
+                        }
                     }
                     <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedSite is null)"
                             aria-describedby="@(MissionState.SelectedSite is null ? "next1-reason" : null)" @onclick="() => { Ui.ConfirmSite(); Open(2); }">Next: choose a lander</button>
@@ -414,6 +419,7 @@
         MissionState.OnStateChanged += Refresh;
         Analysis.OnChanged += Refresh;
         Ui.OnChanged += Refresh;
+        IceCompare.OnChanged += Refresh;
     }
 
     private void Refresh() => InvokeAsync(() => { SyncOpenStep(); StateHasChanged(); });
@@ -424,6 +430,7 @@
         MissionState.OnStateChanged -= Refresh;
         Analysis.OnChanged -= Refresh;
         Ui.OnChanged -= Refresh;
+        IceCompare.OnChanged -= Refresh;
     }
 
     private async Task OnSiteSelected(string siteId)

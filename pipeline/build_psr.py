@@ -34,6 +34,9 @@ import build
 REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "SeleneFrontend" / "wwwroot" / "data" / "science" / "psr.json"
 CANDIDATES = build.DEFAULT_OUT / "candidates"
+# The ice-first candidates in sites.json format, for build.py --no-index / build_ellipse.py / build_heights.py --sites.
+ICE_SITES = REPO / "SeleneFrontend" / "wwwroot" / "data" / "science" / "ice_sites.json"
+ICE_MIN_SUN_PCT = 40.0   # same rule as PsrRegion.IceFirst in the app: a solar lander needs light at least 40 % of the time
 SOURCE = {
     "product": "LPSR_75S_120M_201608",
     "citation": "Mazarico, E., et al. (2011), Illumination conditions of the lunar polar regions using LOLA topography, "
@@ -145,6 +148,14 @@ def pareto(cands: list[dict]) -> set[str]:
     return front
 
 
+def ice_first(cands: list[dict]) -> dict | None:
+    """Closest-to-ice point of the front that is not the site, sunlit >= ICE_MIN_SUN_PCT and closer to a PSR than the site."""
+    site = next((c for c in cands if c["isSite"]), None)
+    options = [c for c in cands if c["pareto"] and not c["isSite"] and c["sunPct"] >= ICE_MIN_SUN_PCT
+               and (site is None or c["d1Km"] < site["d1Km"])]
+    return min(options, key=lambda c: c["d1Km"]) if options else None
+
+
 def build_doc(m: PsrMap, sites: list[dict]) -> dict:
     out_sites, regions = [], []
     for s in sites:
@@ -167,7 +178,11 @@ def build_doc(m: PsrMap, sites: list[dict]) -> dict:
         front = pareto(cands)
         for c in cands:
             c["pareto"] = c["candidateId"] in front
-        regions.append({"siteId": s["id"], "sunPeriod": f"{doc.get('start', '')} .. {doc.get('end', '')}",
+        ice = ice_first(cands)
+        ice_site = None if ice is None else {
+            "siteId": f"{s['id']}_ice", "candidateId": ice["candidateId"], "name": f"{s['name']} · {ice['candidateId']} (near ice)",
+            "lat": ice["lat"], "lon": ice["lon"]}
+        regions.append({"siteId": s["id"], "iceSite": ice_site, "sunPeriod": f"{doc.get('start', '')} .. {doc.get('end', '')}",
                         "sunDefinition": f"share of hours with >= {doc.get('litThresholdPct', 50)} % of the solar disc (candidates/*.json)",
                         "candidates": sorted(cands, key=lambda c: -c["sunPct"])})
     return {**SOURCE, "generatedAt": build.iso_z(datetime.now(timezone.utc)),
@@ -188,6 +203,13 @@ def main(argv: list[str] | None = None) -> int:
     doc["provenance"] = build.PROVENANCE
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
+    ice_sites = [{"id": r["iceSite"]["siteId"], "name": r["iceSite"]["name"], "lat": r["iceSite"]["lat"], "lon": r["iceSite"]["lon"],
+                  "approximate": False, "regionId": r["siteId"], "candidateId": r["iceSite"]["candidateId"],
+                  "source": f"Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate {r['iceSite']['candidateId']}, "
+                            "closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"}
+                 for r in doc["regions"] if r["iceSite"]]
+    ICE_SITES.write_text(json.dumps(ice_sites, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"ice-first sites: {', '.join(s['id'] + ' (' + s['candidateId'] + ')' for s in ice_sites)}")
     print(f"PSR total {doc['totalPsrKm2']} km², regions {doc['regionsKm2']}")
     print("| Site | nearest PSR | PSR ≥ 1 km² | PSR ≥ 10 km² | PSR within 5 km | outlines |")
     print("|---|---:|---:|---:|---:|---:|")

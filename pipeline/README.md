@@ -500,6 +500,35 @@ python build_psr.py --psr /path/to/lpsr_75s_120m_201608.lbl     # ~15 s → Sele
 \* = our site (the sunniest candidate). Limits: distances are straight lines, not walking paths; permanent shadow marks
 where ice *can* be trapped (cold traps), not where it has been detected; the PSR map is the 2016 release at 120 m.
 
+**Full verdicts near the ice (stage 3).** Per region, `build_psr.py` also picks the **ice-first** candidate: the point
+of the front closest to a PSR ≥ 1 km² that is not the site, lit at least 40 % of the time and closer to ice than the
+site (the same rule as `PsrRegion.IceFirst` in the app). It writes them in `sites.json` format to
+`data/science/ice_sites.json`, and they get exactly the data the 9 regions have:
+
+```bash
+python build_psr.py --psr /path/lpsr_75s_120m_201608.lbl                       # → psr.json (iceSite per region) + ice_sites.json
+python build.py --dem /path/ldem_75s_120m_float.lbl --sites ../SeleneFrontend/wwwroot/data/science/ice_sites.json --no-index
+python build_heights.py --dem /path/ldem_75s_120m_float.lbl --sites ../SeleneFrontend/wwwroot/data/science/ice_sites.json
+python build_ellipse.py --dem /path/ldem_75s_120m_float.lbl --sites ../SeleneFrontend/wwwroot/data/science/ice_sites.json
+python diviner_temperatures.py --refresh                                       # adds their Diviner ground temperatures
+```
+
+`--no-index` keeps them out of `index.json` (the heatmap stays at 9 regions); their yearly files live in
+`illumination/{region}_ice/`. The app re-runs the shown mission there (same lander, date and length) and finds the
+ice site's own best date in the window (`IceComparison`, ANALYST tab "Sun vs ice" and one sentence in the site step).
+
+| Region | Ice-first | Sunlit (any Sun, 2026-11 … 2035) | Earth | Longest dark |
+|---|---|---:|---:|---:|
+| Haworth | HW02 | 50.6 % | 55.4 % | 416 h |
+| Mons Mouton Plateau | MMP11 | 43.3 % | 55.5 % | 489 h |
+| Mons Mouton | MMO09 | 55.9 % | 45.5 % | 395 h |
+| Nobile Rim 1 | NR102 | 67.0 % | 61.5 % | 317 h |
+| Nobile Rim 2 | NR201 | 46.0 % | 71.5 % | 404 h |
+| de Gerlache Rim 2 | dGR204 | 57.0 % | 51.5 % | 551 h |
+| Slater Plain | SP01 | 44.3 % | 37.7 % | 408 h |
+
+Cabeus B and Malapert have no ice-first site (every closer candidate is lit less than 40 % of the time).
+
 ## Thermal: night heaters and LRO Diviner ground temperatures
 
 ```bash

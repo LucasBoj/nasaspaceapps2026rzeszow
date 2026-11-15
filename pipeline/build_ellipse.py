@@ -39,8 +39,11 @@ NASA_WINDOW = [(e, n) for n in (120, 0, -120) for e in (-120, 0, 120)]       # o
 def load_site_series(out_dir: Path, site_id: str) -> dict:
     """The shipped yearly files of one site joined (rounded values, exactly what the frontend reads)."""
     index = json.loads((out_dir / "index.json").read_text(encoding="utf-8"))
-    entry = next(s for s in index["sites"] if s["siteId"] == site_id)
-    parts = [json.loads((out_dir / f).read_text(encoding="utf-8")) for _, f in sorted(entry["files"].items())]
+    entry = next((s for s in index["sites"] if s["siteId"] == site_id), None)
+    # Sites outside index.json (build.py --no-index, e.g. the ice-first candidates) use their yearly files directly.
+    files = ([f for _, f in sorted(entry["files"].items())] if entry
+             else [f"{site_id}/{p.name}" for p in sorted((out_dir / site_id).glob("20*.json"))])
+    parts = [json.loads((out_dir / f).read_text(encoding="utf-8")) for f in files]
     joined = {k: np.concatenate([np.asarray(p[k]) for p in parts]) for k in build.SERIES_KEYS}
     joined["start"] = parts[0]["start"]
     return joined

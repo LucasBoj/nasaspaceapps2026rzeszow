@@ -61,6 +61,8 @@ public sealed class PsrOutline
 public sealed class PsrRegion
 {
     public string SiteId { get; set; } = "";
+    /// <summary>The ice-first candidate with full precomputed series (<c>illumination/{siteId}_ice/</c>); null when the region has none.</summary>
+    public PsrIceSite? IceSite { get; set; }
     public string SunPeriod { get; set; } = "";
     public string SunDefinition { get; set; } = "";
     public List<PsrCandidate> Candidates { get; set; } = [];
@@ -74,6 +76,16 @@ public sealed class PsrRegion
     public PsrCandidate? IceFirst(double minSunPct = 40) =>
         Candidates.Where(c => c.Pareto && !c.IsSite && c.SunPct >= minSunPct && (Site is null || c.D1Km < Site.D1Km))
                   .OrderBy(c => c.D1Km).FirstOrDefault();
+}
+
+/// <summary>An ice-first alternative with its own yearly series, ellipse grid and per-height horizons (build_psr.py → build.py --no-index).</summary>
+public sealed class PsrIceSite
+{
+    public string SiteId { get; set; } = "";
+    public string CandidateId { get; set; } = "";
+    public string Name { get; set; } = "";
+    public double Lat { get; set; }
+    public double Lon { get; set; }
 }
 
 public sealed class PsrCandidate

@@ -1,5 +1,8 @@
 @using System.Globalization
 @using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@implements IDisposable
+@inject IceComparisonService Ice
 
 @* Science trade-off for one region: sunlight a solar lander needs vs distance to water ice in permanently shadowed craters. *@
 @if (Region is { Candidates.Count: > 0 } r)
@@ -52,6 +55,25 @@
                 </tbody>
             </table>
         </div>
+        @if (Ice.IsCurrent && Ice.Result is { } cmp)
+        {
+            <table class="svi-table svi-verdicts">
+                <caption>Full verdict, same lander and mission length (our simulator, same data for both sites)</caption>
+                <thead><tr><th scope="col"></th><th scope="col">Verdict</th><th scope="col">Landing</th><th scope="col">Sunlit</th><th scope="col">Lowest battery</th><th scope="col">Earth</th><th scope="col">PSR ≥ 1 km²</th></tr></thead>
+                <tbody>
+                    @Row($"{cmp.SunCandidate?.CandidateId ?? cmp.SunSiteName} (this site)", cmp.Sun, cmp.SunCandidate, "site")
+                    @Row($"{cmp.Ice.CandidateId} (near ice), same date", cmp.SameDate, cmp.IceCandidate, "")
+                    @if (cmp.BestDate is { } best && best.LandingUtc != cmp.SameDate.LandingUtc)
+                    {
+                        @Row($"{cmp.Ice.CandidateId} (near ice), its best date", best, cmp.IceCandidate, "")
+                    }
+                </tbody>
+            </table>
+        }
+        else if (r.IceSite is not null && Ice.Busy)
+        {
+            <p class="svi-source" role="status">Simulating the same mission at @r.IceSite.CandidateId…</p>
+        }
         <p class="svi-source">
             PSR: NASA LOLA <a href="@Url" target="_blank" rel="noopener">Mazarico et al. 2011</a> (120 m) · candidates:
             <a href="https://doi.org/10.1029/2025JE009434" target="_blank" rel="noopener">Wueller et al. 2026</a> · sunlight: our model,
@@ -64,6 +86,21 @@
     [Parameter] public PsrRegion? Region { get; set; }
     [Parameter] public string? Name { get; set; }
     [Parameter] public string Url { get; set; } = "";
+
+    protected override void OnInitialized() => Ice.OnChanged += Refresh;
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Ice.OnChanged -= Refresh;
+
+    private static RenderFragment Row(string label, SimulationResult m, PsrCandidate? c, string cls) => __builder =>
+    {
+        <tr class="@cls">
+            <th scope="row">@label</th>
+            <td class="@VerdictText.CssClass(m.Verdict)">@VerdictText.Label(m.Verdict)</td>
+            <td>@VerdictText.Date(m.LandingUtc)</td>
+            <td>@P(m.SunPct)</td><td>@P(m.MinSocPct)</td><td>@P(m.CommsPct)</td>
+            <td>@(c is null ? "—" : Km(c.D1Km))</td>
+        </tr>
+    };
 
     private const double W = 420, H = 230, L = 46, R = 12, T = 10, B = 40;
     private static double X(double km, double maxKm) => L + Math.Min(km, maxKm) / maxKm * (W - L - R);

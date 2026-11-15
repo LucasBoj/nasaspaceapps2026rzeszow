@@ -35,6 +35,7 @@
     <Compile Include="..\SeleneFrontend\Services\MonteCarlo.cs" Link="Linked\MonteCarlo.cs" />
     <Compile Include="..\SeleneFrontend\Services\PanelHeight.cs" Link="Linked\PanelHeight.cs" />
     <Compile Include="..\SeleneFrontend\Models\PsrScience.cs" Link="Linked\PsrScience.cs" />
+    <Compile Include="..\SeleneFrontend\Services\IceComparison.cs" Link="Linked\IceComparison.cs" />
     <Compile Include="..\SeleneFrontend\Models\PolarDem.cs" Link="Linked\PolarDem.cs" />
     <Compile Include="..\SeleneFrontend\Models\MoonEphemeris.cs" Link="Linked\MoonEphemeris.cs" />
     <Compile Include="..\SeleneFrontend\Models\Site.cs" Link="Linked\Site.cs" />

@@ -58,3 +58,19 @@ def test_known_permanently_shadowed_floors_and_a_lit_summit():
     assert m.at(-87.3, 77.0)["onPsr"]            # Faustini crater floor
     assert not m.at(-85.99192, 2.0564)["onPsr"]  # Malapert Massif site (sunlit ~80 % of the time)
     assert 15_000 < m.total_km2 < 40_000         # 75–90°S; 27 702 km² in the 2016 release
+
+
+@pytest.mark.skipif(DOC is None, reason="run build_psr.py first")
+def test_ice_first_sites_follow_the_rule_and_have_series():
+    ice_sites = json.loads(build_psr.ICE_SITES.read_text(encoding="utf-8"))
+    by_region = {s["regionId"]: s for s in ice_sites}
+    for r in DOC["regions"]:
+        expected = build_psr.ice_first(r["candidates"])
+        if expected is None:
+            assert r["iceSite"] is None and r["siteId"] not in by_region
+            continue
+        assert r["iceSite"]["candidateId"] == expected["candidateId"] == by_region[r["siteId"]]["candidateId"]
+        assert expected["sunPct"] >= build_psr.ICE_MIN_SUN_PCT and expected["pareto"] and not expected["isSite"]
+        series_dir = build_psr.OUT.parent.parent / "illumination" / r["iceSite"]["siteId"]
+        for name in ("2027.json", "ellipse.json", "heights.json"):
+            assert (series_dir / name).exists(), f"{r['iceSite']['siteId']}/{name}: run build.py --no-index, build_ellipse.py, build_heights.py"

@@ -13,5 +13,6 @@ builder.Services.AddScoped<MissionConfigState>();
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<UiService>();
 builder.Services.AddScoped<CustomSiteService>();
+builder.Services.AddScoped<IceComparisonService>();
 
 await builder.Build().RunAsync();

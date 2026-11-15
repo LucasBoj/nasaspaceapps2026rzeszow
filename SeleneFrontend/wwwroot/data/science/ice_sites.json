@@ -1,0 +1,72 @@
+[
+  {
+    "id": "haworth_ice",
+    "name": "Haworth · HW02 (near ice)",
+    "lat": -86.80762,
+    "lon": -21.71944,
+    "approximate": false,
+    "regionId": "haworth",
+    "candidateId": "HW02",
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate HW02, closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"
+  },
+  {
+    "id": "mons_mouton_plateau_ice",
+    "name": "Mons Mouton Plateau · MMP11 (near ice)",
+    "lat": -84.26896,
+    "lon": 36.67241,
+    "approximate": false,
+    "regionId": "mons_mouton_plateau",
+    "candidateId": "MMP11",
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate MMP11, closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"
+  },
+  {
+    "id": "mons_mouton_ice",
+    "name": "Mons Mouton · MMO09 (near ice)",
+    "lat": -85.46653,
+    "lon": 33.03979,
+    "approximate": false,
+    "regionId": "mons_mouton",
+    "candidateId": "MMO09",
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate MMO09, closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"
+  },
+  {
+    "id": "nobile_rim_1_ice",
+    "name": "Nobile Rim 1 · NR102 (near ice)",
+    "lat": -85.26058,
+    "lon": 36.88879,
+    "approximate": false,
+    "regionId": "nobile_rim_1",
+    "candidateId": "NR102",
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate NR102, closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"
+  },
+  {
+    "id": "nobile_rim_2_ice",
+    "name": "Nobile Rim 2 · NR201 (near ice)",
+    "lat": -84.05392,
+    "lon": 56.4813,
+    "approximate": false,
+    "regionId": "nobile_rim_2",
+    "candidateId": "NR201",
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate NR201, closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"
+  },
+  {
+    "id": "degerlache_rim_2_ice",
+    "name": "de Gerlache Rim 2 · dGR204 (near ice)",
+    "lat": -88.13771,
+    "lon": -74.33303,
+    "approximate": false,
+    "regionId": "degerlache_rim_2",
+    "candidateId": "dGR204",
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate dGR204, closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"
+  },
+  {
+    "id": "slater_plain_ice",
+    "name": "Slater Plain · SP01 (near ice)",
+    "lat": -87.47831,
+    "lon": 124.52101,
+    "approximate": false,
+    "regionId": "slater_plain",
+    "candidateId": "SP01",
+    "source": "Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 — candidate SP01, closest to a permanently shadowed region on the sun-vs-ice front (build_psr.py)"
+  }
+]
