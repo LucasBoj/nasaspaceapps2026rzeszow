@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-15 (plan niedzieli, sekcja „Po hackathonie”)
+**Ostatnia aktualizacja:** 2026-11-15 09:50 CET (case study IM-2; wcześniej: plan niedzieli, sekcja „Po hackathonie”)
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -148,6 +148,7 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
   - Karty lądowników: trzy liczby „494 W · 1.6 kWh · 14 d” i jedno zdanie liczone z `landers.json` (rezerwa na baterii w ciemności = bateria × (1 − próg) ÷ obciążenie przetrwania; najdłuższa / najkrótsza w klasie, najwięcej mocy paneli) — nic wymyślonego. Usunięty powtórzony blok liczb pod kartami.
   - Karta „Custom site” w języku listy: nazwa, znacznik „quick estimate”, „computed here from the 240 m LOLA terrain (the 9 regions use 120 m)”, po analizie pasek słońca z misji.
   - Testy: `tools/e2e/stage-b.mjs` 11/11 (hak testowy `window.__seleneSiteLabels`); regresja w Chromium, Firefox i WebKit: stage-b 11/11, stage2 44/44, stage3 10/10, replay 17/17, blokady 15/15, custom 12/12, UX 39/39 (Firefox 38/39 — znany czas karty powitalnej 3,34 s); modele 49/49 (raz 48/49: znany skok kafli −68 m, 2 kolejne przebiegi 49/49); poprawione testy: Home → nowy kadr, podpis modelu w `.tip`, kontrast „quick estimate” (axe 4,36 → AA) — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+- [x] **Case study: IM-2 Athena (marzec 2025)** — prawdziwa misja CLPS przeliczona naszym modelem. `pipeline/case_study_im2.py` (ta sama metoda co 9 miejsc) dla miejsca planowanego (−84,78°, 29,13°E, LROC 1401) i rzeczywistego (−84,7906°, 29,1957°E, LROC 1408), od 6.03.2025 17:00 UTC, 15 dni; czasy z komunikatu NASA (lądowanie ~17:30 UTC, koniec kontaktu 06:15 UTC → 12,75 h). Logika `Services/CaseStudyIm2.cs`: lądownik „na boku” = obrót normalnych paneli o 90° (Rodrigues) z tym samym K (`PanelLayout.NormalizationOverride`), zakresy po orientacjach (24 kursy pionowo, 24×12 na boku) i scenariusz bez Słońca. Zakładka ANALYST „CASE STUDY: IM-2” z tabelą, wykresem, wnioskiem liczonym z danych, ograniczeniami i źródłami; sekcja w `pipeline/README.md` z wykresem. **Wyniki:** oba miejsca 100% Słońca i Ziemi przez 12,75 h (369 m różnicy nic nie zmienia; mapa NASA: 46,5% vs 46,8%), moc zależy od ustawienia (pionowo 12–466 W, na boku 0–524 W, zgłaszane ~100 W mieści się w obu), a bez Słońca bateria 1554 Wh starcza na 9–14 h — Athena działała 12,75 h; krater 20 m musi mieć tylko ~0,6 m głębokości, by jego dno było w cieniu. Testy: xUnit 124/124, pipeline 72 passed, sprawdzone w przeglądarce (ANALYST), build 0 ostrzeżeń — 2026-11-15 09:50 CET — `470362d` — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -281,8 +282,11 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — etap 2: niemodalna karta podsumowania, podpowiedzi HUD bez nakładania, krok Result, liczby w karcie werdyktu, etykieta BEST WINDOW, testy E2E w `tools/e2e` i zrzuty
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — etap 3: przeszukanie scenariuszy w MissionSimulator, scenariusz QUICK DEMO i kontrprzykład, przypięta data lądowania, napisy w HUD, testy xUnit i E2E
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — pakiet B: lista miejsc, etykiety na globie, kadr bieguna, kroki „suggested”, karty lądowników, karta custom, test E2E
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — case study IM-2 Athena: weryfikacja faktów (LROC, NASA; konflikty źródeł opisane), pobranie DEM, skrypt pipeline, model „na boku”, scenariusz bez Słońca, zakładka w UI, testy, wykres, README
+
 ## ⚠️ Known issues / ryzyka
 
+- **Case study IM-2 — granice** — krater 20 m jest poniżej rozdzielczości DEM 120 m (podajemy tylko próg głębokości, nie zakładamy jej); kierunek przewrócenia, rzeczywiste obciążenia, zimno, pył i awarie anteny/wysokościomierza nie są modelowane; ~100 W i „shadowed crater” to źródło wtórne (Wikipedia za CNN/IM). Na pitchu: narzędzie nie przewiduje wywrotki — pokazuje, że miejsce było dobre, a ~13 h pasuje do braku Słońca.
 - **QUICK DEMO to wybrany przykład, nie najlepsze okno** — data 2028-12-26 jest przypięta, żeby pokazać spadek baterii; najlepszy dzień w tym oknie (27 Oct 2028) daje 86 % baterii. Karta i krok 3 mówią „example date”, a „Show the best landing window” wraca do optymalizatora. Na prezentacji mówić „an example landing”, nie „the best landing”.
 
 - ~~**Optymizm względem mapy NASA 60 m (+7…+22 pp słońca)**~~ (wyjaśnione 2026-11-15) — to nie optymizm DEM: mapy NASA są liczone przy powierzchni, a my mamy panele 2 m nad gruntem; do tego porównanie z mapą innej rozdzielczości i w innym punkcie. W tych samych warunkach (0 m, środki pikseli NASA, ta sama rozdzielczość) różnica to średnio 0,1–4,1 pp na miejsce. **W zgłoszeniu: liczby aplikacji są dla paneli 2 m; przy powierzchni zgadzają się z NASA.**
