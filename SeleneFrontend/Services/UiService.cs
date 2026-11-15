@@ -300,7 +300,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         // lander, Play mission) wins.
         if (Landed && CanPlayMission)
         {
-            await Task.Delay(ReducedMotion ? 0 : 2500);
+            await Task.Delay(ReducedMotion ? 0 : 10000);
             if (Landed && CanPlayMission && !ReplayPlaying && ReplayOutcome is null) await PlayMissionAsync();
         }
     }
