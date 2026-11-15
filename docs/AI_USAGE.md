@@ -24,7 +24,7 @@ and the demo video, `asset.generator` / `asset.extras` in each GLB, and `aiGener
 Tool: **Claude Code (Anthropic, Claude Opus 5.5)**, working under the team's direction. Marked by
 `<meta name="ai-assistance">` in `index.html` and a `provenance` note in every generated data file.
 
-The first app skeleton (commits `323edd4`, `a2f267d`, 2026-11-14) was made with [TEAM: name of the AI tool].
+The first app skeleton (commits `323edd4`, `a2f267d`, 2026-11-14) was made with Claude Code (Anthropic) in the IDE, from a prompt drafted with Claude (claude.ai).
 
 ### 2026-11-14
 

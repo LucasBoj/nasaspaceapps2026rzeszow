@@ -24,7 +24,7 @@ We follow the Space Apps rule on the use of AI. In short: **AI helped us write t
 
 **What AI was used for**
 
-- **Code, debugging, tests and documentation** — Claude Code (Anthropic, Claude Opus 5.5) wrote and reviewed most of the frontend (Blazor WebAssembly, CesiumJS), the Python data pipeline, the unit tests (xUnit, pytest), the browser tests (Playwright) and the documentation, under the team's direction. Every session is listed with its date in [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
+- **Code, debugging, tests and documentation** — Claude Code (Anthropic, Claude Opus 5.5) wrote and reviewed most of the frontend (Blazor WebAssembly, CesiumJS), the Python data pipeline, the unit tests (xUnit, pytest), the browser tests (Playwright) and the documentation, under the team's direction. Every session is listed with its date in [`docs/AI_USAGE.md`](docs/AI_USAGE.md). The first app skeleton (commits `323edd4`, `a2f267d`) was made with Claude Code (Anthropic) in the IDE, from a prompt drafted with Claude (claude.ai).
 - **3D lander models** — the five lander models are AI-generated: a concept image from **Meshy AI**, turned into 3D by **Microsoft TRELLIS.2** (MIT), then optimised with glTF Transform and meshoptimizer ([`tools/optimize-models`](tools/optimize-models)). They are stylised visualisations, not manufacturer CAD. Logos, flags and insignia that the AI put on the textures are painted out (`tools/optimize-models/redactions.json`).
 - **Concept images** for those models (Meshy AI).
 

@@ -297,7 +297,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 ## 🤖 AI usage log (do deklaracji w zgłoszeniu Space Apps)
 
-- 2026-11-14 — _do uzupełnienia przez zespół_ — narzędzie użyte przy szkielecie aplikacji (`323edd4`, `a2f267d`)
+- 2026-11-14 — Claude Code (Anthropic) in the IDE, from a prompt drafted with Claude (claude.ai) — szkielet aplikacji (`323edd4`, `a2f267d`)
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — diagnoza i naprawa czarnego ekranu, scalenie repozytoriów
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — research regulaminu Space Apps 2026 (kryteria, terminy) i zwycięzców 2025
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — poprawki viewera Cesium, karty lądowników z sylwetkami SVG, nawigacja kamery, automatyczne testy w przeglądarce
@@ -381,7 +381,6 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Surface view: obrót tylko myszą (przeciąganie)** — brak sterowania klawiaturą (strzałki); ⌂ View i „Back to orbit view” działają z klawiatury.
 
 - **Model grzałek to klasa, nie projekt lądownika** — wszystkie liczby termiczne to ASSUMPTION: radiatory = obciążenie dzienne bez żaluzji, masa cieplna 10% masy suchej (Griffin/HLS: masa sucha też założona), próg −20 °C, jedna skrzynka, natychmiastowe ogrzanie w słońcu. Werdykty Blue Ghost/Griffin przy długich ciemnościach zależą od masy cieplnej. Grunt z Diviner to średnia binu 240 m z lat 2009–2019; 15–50 z 96 binów na porę roku interpolowane; przy nocy dominuje zimne niebo (grunt 60–100 K oddaje 1–6% strat). Punkty custom: grunt 0 K (zachowawczo). Na pitchu: „bateria i grzałki”, wiersz what-if OFF pokazuje różnicę. **QUICK DEMO jest teraz MARGINAL** (alternatywa FEASIBLE z widocznym efektem grzałek: Griffin, Nobile Rim 1, 2028-12-23: 70% → 58%).
-- **Pierwszy commit szkieletu aplikacji (`323edd4`, `a2f267d`) — narzędzie SI do wpisania przez zespół** — README mówi o tym wprost; uzupełnić AI usage log przed wysłaniem zgłoszenia.
 - **Zamalowane miejsca na teksturach Blue Ghost / Blue Moon to gładkie plamy w kolorze otoczenia** — widać je tylko z bardzo bliska; są celowe (brak logo i flag).
 
 - **P(FEASIBLE) zależy od przyjętych rozrzutów** — ±20% obciążenia i ±15° kursu to założenia (brak źródeł); rozkłady jednostajne, czynniki niezależne. Czas lądowania i dane terenu nie są losowane. Na pitchu mówić „przy tych założeniach”.

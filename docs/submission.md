@@ -122,7 +122,7 @@ The idea, the problem definition and the product decisions are the team's. AI to
 
 - **Code, tests and documentation** — Claude Code (Anthropic, Claude Opus 5.5) wrote and reviewed most of the
   frontend, the Python pipeline, the tests and the documentation under the team's direction.
-  [TEAM: name the AI tool used for the first app skeleton, commits 323edd4 / a2f267d.]
+  The first app skeleton (commits 323edd4, a2f267d) was made with Claude Code (Anthropic) in the IDE, from a prompt drafted with Claude (claude.ai).
 - **3D lander models** — concept images from Meshy AI, turned into 3D by Microsoft TRELLIS.2, optimised by us.
   Logos, flags and insignia that the AI painted on textures were removed.
 - **No scientific number is AI-generated.** All sunlight, Earth-visibility and battery values are computed
