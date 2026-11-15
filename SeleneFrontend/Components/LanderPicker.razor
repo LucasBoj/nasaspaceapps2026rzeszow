@@ -285,6 +285,7 @@
         if (l.Crew is { } c) yield return new("crew", "Crew", c, Num(c));
         if (l.PayloadKg is { } p) yield return new("payload", "Payload", p, Num(p));
         if (l.LandingAccuracyM is { } acc) yield return new("ellipse", "Landing accuracy", acc, $"±{Fmt(acc.Value)} m");
+        if (l.PanelHeightM is { } ph) yield return new("panelheight", "Panel height", ph, $"{Fmt(ph.Value)} m above ground");
     }
 
     private static string PanelsText(PanelLayout p)

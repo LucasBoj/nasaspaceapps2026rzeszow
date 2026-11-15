@@ -72,6 +72,13 @@
       "note": "",
       "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
     },
+    "panelHeightM": {
+      "value": 2,
+      "unit": "m",
+      "kind": "assumption",
+      "note": "Height of the solar panels (and antenna) above the ground used for the terrain horizon. Not published; assumed: the wall panels, which collect almost all power with the Sun a few degrees above the horizon, are centred at about half the vehicle height (3.94 m, FCC IM-1 application) → 2 m. Robustness row: 1 m and 3 m.",
+      "sourceUrl": "https://apps.fcc.gov/els/GetAtt.html?amp=&id=266519&x="
+    },
     "landingAccuracyM": {
       "value": 400,
       "unit": "m",
@@ -150,6 +157,13 @@
       "kind": "sourced",
       "note": "M1 configuration ended ~5 h after sunset",
       "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
+    },
+    "panelHeightM": {
+      "value": 1,
+      "unit": "m",
+      "kind": "assumption",
+      "note": "Height of the solar panels (and antenna) above the ground used for the terrain horizon. Not published; assumed: the wall panels, which collect almost all power with the Sun a few degrees above the horizon, are centred at about half the vehicle height (~2 m, approximate team value) → 1 m. Robustness row: 0 m and 2 m.",
+      "sourceUrl": ""
     },
     "landingAccuracyM": {
       "value": 100,
@@ -235,6 +249,13 @@
       "note": "",
       "sourceUrl": "https://astrobotic.com/lunar-delivery/landers"
     },
+    "panelHeightM": {
+      "value": 2,
+      "unit": "m",
+      "kind": "assumption",
+      "note": "Height of the solar panel above the ground used for the terrain horizon. Not published, and Griffin's height is not known either (only a 4.5 m width label); the model default of 2 m is kept. Robustness row: 1 m and 3 m.",
+      "sourceUrl": ""
+    },
     "landingAccuracyM": {
       "value": 250,
       "unit": "m",
@@ -318,6 +339,13 @@
       "note": "",
       "sourceUrl": "https://ntrs.nasa.gov/api/citations/20230013222/downloads/DRAFT-%20IAC%20Final_Sept14.pdf"
     },
+    "panelHeightM": {
+      "value": 25,
+      "unit": "m",
+      "kind": "assumption",
+      "note": "Height of the solar panels (and antenna) above the ground used for the terrain horizon. Not published; assumed: the wall panels, which collect almost all power with the Sun a few degrees above the horizon, are centred at about half the vehicle height (~50 m, approximate team value) → 25 m. Arrays are probably higher on the hull; panels are simulated as ideal tracking anyway. Robustness row: 20 m and 40 m.",
+      "sourceUrl": ""
+    },
     "landingAccuracyM": {
       "value": 100,
       "unit": "m",
@@ -399,6 +427,13 @@
       "kind": "sourced",
       "note": "",
       "sourceUrl": "https://www.collectspace.com/news/news-051923a-nasa-artemis-5-blue-moon-lunar-lander-selection.html"
+    },
+    "panelHeightM": {
+      "value": 8,
+      "unit": "m",
+      "kind": "assumption",
+      "note": "Height of the solar panels (and antenna) above the ground used for the terrain horizon. Not published; assumed: the wall panels, which collect almost all power with the Sun a few degrees above the horizon, are centred at about half the vehicle height (~16 m, approximate team value) → 8 m. Robustness row: 5 m and 10 m.",
+      "sourceUrl": ""
     },
     "landingAccuracyM": {
       "value": 100,

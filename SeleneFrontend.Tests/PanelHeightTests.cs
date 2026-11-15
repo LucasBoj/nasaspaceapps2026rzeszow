@@ -70,6 +70,42 @@ public class PanelHeightTests
     }
 
     [Fact]
+    public void Every_lander_height_has_a_horizon_and_neighbours_at_every_site()
+    {
+        var root = Path.GetDirectoryName(Illum)!;
+        var landers = JsonSerializer.Deserialize<List<LanderPreset>>(File.ReadAllText(Path.Combine(root, "landers.json")), Web)!;
+        var ids = JsonSerializer.Deserialize<IlluminationIndex>(File.ReadAllText(Path.Combine(Illum, "index.json")), Web)!.Sites.Select(s => s.SiteId);
+        foreach (var site in ids)
+        {
+            var h = Heights(site);
+            foreach (var l in landers)
+            {
+                var ph = Assert.IsType<NumberParam>(l.PanelHeightM);
+                Assert.Equal("m", ph.Unit);
+                Assert.False(string.IsNullOrWhiteSpace(ph.Note), l.Id);
+                Assert.NotNull(h.At(ph.Value));
+                Assert.NotNull(PanelHeightAnalysis.Neighbours(h, ph.Value));
+            }
+        }
+    }
+
+    [Fact]
+    public void Series_at_another_height_keeps_the_geometry_and_changes_only_the_horizon()
+    {
+        var site = Year("nobile_rim_1", 2028);
+        var data = Heights("nobile_rim_1");
+        var one = PanelHeightAnalysis.SeriesAt(site, data.At(1)!);
+        Assert.Equal(site.SiteId, one.SiteId);
+        Assert.Equal(1, one.ObserverHeightM);
+        Assert.Equal(site.Count, one.Count);
+        Assert.Equal(site.SunAzCentiDeg, one.SunAzCentiDeg);
+        Assert.Equal(data.At(1)!.HorizonCentiDeg.Select(c => c / 100.0), one.HorizonDeg);
+        Assert.True(one.SunFraction.Sum() <= site.SunFraction.Sum(), "a lower observer cannot see more Sun");
+        var two = PanelHeightAnalysis.SeriesAt(site, data.At(2)!);
+        Assert.True(site.SunFraction.Zip(two.SunFraction, (a, b) => Math.Abs(a - b)).Max() <= 2);   // rebuilt from rounded angles
+    }
+
+    [Fact]
     public void Missing_heights_give_no_result()
     {
         var site = Year("nobile_rim_1", 2028);

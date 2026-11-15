@@ -107,7 +107,8 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             l?.HeadingDeg?.ToString(CultureInfo.InvariantCulture) ?? "auto", l?.IdealTracking,
             l?.BatteryRoundTripEff.ToString(CultureInfo.InvariantCulture),
             state.MissionDurationDays.ToString(CultureInfo.InvariantCulture), state.MinBatteryPercent, state.MinCommsPercent,
-            state.WindowStart.ToString("yyyy-MM-dd"), state.WindowEnd.ToString("yyyy-MM-dd"));
+            state.WindowStart.ToString("yyyy-MM-dd"), state.WindowEnd.ToString("yyyy-MM-dd"),
+            "panel" + state.PanelHeightM.ToString(CultureInfo.InvariantCulture));   // the series depend on the panel height
     }
 
     /// <param name="expand">Expand the results strip when the first result is ready.</param>
@@ -263,7 +264,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     /// <summary>Landing accuracy of the selected lander (m) and its parameter (provenance shown in the row).</summary>
     public NumberParam? EllipseAccuracy { get; private set; }
 
-    /// <summary>The shown mission with the panels at 1 m and 3 m instead of 2 m (null until loaded, or without heights data).</summary>
+    /// <summary>The shown mission one height step below and above the lander's panel height (null until loaded, or without heights data).</summary>
     public PanelHeightSensitivity? PanelHeight { get; private set; }
 
     private void SimulateSite(OptimizerSite site, DateTime landingUtc, LanderInputs lander)
@@ -274,8 +275,8 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         PanelHeight = null;
         EllipseAccuracy = state.SelectedLander?.LandingAccuracyM;
         if (EllipseAccuracy is { Value: > 0 } accuracy)
-            _ = UpdateEllipseAsync(MissionVersion, site, Mission, lander, Thresholds, accuracy.Value);
-        _ = UpdatePanelHeightAsync(MissionVersion, site, Mission, lander, Thresholds);
+            _ = UpdateEllipseAsync(MissionVersion, site, Mission, lander, Thresholds, accuracy.Value, state.PanelHeightM);
+        _ = UpdatePanelHeightAsync(MissionVersion, site, Mission, lander, Thresholds, state.PanelHeightM);
         // Same heading as the shown mission, so "max stay" and the verdict describe the same landing.
         MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
             landingUtc, Thresholds, MaxSurvivableCapDays);
@@ -287,7 +288,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
 
     /// <summary>Load the site's ellipse grid (once) and re-run the mission over it; dropped if a newer mission replaced it.</summary>
     private async Task UpdateEllipseAsync(int version, OptimizerSite site, SimulationResult mission, LanderInputs lander,
-                                          MissionThresholds thresholds, double radiusM)
+                                          MissionThresholds thresholds, double radiusM, double panelHeightM)
     {
         try
         {
@@ -295,7 +296,11 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             if (data is null || version != MissionVersion) return;
             await Task.Yield();          // let the verdict render first; the re-run takes a few ms
             if (version != MissionVersion) return;
-            Ellipse = LandingEllipse.Analyze(site.Series, data, lander, mission, thresholds, radiusM);
+            // The grid's masks are for 2 m; for another panel height shift them by the site's own change (approximation).
+            var delta = PanelHeightAnalysis.IsSeriesHeight(panelHeightM) || await repo.GetHorizonHeights(site.Id) is not { } heights
+                ? null : PanelHeightAnalysis.HorizonDelta(heights, panelHeightM);
+            if (version != MissionVersion) return;
+            Ellipse = LandingEllipse.Analyze(site.Series, data, lander, mission, thresholds, radiusM, delta);
             Notify();
         }
         catch (Exception ex)
@@ -306,7 +311,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
 
     /// <summary>Load the site's per-height horizons (once) and re-run the mission at 1 m and 3 m; dropped if a newer mission replaced it.</summary>
     private async Task UpdatePanelHeightAsync(int version, OptimizerSite site, SimulationResult mission, LanderInputs lander,
-                                              MissionThresholds thresholds)
+                                              MissionThresholds thresholds, double panelHeightM)
     {
         try
         {
@@ -314,7 +319,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             if (data is null || version != MissionVersion) return;
             await Task.Yield();
             if (version != MissionVersion) return;
-            PanelHeight = PanelHeightAnalysis.For(site.Series, data, lander, mission, thresholds);
+            PanelHeight = PanelHeightAnalysis.ForLander(site.Series, data, lander, mission, thresholds, panelHeightM);
             Notify();
         }
         catch (Exception ex)

@@ -22,6 +22,13 @@ public class DemoScenarioTests
             .Single(l => l.Id == DemoScenario.LanderId);
         var series = IlluminationSeries.Concat(new[] { 2028, 2029 }.Select(y => JsonSerializer.Deserialize<IlluminationSeries>(
             File.ReadAllText(Path.Combine(Data(), "illumination", DemoScenario.SiteId, $"{y}.json")), Web)!).ToList());
+        // As in the app: the series at the lander's panel height (landers.json → panelHeightM, heights.json).
+        if (lander.PanelHeightM is { } ph && !PanelHeightAnalysis.IsSeriesHeight(ph.Value))
+        {
+            var heights = JsonSerializer.Deserialize<HorizonHeightsData>(
+                File.ReadAllText(Path.Combine(Data(), "illumination", DemoScenario.SiteId, "heights.json")), Web)!;
+            series = PanelHeightAnalysis.SeriesAt(series, heights.At(ph.Value)!);
+        }
         var inputs = new LanderInputs(lander.SolarArrayW!.Value, lander.BatteryWh!.Value, lander.DayLoadW!.Value, lander.SurvivalLoadW!.Value,
             ParamKind.Assumption, lander.Panels, null, false, lander.BatteryRoundTripEff?.Value ?? 1.0);
         // App defaults: minimum battery 20 %, minimum Earth contact 50 %.
@@ -46,7 +53,7 @@ public class DemoScenarioTests
     {
         var m = Run(DemoScenario.LandingUtc);
         Assert.NotEqual(Verdict.NotFeasible, m.Verdict);
-        Assert.InRange(m.MinSocPct, 30, 70);
+        Assert.InRange(m.MinSocPct, 25, 70);   // visible dip, still above the 20 % limit (≈ 28 % with Blue Ghost's panels at 1 m)
         Assert.True(m.CommsPct >= 80, $"Earth contact {m.CommsPct:0.0} %");
         var dark = Assert.Single(DarkRuns(m));
         Assert.InRange(dark.Length * m.StepHours, 5, 12);

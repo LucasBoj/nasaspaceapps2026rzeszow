@@ -26,7 +26,7 @@ import build_ellipse
 import ellipse
 import horizon
 
-HEIGHTS_M = (0.0, 1.0, 2.0, 3.0, 5.0, 10.0)
+HEIGHTS_M = (0.0, 1.0, 2.0, 3.0, 5.0, 8.0, 10.0, 20.0, 25.0, 40.0)   # includes every landers.json → panelHeightM
 
 
 def build_doc(site: dict, dem: horizon.Dem, series: dict, max_distance_m: float) -> dict:

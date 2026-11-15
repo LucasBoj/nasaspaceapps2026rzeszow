@@ -34,19 +34,66 @@ public sealed record PanelHeightSensitivity(double NominalHeightM, Verdict Nomin
 }
 
 /// <summary>
-/// Panel-height sensitivity. On summits and rims a few metres change how much terrain blocks the Sun and the Earth
-/// (pipeline/README.md → panel height). The hourly series assume 2 m; landers carry panels roughly 1–3 m above
-/// the ground, so the mission is re-run with the site's horizon for 1 m and 3 m (same date, duration and heading).
+/// Panel height. On summits and rims a few metres change how much terrain blocks the Sun and the Earth
+/// (pipeline/README.md → model sensitivity). The precomputed series are for 2 m; each lander's panels sit at
+/// <c>landers.json → panelHeightM</c>, so its series is rebuilt with the site's horizon for that height
+/// (<see cref="SeriesAt"/>), and the robustness row re-runs the shown mission one height step lower and higher.
 /// Pure logic, no UI (linked into SeleneFrontend.Tests); reuses the ellipse's horizon swap.
 /// </summary>
 public static class PanelHeightAnalysis
 {
+    /// <summary>Height of the precomputed series (pipeline default).</summary>
+    public const double SeriesHeightM = 2;
     public const double LowM = 1;
     public const double HighM = 3;
 
+    public static bool IsSeriesHeight(double heightM) => Math.Abs(heightM - SeriesHeightM) < 1e-6;
+
+    /// <summary>
+    /// The whole series with the horizon for another observer height: Sun/Earth geometry unchanged, sunFraction and
+    /// earthVisible rebuilt with the pipeline's rules, <see cref="IlluminationSeries.HorizonDeg"/> replaced (clearances follow).
+    /// </summary>
+    public static IlluminationSeries SeriesAt(IlluminationSeries baseSeries, HorizonAtHeight h)
+    {
+        var s = LandingEllipse.PointSeries(baseSeries, new EllipsePoint { HorizonCentiDeg = h.HorizonCentiDeg }, 0, baseSeries.Count);
+        s.SiteId = baseSeries.SiteId;
+        s.Lat = baseSeries.Lat;
+        s.Lon = baseSeries.Lon;
+        s.ObserverHeightM = h.HeightM;
+        s.HorizonDeg = h.HorizonCentiDeg.Select(c => c / 100.0).ToArray();
+        return s;
+    }
+
+    /// <summary>The available heights just below and just above <paramref name="heightM"/> (null when one is missing).</summary>
+    public static (double Low, double High)? Neighbours(HorizonHeightsData data, double heightM)
+    {
+        var below = data.Heights.Select(x => x.HeightM).Where(x => x < heightM - 1e-6).DefaultIfEmpty(double.NaN).Max();
+        var above = data.Heights.Select(x => x.HeightM).Where(x => x > heightM + 1e-6).DefaultIfEmpty(double.NaN).Min();
+        return double.IsNaN(below) || double.IsNaN(above) ? null : (below, above);
+    }
+
+    /// <summary>
+    /// Per-azimuth change of the site's horizon from 2 m to <paramref name="heightM"/> (centi-degrees), used to move the
+    /// ellipse points' 2 m masks to the lander's height. An approximation: the near terrain differs from point to point.
+    /// </summary>
+    public static int[]? HorizonDelta(HorizonHeightsData data, double heightM)
+    {
+        if (IsSeriesHeight(heightM)) return null;
+        if (data.At(heightM) is not { } h || data.At(SeriesHeightM) is not { } two || h.HorizonCentiDeg.Length != two.HorizonCentiDeg.Length) return null;
+        return h.HorizonCentiDeg.Zip(two.HorizonCentiDeg, (a, b) => a - b).ToArray();
+    }
+
+    /// <summary>The shown mission one height step below and above the lander's panel height.</summary>
+    public static PanelHeightSensitivity? ForLander(IlluminationSeries site, HorizonHeightsData data, LanderInputs lander,
+                                                    SimulationResult nominal, MissionThresholds thresholds, double panelHeightM)
+    {
+        if (Neighbours(data, panelHeightM) is not { } n) return null;
+        return For(site, data, lander, nominal, thresholds, n.Low, n.High, panelHeightM);
+    }
+
     public static PanelHeightSensitivity? For(IlluminationSeries site, HorizonHeightsData data, LanderInputs lander,
                                               SimulationResult nominal, MissionThresholds thresholds,
-                                              double lowM = LowM, double highM = HighM)
+                                              double lowM = LowM, double highM = HighM, double nominalHeightM = SeriesHeightM)
     {
         if (data.At(lowM) is not { } low || data.At(highM) is not { } high) return null;
         if (!site.HasSunGeometry || !site.HasEarthElevation || site.EarthAzCentiDeg.Length < site.Count) return null;
@@ -62,6 +109,6 @@ public static class PanelHeightAnalysis
             return new HeightCase(h.HeightM, r.Verdict, r.MinSocPct, r.SunPct, r.CommsPct);
         }
 
-        return new PanelHeightSensitivity(data.SeriesObserverHeightM, nominal.Verdict, nominal.SunPct, Run(low), Run(high));
+        return new PanelHeightSensitivity(nominalHeightM, nominal.Verdict, nominal.SunPct, Run(low), Run(high));
     }
 }

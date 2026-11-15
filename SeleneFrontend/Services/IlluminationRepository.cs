@@ -54,18 +54,31 @@ public sealed class IlluminationRepository(HttpClient http)
 
     public static bool IsCustom(string siteId) => siteId.StartsWith("CUSTOM", StringComparison.Ordinal);
 
+    /// <summary>
+    /// Panel height of the selected lander (m; set by MissionConfigState). The yearly files are for 2 m; for another
+    /// height the series is rebuilt with the site's <c>heights.json</c> horizon (<see cref="PanelHeightAnalysis.SeriesAt"/>).
+    /// Custom points stay at 2 m (their browser DEM path has no per-height horizon).
+    /// </summary>
+    public Func<double>? PanelHeightProvider { get; set; }
+
+    private double PanelHeight => PanelHeightProvider?.Invoke() ?? PanelHeightAnalysis.SeriesHeightM;
+
     /// <summary>One site's hourly series covering the current window (joined yearly files, cached).</summary>
     public async Task<IlluminationSeries> GetSeries(string siteId)
     {
         var index = await GetIndexAsync();
         var (first, last) = YearsFor(_from, _to, index.Years);
-        var key = $"{siteId}|{first}|{last}";
+        var height = IsCustom(siteId) ? PanelHeightAnalysis.SeriesHeightM : PanelHeight;
+        var key = $"{siteId}|{first}|{last}|{height.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
         if (!_joined.TryGetValue(key, out var task))
         {
-            // Keep only the joined series of the current window (yearly files stay cached).
-            foreach (var stale in _joined.Keys.Where(k => k.StartsWith(siteId + "|", StringComparison.Ordinal)).ToList())
+            // Keep only the joined series of the current window (any heights used in it; yearly files stay cached).
+            foreach (var stale in _joined.Keys.Where(k => k.StartsWith(siteId + "|", StringComparison.Ordinal)
+                                                          && !k.StartsWith($"{siteId}|{first}|{last}|", StringComparison.Ordinal)).ToList())
                 _joined.Remove(stale);
-            task = IsCustom(siteId) && CustomProvider is { } custom ? custom(siteId, first, last) : JoinAsync(siteId, first, last);
+            task = IsCustom(siteId) && CustomProvider is { } custom ? custom(siteId, first, last)
+                : PanelHeightAnalysis.IsSeriesHeight(height) ? JoinAsync(siteId, first, last)
+                : AtHeightAsync(siteId, first, last, height);
             _joined[key] = task;
         }
         try { return await task; }
@@ -74,6 +87,25 @@ public sealed class IlluminationRepository(HttpClient http)
             _joined.Remove(key);   // a failed download or computation may be retried
             throw;
         }
+    }
+
+    private async Task<IlluminationSeries> AtHeightAsync(string siteId, int first, int last, double heightM)
+    {
+        var baseSeries = await GetSeriesAtSeriesHeight(siteId, first, last);
+        if (await GetHorizonHeights(siteId) is { } data && data.At(heightM) is { } h) return PanelHeightAnalysis.SeriesAt(baseSeries, h);
+        Console.Error.WriteLine($"[Data] {siteId}: no {heightM:0.#} m horizon in heights.json — using the 2 m series");
+        return baseSeries;
+    }
+
+    private Task<IlluminationSeries> GetSeriesAtSeriesHeight(string siteId, int first, int last)
+    {
+        var key = $"{siteId}|{first}|{last}|{PanelHeightAnalysis.SeriesHeightM.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        if (!_joined.TryGetValue(key, out var task))
+        {
+            task = JoinAsync(siteId, first, last);
+            _joined[key] = task;
+        }
+        return task;
     }
 
     private async Task<IlluminationSeries> JoinAsync(string siteId, int first, int last)

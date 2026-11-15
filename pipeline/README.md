@@ -342,7 +342,7 @@ python compare_nasa_pixels.py ... --refresh    # re-read the NASA 3x3 windows (d
 | Observer 3 m instead of 2 m | +0.1 … +2.3 pp |
 | Observer at the surface (0 m) | −0.3 … −9.0 pp |
 
-`build_heights.py` writes the horizons for 0, 1, 2, 3, 5 and 10 m to `illumination/{siteId}/heights.json` (the 2 m
+`build_heights.py` writes the horizons for 0, 1, 2, 3, 5, 8, 10, 20, 25 and 40 m (every lander's `panelHeightM` in `landers.json`; the app rebuilds the series for the selected lander's height) to `illumination/{siteId}/heights.json` (the 2 m
 mask must equal the yearly files', which the script checks); per-height sunlit time:
 
 ```bash

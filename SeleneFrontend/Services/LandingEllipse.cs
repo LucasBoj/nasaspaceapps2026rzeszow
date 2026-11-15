@@ -95,7 +95,8 @@ public static class LandingEllipse
     /// from the shipped series only by rounding). Returns null when the grid is empty or the series lacks geometry.
     /// </summary>
     public static EllipseResult? Analyze(IlluminationSeries site, LandingEllipseData ellipse, LanderInputs lander,
-                                         SimulationResult nominal, MissionThresholds thresholds, double radiusM)
+                                         SimulationResult nominal, MissionThresholds thresholds, double radiusM,
+                                         int[]? horizonDeltaCentiDeg = null)
     {
         if (ellipse.Points.Count == 0 || !site.HasSunGeometry || !site.HasEarthElevation || site.EarthAzCentiDeg.Length < site.Count)
             return null;
@@ -112,7 +113,12 @@ public static class LandingEllipse
             if (p.DistanceM < 1e-6) r = nominal;
             else
             {
-                var series = PointSeries(site, p, start, nominal.Steps);
+                // Panels at another height than the grid's 2 m: shift the point's mask by the site's own change.
+                var point = horizonDeltaCentiDeg is { } d && d.Length == p.HorizonCentiDeg.Length
+                    ? new EllipsePoint { E = p.E, N = p.N, Lat = p.Lat, Lon = p.Lon, AzShiftDeg = p.AzShiftDeg, TiltDeg = p.TiltDeg,
+                                         TiltAzDeg = p.TiltAzDeg, HorizonCentiDeg = p.HorizonCentiDeg.Zip(d, (a, b) => a + b).ToArray() }
+                    : p;
+                var series = PointSeries(site, point, start, nominal.Steps);
                 r = MissionSimulator.Run(series, pinned, series.Start, nominal.DurationDays, thresholds, recordSeries: false);
             }
             results.Add(new EllipsePointResult(p.E, p.N, r.Verdict, r.MinSocPct, r.SunPct, r.CommsPct, p.SlopeDeg));

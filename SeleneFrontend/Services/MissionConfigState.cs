@@ -27,6 +27,9 @@ public class MissionConfigState
         siteId is null ? null : NasaCheck?.Sites.FirstOrDefault(s => s.SiteId == siteId);
     public List<LanderPreset> FilteredLanders => AllLanders.Where(l => l.Class == SelectedLanderClass).ToList();
     public LanderPreset? SelectedLander { get; private set; }
+
+    /// <summary>Panel height of the selected lander above the ground (m); 2 m (the precomputed series) without a value.</summary>
+    public double PanelHeightM => SelectedLander?.PanelHeightM?.Value ?? PanelHeightAnalysis.SeriesHeightM;
     public string SelectedLanderClass { get; private set; } = "clps";
 
     // ---- What-if overrides (pitch comparisons). Data presets are never mutated. ----
@@ -118,6 +121,7 @@ public class MissionConfigState
     {
         _httpClient = httpClient;
         _illumination = illumination;
+        _illumination.PanelHeightProvider = () => PanelHeightM;
     }
 
     /// <summary>Catalog loading state for the status bar / error banner.</summary>
