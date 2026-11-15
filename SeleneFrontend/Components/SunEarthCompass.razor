@@ -153,6 +153,7 @@
     {
         Ui.OnChanged += Refresh;
         Ui.HoverTimeChanged += Refresh;
+        Ui.ReplayStepChanged += Refresh;
         MissionState.OnStateChanged += Refresh;
         Analysis.OnChanged += Refresh;
         await UpdateAsync();
@@ -180,6 +181,7 @@
             }
         }
         moment = Ui.HoverTimeUtc
+                 ?? Ui.ReplayTimeUtc
                  ?? (Analysis.MissionSiteId == site.Id ? Analysis.Mission?.LandingUtc : null)
                  ?? series!.Start;
         index = series!.IndexOf(moment);
@@ -189,6 +191,7 @@
     {
         Ui.OnChanged -= Refresh;
         Ui.HoverTimeChanged -= Refresh;
+        Ui.ReplayStepChanged -= Refresh;
         MissionState.OnStateChanged -= Refresh;
         Analysis.OnChanged -= Refresh;
     }

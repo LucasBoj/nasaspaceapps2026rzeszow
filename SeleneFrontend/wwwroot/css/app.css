@@ -2652,6 +2652,12 @@ html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: aut
 .replay-bar { position: relative; flex: 1; height: 8px; background: var(--bg-raised); border: 1px solid var(--border-color); border-radius: 2px; overflow: hidden; }
 .replay-bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--status-ok); }
 .replay-bar-fill.low { background: var(--status-warn); }
+.replay-strip { display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: stretch; }
+.replay-strip-labels { display: grid; grid-template-rows: 8px 8px 24px; row-gap: 3px; font-size: 10px; line-height: 8px; color: var(--text-secondary); }
+.replay-strip-labels span:last-child { line-height: 24px; }
+.replay-strip-plot { position: relative; min-width: 0; height: 46px; }
+.replay-strip-plot canvas { display: block; }
+.replay-strip-cursor { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; left: 0; background: var(--accent-cyan); box-shadow: 0 0 0 1px rgba(10, 14, 19, 0.8); }
 .replay-banner { font-size: var(--fs-m); font-weight: 600; padding: 6px var(--s2); border-radius: 2px; }
 .replay-banner.ok { color: var(--status-ok); background: rgba(61, 220, 132, 0.1); }
 .replay-banner.lost { color: #ff6b6d; background: rgba(255, 77, 79, 0.12); }

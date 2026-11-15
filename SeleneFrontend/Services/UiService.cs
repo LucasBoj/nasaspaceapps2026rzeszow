@@ -310,6 +310,9 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     public int ReplayStep { get; private set; } = -1;
     public event Action? ReplayStepChanged;
 
+    /// <summary>Mission time under the replay cursor (null = no replay): the Sun/Earth compass follows it.</summary>
+    public DateTime? ReplayTimeUtc => ReplayStep >= 0 && analysis.Mission is { } m ? m.LandingUtc.AddHours(ReplayStep * m.StepHours) : null;
+
     /// <summary>The viewer should play (true) or stop and reset (false) the mission replay.</summary>
     public event Action<bool>? ReplayRequested;
 
@@ -330,8 +333,10 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         }
         ReplayPlaying = true;
         Notify();
+        // The button may sit in the results panel below the Moon (Analyst): bring the lander into view first.
+        try { await (await Ui()).InvokeVoidAsync("revealMoon"); }
+        catch (JSDisconnectedException) { }
         ReplayRequested?.Invoke(true);
-        await Task.CompletedTask;
     }
 
     /// <summary>How the replay ends for the current result and lander class.</summary>

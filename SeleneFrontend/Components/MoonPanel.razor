@@ -90,7 +90,7 @@
             {
                 <div class="viewer-badge mode" title="@badgeTitle">@badgeText</div>
             }
-            @if (Ui.LandingAnimationEnabled && MissionState.SelectedLander is { Model: { } model } lander
+            @if (Ui.LandingAnimationEnabled && !Ui.ReplayPlaying && MissionState.SelectedLander is { Model: { } model } lander
                  && (Ui.AnalystMode || modelStatus.GetValueOrDefault(model.Uri) == "loading"))
             {
                 var state = modelStatus.GetValueOrDefault(model.Uri);

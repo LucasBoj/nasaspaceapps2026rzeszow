@@ -41,6 +41,16 @@ export function scrollToId(id) {
   if (el) el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
 }
 
+/** Scroll the page so the Moon view (lander, replay HUD) is visible — only when it is not already. */
+export function revealMoon() {
+  const moon = document.querySelector(".moon-panel");
+  if (!moon) return;
+  const r = moon.getBoundingClientRect();
+  const top = px(".top-bar");
+  if (r.top >= top - 1 && r.top < window.innerHeight * 0.25) return;
+  window.scrollTo({ top: Math.max(0, window.scrollY + r.top - top), behavior: prefersReducedMotion() ? "auto" : "smooth" });
+}
+
 export function focusElement(el) {
   try { el?.focus({ preventScroll: true }); } catch { /* ignore */ }
 }

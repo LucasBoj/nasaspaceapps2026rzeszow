@@ -102,6 +102,11 @@
   - Walidacja: Słońce/Ziemia vs JPL Horizons ≤ 0,005° (3 miejsca × 42 epoki 2026–2035); rzutowanie vs pyproj < 1 cm; syntetyczny DEM (płaski −0,03°, ściana 600 m → znany kąt); metoda przeglądarkowa vs pipeline dla 9 regionów 2027–2028: % słońca ≤ 2,1 pp (mediana 0,5), kontakt z Ziemią ≤ 1,9 pp; najdłuższa noc różni się do ~70 h (Nobile Rim 1) przez gładszy teren 240 m.
   - Ręcznie (skrypt E2E w 3 silnikach): płaski 86,0°S 100,0°W — 100 % słońca, nachylenie 2,3°; ściana Shackletona 89,55°S — 18,2°, ostrzeżenie, 0 % słońca (horyzont 17°); dno Shackletona — 0 % słońca; 78°S — komunikat; pierwszy wynik ~6,7 s (z animacją lądowania), brak błędów w konsoli.
   - Testy: xUnit 86/86 (nowe `CustomSiteTests`), pipeline 56 passed, E2E custom 12/12 i blokady 15/15 w Chromium, Firefox, WebKit; regresja UX/replay/modele — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+- **Play mission: wszystko, co zmienia się w czasie, widać naraz** — w ANALYST „▶ Play mission” z panelu wyników zostawiał Księżyc (lądownik, HUD) poza ekranem.
+  - Start replayu płynnie przewija stronę do widoku Księżyca (`ui.js → revealMoon`, tylko gdy nie jest już widoczny; reduced motion → bez animacji).
+  - HUD replayu ma własną mini-oś czasu całej misji: słońce (bursztyn, częściowe przyciemnione), kontakt z Ziemią (cyjan), bateria (zielona linia z wypełnieniem), czerwona kreska w godzinie wyczerpania i kursor w rytm zegara (`missionReplay.js → buildStrip`, canvas rysowany raz).
+  - Róża Słońce/Ziemia podąża za czasem replayu (`UiService.ReplayTimeUtc`, subskrypcja `ReplayStepChanged`); etykieta „3D MODEL · …” ukryta na czas replayu (zasłaniał ją HUD).
+  - Testy: xUnit 102/102; E2E replay 17/17 ×3 silniki, UX 39/39 (Firefox raz 38/39: karta powitalna 3,05 s przy limicie 3 s — znany flake czasowy), blokady 15/15 ×3 (nowe: Księżyc na ekranie, mini-oś i jej kursor, róża śledzi czas, ANALYST przewija z dołu strony); scenariusz porażki zmieniony z Nova-C na Blue Ghost 14 dni (Nova-C 494 W przeżywa 14 dni) — 2026-11-15 — commit z tym wpisem — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -221,6 +226,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — elipsa lądowania: pobranie DEM LOLA i kerneli, moduł pipeline (siatka horyzontów, transformacja układu, walidacja vs pełne przeliczenie i mapa NASA 3×3), źródła celności lądowników (Firefly, NASA/IM-2, NASA HLS), logika i UI we frontendzie, testy
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — pakiet polish-timelapse: przeliczenie danych 2026–2035 w plikach rocznych i walidacje (Horizons, NASA, Mazarico), kalendarz, panel analizy, płomień i pył (ParticleSystem), Mission replay z zakończeniami HLS/CLPS/porażka, testy jednostkowe i E2E w 3 silnikach
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — analiza dowolnego punktu 80–90°S: eksport efemeryd i DEM 240 m, obliczenia w przeglądarce (horyzont, paralaksa, seria), walidacja vs JPL Horizons i pipeline, UI karty Custom, testy jednostkowe i E2E
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — Play mission: przewinięcie do Księżyca, mini-oś czasu w HUD replayu, róża Słońce/Ziemia zsynchronizowana z replayem, aktualizacja testów E2E
 ## ⚠️ Known issues / ryzyka
 
 - **Custom: promienie horyzontu urywają się na 80°S** — wycięty DEM sięga do 80°S (cel rozmiaru ≤ 8 MB), więc dla punktów blisko 80°S część promieni do 150 km kończy się wcześniej (jak w pipeline: liczy się maksimum wewnątrz DEM). Skutek: horyzont od strony równika może być zaniżony.

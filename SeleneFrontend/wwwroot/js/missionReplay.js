@@ -47,6 +47,7 @@ function buildHud(host, data, st) {
   const batText = el("span", "num", "—"); battery.append(bar, batText);
   const sun = el("dd", null, "—"), earth = el("dd", null, "—");
   rows.append(el("dt", null, "Battery"), battery, el("dt", null, "Sunlight"), sun, el("dt", null, "Earth"), earth);
+  const strip = buildStrip(data, st.endStep);
   const banner = el("div", "replay-banner"); banner.hidden = true;
   banner.setAttribute("role", "status");
 
@@ -67,7 +68,7 @@ function buildHud(host, data, st) {
   skip.addEventListener("click", () => finish(st, true));
   controls.append(playBtn, scrub, speeds, skip);
 
-  root.append(head, clock, rows, banner, controls);
+  root.append(head, clock, rows, strip.root, banner, controls);
   host.append(root);
   return {
     update(f, socPct, sunPct, earthOn) {
@@ -82,10 +83,71 @@ function buildHud(host, data, st) {
       earth.textContent = earthOn ? "◉ contact" : "○ no contact";
       earth.className = earthOn ? "on" : "off";
       if (document.activeElement !== scrub) scrub.value = String(Math.round(st.progress * 1000));
+      strip.cursor(f);
     },
     banner(text, kind) { banner.textContent = text; banner.className = `replay-banner ${kind}`; banner.hidden = false; },
     ended() { playBtn.disabled = true; scrub.disabled = true; skip.disabled = true; },
     destroy() { host.replaceChildren(); },
+  };
+}
+
+/**
+ * The whole mission at a glance inside the HUD, so nothing that changes over time is off-screen:
+ * sunlight (amber, partial = dim), Earth contact (cyan) and battery (green line), with a moving cursor.
+ * Drawn once; only the cursor moves.
+ */
+function buildStrip(data, endStep) {
+  const n = data.sunAz.length;
+  const root = el("div", "replay-strip");
+  root.setAttribute("role", "img");
+  const days = Math.round((n * data.stepHours) / 24);
+  root.setAttribute("aria-label", `Mission overview, ${days} days: sunlight, Earth contact and battery`);
+  const labels = el("div", "replay-strip-labels");
+  labels.append(el("span", null, "Sun"), el("span", null, "Earth"), el("span", null, "Battery"));
+  const plot = el("div", "replay-strip-plot");
+  const canvas = el("canvas");
+  const cur = el("span", "replay-strip-cursor");
+  plot.append(canvas, cur);
+  root.append(labels, plot);
+
+  const css = getComputedStyle(document.documentElement);
+  const color = (name, fb) => css.getPropertyValue(name).trim() || fb;
+  const SUN = color("--status-warn", "#ffb020"), EARTH = color("--accent-cyan", "#4fc3f7");
+  const OK = color("--status-ok", "#3ddc84"), BAD = color("--status-error", "#ff4d4f");
+  const draw = () => {
+    const w = Math.max(60, Math.round(plot.clientWidth || 260)), h = 46, dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
+    const g = canvas.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    const x = (i) => (i / Math.max(1, n - 1)) * w;
+    const bw = Math.max(1, w / n + 0.5);
+    g.fillStyle = "rgba(127,147,166,0.08)";
+    g.fillRect(0, 0, w, 8); g.fillRect(0, 11, w, 8); g.fillRect(0, 22, w, 24);
+    for (let i = 0; i < n; i++) {
+      const p = data.sunPct[i];
+      if (p > 0) { g.globalAlpha = p >= 50 ? 1 : 0.45; g.fillStyle = SUN; g.fillRect(x(i), 0, bw, 8); }
+      if (data.earth[i] === 1) { g.globalAlpha = 1; g.fillStyle = EARTH; g.fillRect(x(i), 11, bw, 8); }
+    }
+    g.globalAlpha = 1;
+    const socY = (i) => 24 + 20 * (1 - Math.max(0, Math.min(100, data.soc[i])) / 100);
+    g.beginPath(); g.moveTo(0, 46);
+    for (let i = 0; i < n; i++) g.lineTo(x(i), socY(i));
+    g.lineTo(w, 46); g.closePath();
+    g.globalAlpha = 0.18; g.fillStyle = OK; g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = OK; g.lineWidth = 1.5; g.beginPath();
+    for (let i = 0; i < n; i++) i ? g.lineTo(x(i), socY(i)) : g.moveTo(x(i), socY(i));
+    g.stroke();
+    if (data.depletedAt >= 0) {
+      g.strokeStyle = BAD; g.lineWidth = 1.5; g.beginPath();
+      g.moveTo(x(Math.min(data.depletedAt, n - 1)), 0); g.lineTo(x(Math.min(data.depletedAt, n - 1)), h); g.stroke();
+    }
+  };
+  requestAnimationFrame(draw);   // after layout, so the canvas matches the HUD width
+  return {
+    root,
+    cursor(f) { cur.style.left = `${(Math.min(f, endStep) / Math.max(1, n - 1)) * 100}%`; },
   };
 }
 
