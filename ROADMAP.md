@@ -197,6 +197,7 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
   - Pierwszy taki klik w sesji pulsuje przycisk „New landing” w HUD (~1 s; przy ograniczonym ruchu stała obwódka).
   - Bez zmian: przeciąganie kamery nie otwiera karty (Cesium LEFT_CLICK tylko bez ruchu), podwójne kliknięcie przybliża, w Surface view klik nie pyta.
   - Testy: `tools/e2e/landed-click.mjs` 8/8 (przeciąganie bez karty, karta przy pinezce, pulsowanie, Cancel bez zmian, Esc, Land here → lądowanie i werdykt dla klikniętego miejsca); hak testowy `window.__seleneSitePx` (pozycja pinezki na renderowanym terenie) — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+- [x] Prezentacja demo w Canvie (7 slajdów 16:9, EN, wg `docs/slides.md`): https://www.canva.com/d/hlbxP_Xmy88jDgG — zrzuty z `docs/screenshots/` ze znakiem wodnym SI + `pipeline/docs/nasa_vs_ours.png`; usunięte zmyślone przez Canva AI grafiki, heatmapa, tabela liczb i data; slajd 2 = `stage2-…-descent` zamiast `stage3-replay-dark` (stare FEASIBLE dla 26.12.2028), slajd 6 sam tekst; link w `docs/submission.md` — 2026-11-15 12:20 — AI: Claude Code
 
 ## 🔄 In progress
 
@@ -352,9 +353,11 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — zgodność z zasadą SI Space Apps: przegląd tekstur pod kątem logo i flag, krok zamalowania w optymalizatorze, plakietka w aplikacji, znaki wodne, metadane GLB / danych / HTML, README, testy
 - 2026-11-15 — Antigravity (Google DeepMind) — płomień silnika w animacji lądowania i replayu: diagnoza smugi cząstek w układzie świata (ECEF) przy prędkości opadania ~3500 m/s; implementacja ruchomego układu odniesienia (Moving Reference Frame) w engineFx.js z zerowym lagiem (emitter.emit + updateCallback), dostrojenie czasu życia i prędkości cząstek dla naddźwiękowego strumienia w próżni
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — test ścieżki jurora na produkcji (przeglądarka z GPU, 2 tryby, 2 rozdzielczości), diagnoza czarnej sceny (kamera i lądownik pod kaflami 3D: elipsoida zamiast terenu, potem skok kafli po 8 s), poprawki lądowania, wiersza PANELS i New landing, weryfikacja na produkcji z wymuszonym wolnym terenem
+- 2026-11-15 — Claude Code (Claude Opus 5.5) + Canva AI (generator układu) — prezentacja demo w Canvie: wgranie obrazów, wygenerowanie układu, usunięcie zmyślonych przez Canva treści, podmiana na nasze zrzuty i wykres, poprawki tekstu
 
 ## ⚠️ Known issues / ryzyka
 
+- **Prezentacja Canva: udostępnienie „Anyone with the link can view” ustawia zespół ręcznie** (MCP Canvy nie ma tej opcji, przeglądarka w aplikacji nie była zalogowana) — sprawdzić link w oknie prywatnym przed 13:00. Slajd 7 ma ilustracje z biblioteki Canvy (bez ludzi i logo).
 - **Testy E2E nie sprawdzają trybu 3D** — lokalnie nie ma `appsettings.Development.json` z tokenem, więc `tools/e2e` jedzie w trybie 2D (globus Cesium, wysokość 0 m), a błędy kafli 3D (wysokość gruntu, skoki terenu) widać tylko na produkcji. Po zmianach w `landingAnimation.js` / `missionReplay.js` sprawdzić ręcznie na https://selene.byst.re/ (świeże wejście + QUICK DEMO + Play mission).
 - **Pierwsze wejście: globus 3D dociąga się ~15–20 s** (pierwsze ~6 s czarne tło, potem częściowe kafle; przy kolejnych wejściach z cache ~8 s). Na prezentacji otworzyć stronę wcześniej.
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — etap 4 Ziemia na niebie: pobranie tekstury Blue Marble, moduł skyView, tryb Surface view, test zasłaniania na danych, naprawa zakopanego lądownika i pętli podpowiedzi HUD, równoległe drzewa robocze

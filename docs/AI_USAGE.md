@@ -75,5 +75,9 @@ The first app skeleton (commits `323edd4`, `a2f267d`, 2026-11-14) was made with 
 - Space Apps AI-rule compliance: in-app badge, watermarks, metadata in GLB / data / HTML.
 - Submission review against the Space Apps submission guide and the Rzeszów rules; English project-page text
   (`docs/submission.md`), this file, the licence.
+- Demo deck in Canva (7 slides): Claude Code asked Canva's AI design generator for the layout from `docs/slides.md`,
+  then removed every picture, chart and number Canva invented (stock-style Moon images, a fake heatmap, a fake
+  per-site table, a made-up date) and placed our own app screenshots (with the AI-model watermark) and the NASA
+  comparison chart. All text and numbers come from `docs/slides.md`.
 
 The day-by-day Polish working log with commit hashes is in [`ROADMAP.md`](../ROADMAP.md) (section *AI usage log*).

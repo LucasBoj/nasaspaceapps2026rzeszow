@@ -22,8 +22,7 @@ that visible in seconds, in the browser, with no installation.
 
 ## Link to project demo
 
-[TEAM: public link to the 30-second video (YouTube / Google Drive, "anyone with the link") or to the slide deck
-(max 7 slides). Test it in a private browser window.]
+Demo deck (7 slides, Canva, view-only): https://www.canva.com/d/hlbxP_Xmy88jDgG
 
 ## Link to final project
 
