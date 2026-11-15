@@ -112,6 +112,20 @@ public sealed class IlluminationRepository(HttpClient http)
         return task;
     }
 
+    private readonly Dictionary<string, Task<HorizonHeightsData?>> _heights = [];
+
+    /// <summary>The site's horizon for several panel heights (<c>{siteId}/heights.json</c>), cached; null when missing.</summary>
+    public Task<HorizonHeightsData?> GetHorizonHeights(string siteId)
+    {
+        if (IsCustom(siteId)) return Task.FromResult<HorizonHeightsData?>(null);     // computed in the browser, no file
+        if (!_heights.TryGetValue(siteId, out var task))
+        {
+            task = LoadOptionalAsync<HorizonHeightsData>($"data/illumination/{Uri.EscapeDataString(siteId)}/heights.json");
+            _heights[siteId] = task;
+        }
+        return task;
+    }
+
     private async Task<T?> LoadOptionalAsync<T>(string url) where T : class
     {
         try

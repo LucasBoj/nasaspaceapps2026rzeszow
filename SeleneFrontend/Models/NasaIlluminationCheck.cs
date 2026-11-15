@@ -27,6 +27,10 @@ public sealed class NasaSiteCheck
     public double OursSunPct18y { get; set; }
     public double OursSunPct2027 { get; set; }
     public double DeltaSunPct { get; set; }          // ours 18.6 y − NASA 120 m, percentage points
+    /// <summary>Our model at the same point with the observer at the surface (NASA's maps are for the surface); null in older files.</summary>
+    public double? OursSunPct18y0m { get; set; }
+    /// <summary>Ours at the surface − NASA 120 m (pp): the like-for-like difference; null in older files.</summary>
+    public double? DeltaSunPct0m { get; set; }
     public double NasaEarthPct { get; set; }
     public double OursEarthAnyPct18y { get; set; }
 

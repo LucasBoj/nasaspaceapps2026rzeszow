@@ -239,6 +239,15 @@ def compare(sky: ephemeris.MoonSky | None = None) -> dict:
         ours18 = our_visibility(sky, horizon_deg, site["lat"], site["lon"], PERIOD_START, PERIOD_DAYS)
         ours27 = our_visibility(sky, horizon_deg, site["lat"], site["lon"],
                                 datetime(2027, 1, 1, tzinfo=timezone.utc), 731)
+        # The same point with the observer at the surface (heights.json from build_heights.py): NASA's maps are for
+        # the surface, the app's series for panels 2 m up. Without the file the field is omitted.
+        heights_path = ILLUMINATION_DIR / sid / "heights.json"
+        ours18_0m = None
+        if heights_path.exists():
+            zero = next((h for h in json.loads(heights_path.read_text(encoding="utf-8"))["heights"] if h["heightM"] == 0), None)
+            if zero is not None:
+                ours18_0m = our_visibility(sky, np.asarray(zero["horizonCentiDeg"], dtype=np.float64) / 100,
+                                           site["lat"], site["lon"], PERIOD_START, PERIOD_DAYS)
         nasa = {r["product"]: r for r in samples if r["pointId"] == sid}
         # Like-for-like: the NASA 120 m map uses the same DEM resolution as our horizons (LDEM 120 m).
         # The 60 m map (south of -85° only) shows how much finer terrain changes the answer.
@@ -249,6 +258,7 @@ def compare(sky: ephemeris.MoonSky | None = None) -> dict:
             "nasaSunPct60": pct(nasa["sun60"]["center"]) if "sun60" in nasa else None,
             "oursSunPct18y": pct(ours18["sunAny"]),
             "oursSunPct2027": pct(ours27["sunAny"]),
+            "oursSunPct18y0m": pct(ours18_0m["sunAny"]) if ours18_0m else None,
             "nasaEarthPct": pct(nasa["earth120"]["center"]),
             "nasaEarthPct60": pct(nasa["earth60"]["center"]) if "earth60" in nasa else None,
             "oursEarthAnyPct18y": pct(ours18["earthAny"]),
@@ -258,6 +268,9 @@ def compare(sky: ephemeris.MoonSky | None = None) -> dict:
         entry["deltaSunPct60"] = (round(entry["oursSunPct18y"] - entry["nasaSunPct60"], 1)
                                   if entry["nasaSunPct60"] is not None else None)
         entry["deltaEarthPct"] = round(entry["oursEarthAnyPct18y"] - entry["nasaEarthPct"], 1)
+        entry["deltaSunPct0m"] = (round(entry["oursSunPct18y0m"] - entry["nasaSunPct"], 1)
+                                  if entry["oursSunPct18y0m"] is not None else None)
+        entry["oursEarthAnyPct18y0m"] = pct(ours18_0m["earthAny"]) if ours18_0m else None
         sites.append(entry)
         print(f"  {sid:20s} NASA 120 m {entry['nasaSunPct']:5.1f}%  ours(18.6 y) {entry['oursSunPct18y']:5.1f}%  "
               f"d {entry['deltaSunPct']:+5.1f} pp | Earth NASA {entry['nasaEarthPct']:5.1f}% ours {entry['oursEarthAnyPct18y']:5.1f}%")
@@ -272,7 +285,7 @@ def compare(sky: ephemeris.MoonSky | None = None) -> dict:
         "nasaPeriod": "hourly over a full lunar nutation cycle (~18.6 years), exact dates not published on the product pages",
         "oursPeriod18y": f"{PERIOD_START:%Y-%m-%d} + 18.6 years, hourly",
         "oursPeriod2027": "2027-01-01 .. 2028-12-31, hourly (as in the app)",
-        "oursModel": "LOLA LDEM 120 m horizon (150 km rays), observer 2 m above terrain, JPL DE421 via Skyfield",
+        "oursModel": "LOLA LDEM 120 m horizon (150 km rays), observer 2 m above terrain (and 0 m from heights.json), JPL DE421 via Skyfield",
         "sites": sites,
         "referencePoints": refs,
     }
@@ -285,18 +298,20 @@ def pct(v: float) -> float:
 # ----------------------------------------------------------------------------- outputs
 
 def markdown_table(result: dict) -> str:
-    lines = ["| Site | NASA 120 m | NASA 3×3 px range | Ours 18.6 y | Δ vs NASA 120 m | Ours 2027–28 | NASA 60 m | Δ vs NASA 60 m |",
-             "|---|---:|---:|---:|---:|---:|---:|---:|"]
+    lines = ["| Site | NASA 120 m | NASA 3×3 px range | Ours at the surface (0 m) | Δ (0 m) | Ours, panels 2 m (app) | Δ (2 m) | Ours 2027–28 (2 m) | NASA 60 m |",
+             "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for s in result["sites"]:
         n60 = f"{s['nasaSunPct60']:.1f} %" if s["nasaSunPct60"] is not None else "—"
-        d60 = f"{s['deltaSunPct60']:+.1f} pp" if s["deltaSunPct60"] is not None else "—"
+        o0 = f"{s['oursSunPct18y0m']:.1f} %" if s.get("oursSunPct18y0m") is not None else "—"
+        d0 = f"**{s['deltaSunPct0m']:+.1f} pp**" if s.get("deltaSunPct0m") is not None else "—"
         lines.append(f"| {s['name']} | {s['nasaSunPct']:.1f} % | {s['nasaSunRangePct'][0]:.1f}–{s['nasaSunRangePct'][1]:.1f} % "
-                     f"| {s['oursSunPct18y']:.1f} % | **{s['deltaSunPct']:+.1f} pp** | {s['oursSunPct2027']:.1f} % | {n60} | {d60} |")
-    lines += ["", "| Site | Earth NASA 120 m (any part of disc) | Earth ours 18.6 y (any part of disc) | Δ | Earth ours, app criterion (centre > horizon + 0.5°) |",
-              "|---|---:|---:|---:|---:|"]
+                     f"| {o0} | {d0} | {s['oursSunPct18y']:.1f} % | {s['deltaSunPct']:+.1f} pp | {s['oursSunPct2027']:.1f} % | {n60} |")
+    lines += ["", "| Site | Earth NASA 120 m (any part of disc) | Ours at the surface (0 m) | Δ (0 m) | Ours, 2 m | Δ (2 m) | Ours, app criterion (centre > horizon + 0.5°, 2 m) |",
+              "|---|---:|---:|---:|---:|---:|---:|"]
     for s in result["sites"]:
-        lines.append(f"| {s['name']} | {s['nasaEarthPct']:.1f} % | {s['oursEarthAnyPct18y']:.1f} % | {s['deltaEarthPct']:+.1f} pp "
-                     f"| {s['oursEarthAppPct18y']:.1f} % |")
+        e0 = s.get("oursEarthAnyPct18y0m")
+        lines.append(f"| {s['name']} | {s['nasaEarthPct']:.1f} % | " + (f"{e0:.1f} % | {e0 - s['nasaEarthPct']:+.1f} pp" if e0 is not None else "— | —")
+                     + f" | {s['oursEarthAnyPct18y']:.1f} % | {s['deltaEarthPct']:+.1f} pp | {s['oursEarthAppPct18y']:.1f} % |")
     lines += ["", "| Reference point | Map | NASA value |", "|---|---|---:|"]
     for r in result["referencePoints"]:
         lines.append(f"| {r['name']} ({r['lat']}, {r['lon']}) | {r['product']} | {r['pct']:.1f} % |")
@@ -316,25 +331,27 @@ def chart(result: dict, path: Path = CHART_PNG) -> None:
     hi = np.array([s["nasaSunRangePct"][1] for s in sites]) - nasa
     ours = np.array([s["oursSunPct18y"] for s in sites])
     ours27 = np.array([s["oursSunPct2027"] for s in sites])
+    ours0 = np.array([s["oursSunPct18y0m"] if s.get("oursSunPct18y0m") is not None else np.nan for s in sites])
 
     nasa60 = np.array([s["nasaSunPct60"] if s["nasaSunPct60"] is not None else np.nan for s in sites])
 
     fig, ax = plt.subplots(figsize=(10, 5.6), dpi=150)
     w = 0.27
     ax.bar(x - w, nasa, w, yerr=[lo, hi], capsize=2,
-           label="NASA LOLA map 120 m (Mazarico et al. 2011), whiskers: 3×3 px range", color="#4fc3f7")
-    ax.bar(x, ours, w, label="SELENE model, 18.6-year average (120 m DEM, 2 m observer)", color="#ffb020")
-    ax.bar(x + w, ours27, w, label="SELENE model, 2027–28 (used in the app)", color="#ffb020", alpha=0.45)
+           label="NASA LOLA map 120 m (Mazarico et al. 2011, at the surface), whiskers: 3×3 px range", color="#4fc3f7")
+    ax.bar(x, ours0, w, label="SELENE model at the surface (0 m), 18.6-year average", color="#2e7d32")
+    ax.bar(x + w, ours, w, label="SELENE model with panels 2 m up (as in the app), 18.6-year average", color="#ffb020")
     ax.scatter(x - w, nasa60, marker="D", s=22, color="#7a3fb0", edgecolors="white", linewidths=0.6, zorder=3,
                label="NASA LOLA map 60 m (only south of −85°)")
     for i, s in enumerate(sites):
-        ax.text(x[i], max(nasa[i] + hi[i], ours[i], ours27[i]) + 1.5, f"{s['deltaSunPct']:+.1f}",
-                ha="center", fontsize=8)
+        d0 = s.get("deltaSunPct0m")
+        ax.text(x[i], max(nasa[i] + hi[i], ours[i], np.nan_to_num(ours0[i])) + 1.5,
+                f"{d0:+.1f}" if d0 is not None else f"{s['deltaSunPct']:+.1f}", ha="center", fontsize=8)
     ax.set_xticks(x, names, rotation=25, ha="right", fontsize=8)
     ax.set_ylabel("time with any sunlight [%]")
     ax.set_ylim(0, 105)
     ax.set_title("Sunlit time at the 9 landing sites: NASA LOLA illumination map vs SELENE model\n"
-                 "(numbers: ours 18.6 y − NASA 120 m, percentage points)", fontsize=10)
+                 "(numbers: ours at the surface − NASA 120 m, percentage points; same 120 m terrain resolution)", fontsize=10)
     ax.legend(fontsize=7, loc="upper center", bbox_to_anchor=(0.5, -0.30), ncol=2, frameon=False)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()

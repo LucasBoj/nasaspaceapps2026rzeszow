@@ -109,3 +109,34 @@ def test_recomputed_2027_28_matches_the_app_data(result):
 def test_frontend_copy_matches(result):
     front = json.loads(cmp.FRONTEND_JSON.read_text(encoding="utf-8"))
     assert front == result
+
+
+def test_agreement_at_the_surface(result):
+    # NASA's maps are for the surface; the app's series for panels 2 m up. With the observer at the surface
+    # (heights.json, 0 m) our model at our points matches the NASA 120 m map closely; the rest is point registration
+    # on steep summits (Nobile Rim 1: -8.5 pp here, but +-1 pp at NASA's own pixel centre, see test below).
+    deltas = [s["deltaSunPct0m"] for s in result["sites"]]
+    assert all(d is not None for d in deltas), "run build_heights.py first"
+    assert all(abs(d) <= 10 for d in deltas), deltas
+    assert sum(abs(d) <= 1 for d in deltas) >= 5, deltas
+    assert statistics.median([abs(d) for d in deltas]) <= 1, deltas
+    # Panels 2 m up never see less Sun than the surface.
+    assert all(s["oursSunPct18y"] >= s["oursSunPct18y0m"] for s in result["sites"])
+
+
+PIXELS = cmp.SNAPSHOT_DIR / "pixels_comparison.json"
+
+
+@pytest.mark.skipif(not PIXELS.exists(), reason="run compare_nasa_pixels.py (needs the LOLA DEMs)")
+def test_like_for_like_at_nasa_pixel_centres():
+    """Same DEM resolution, observer at the surface, at NASA's own 3x3 pixel centres: no systematic excess."""
+    doc = json.loads(PIXELS.read_text(encoding="utf-8"))
+    s120 = [s for s in doc["sites"] if s["map"] == "sun120"]
+    assert len(s120) == 9
+    assert all(s["meanAbs0m"] <= 5 for s in s120), [(s["siteId"], s["meanAbs0m"]) for s in s120]
+    assert abs(doc["overall"]["sun120|0"]["bias"]) <= 2
+    assert doc["overall"]["sun120|0"]["meanAbs"] <= 3
+    # The 2 m observer (the app) is what lifts the numbers above NASA's.
+    assert doc["overall"]["sun120|2"]["bias"] > doc["overall"]["sun120|0"]["bias"]
+    if "sun60|0" in doc["overall"]:
+        assert doc["overall"]["sun60|0"]["meanAbs"] <= 6

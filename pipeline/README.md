@@ -252,55 +252,102 @@ python compare_nasa_illumination.py --refresh  # re-sample the NASA maps (public
 
 ![Sunlit time: NASA LOLA map vs SELENE model](docs/nasa_vs_ours.png)
 
-**Sunlight** (% of hours with any part of the solar disc visible):
+**Sunlight** (% of hours with any part of the solar disc visible, at our landing points, 18.6-year average):
 
-| Site | NASA 120 m | NASA 3×3 px range | Ours 18.6 y | Δ vs NASA 120 m | Ours 2027–28 | NASA 60 m | Δ vs NASA 60 m |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Peak near Cabeus B | 52.5 % | 39.0–55.0 % | 54.3 % | **+1.8 pp** | 53.8 % | — | — |
-| Haworth | 66.6 % | 47.7–67.7 % | 70.6 % | **+4.0 pp** | 70.4 % | 62.1 % | +8.5 pp |
-| Malapert Massif | 69.8 % | 42.7–74.3 % | 81.2 % | **+11.4 pp** | 81.9 % | 64.0 % | +17.2 pp |
-| Mons Mouton Plateau | 42.7 % | 41.4–42.8 % | 43.0 % | **+0.3 pp** | 42.7 % | — | — |
-| Mons Mouton | 74.3 % | 37.3–78.4 % | 79.1 % | **+4.8 pp** | 79.5 % | 56.8 % | +22.3 pp |
-| Nobile Rim 1 | 83.5 % | 52.5–83.5 % | 83.8 % | **+0.3 pp** | 84.3 % | 76.8 % | +7.0 pp |
-| Nobile Rim 2 | 52.4 % | 29.3–52.4 % | 53.4 % | **+1.0 pp** | 53.8 % | — | — |
-| de Gerlache Rim 2 | 78.5 % | 48.9–78.5 % | 79.4 % | **+0.9 pp** | 79.6 % | 72.5 % | +6.9 pp |
-| Slater Plain | 58.3 % | 50.1–59.1 % | 60.1 % | **+1.8 pp** | 60.8 % | 52.9 % | +7.2 pp |
+| Site | NASA 120 m | NASA 3×3 px range | Ours at the surface (0 m) | Δ (0 m) | Ours, panels 2 m (app) | Δ (2 m) | Ours 2027–28 (2 m) | NASA 60 m |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Peak near Cabeus B | 52.5 % | 39.0–55.0 % | 52.5 % | **+0.0 pp** | 54.3 % | +1.8 pp | 53.8 % | — |
+| Haworth | 66.6 % | 47.7–67.7 % | 66.1 % | **-0.5 pp** | 70.6 % | +4.0 pp | 70.4 % | 62.1 % |
+| Malapert Massif | 69.8 % | 42.7–74.3 % | 74.5 % | **+4.7 pp** | 81.2 % | +11.4 pp | 81.9 % | 64.0 % |
+| Mons Mouton Plateau | 42.7 % | 41.4–42.8 % | 42.6 % | **-0.1 pp** | 43.0 % | +0.3 pp | 42.7 % | — |
+| Mons Mouton | 74.3 % | 37.3–78.4 % | 71.0 % | **-3.3 pp** | 79.1 % | +4.8 pp | 79.5 % | 56.8 % |
+| Nobile Rim 1 | 83.5 % | 52.5–83.5 % | 75.0 % | **-8.5 pp** | 83.8 % | +0.3 pp | 84.3 % | 76.8 % |
+| Nobile Rim 2 | 52.4 % | 29.3–52.4 % | 52.4 % | **+0.0 pp** | 53.4 % | +1.0 pp | 53.8 % | — |
+| de Gerlache Rim 2 | 78.5 % | 48.9–78.5 % | 76.4 % | **-2.1 pp** | 79.4 % | +0.9 pp | 79.6 % | 72.5 % |
+| Slater Plain | 58.3 % | 50.1–59.1 % | 57.5 % | **-0.8 pp** | 60.1 % | +1.8 pp | 60.8 % | 52.9 % |
 
 **Earth visibility** (% of hours):
 
-| Site | NASA 120 m (any part of disc) | Ours 18.6 y (any part of disc) | Δ | Ours, app criterion (centre > horizon + 0.5°) |
-|---|---:|---:|---:|---:|
-| Peak near Cabeus B | 72.6 % | 83.5 % | +10.9 pp | 71.9 % |
-| Haworth | 60.2 % | 61.1 % | +0.9 pp | 54.0 % |
-| Malapert Massif | 65.2 % | 75.4 % | +10.2 pp | 66.7 % |
-| Mons Mouton Plateau | 84.8 % | 84.9 % | +0.1 pp | 73.5 % |
-| Mons Mouton | 64.4 % | 79.6 % | +15.2 pp | 69.9 % |
-| Nobile Rim 1 | 64.2 % | 70.2 % | +6.0 pp | 62.3 % |
-| Nobile Rim 2 | 66.3 % | 66.5 % | +0.2 pp | 58.9 % |
-| de Gerlache Rim 2 | 61.3 % | 61.8 % | +0.5 pp | 54.6 % |
-| Slater Plain | 40.2 % | 41.0 % | +0.8 pp | 33.5 % |
+| Site | Earth NASA 120 m (any part of disc) | Ours at the surface (0 m) | Δ (0 m) | Ours, 2 m | Δ (2 m) | Ours, app criterion (centre > horizon + 0.5°, 2 m) |
+|---|---:|---:|---:|---:|---:|---:|
+| Peak near Cabeus B | 72.6 % | 75.2 % | +2.6 pp | 83.5 % | +10.9 pp | 71.9 % |
+| Haworth | 60.2 % | 60.2 % | +0.0 pp | 61.1 % | +0.9 pp | 54.0 % |
+| Malapert Massif | 65.2 % | 69.5 % | +4.3 pp | 75.4 % | +10.2 pp | 66.7 % |
+| Mons Mouton Plateau | 84.8 % | 83.9 % | -0.9 pp | 84.9 % | +0.1 pp | 73.5 % |
+| Mons Mouton | 64.4 % | 72.9 % | +8.5 pp | 79.6 % | +15.2 pp | 69.9 % |
+| Nobile Rim 1 | 64.2 % | 68.6 % | +4.4 pp | 70.2 % | +6.0 pp | 62.3 % |
+| Nobile Rim 2 | 66.3 % | 65.7 % | -0.6 pp | 66.5 % | +0.2 pp | 58.9 % |
+| de Gerlache Rim 2 | 61.3 % | 61.1 % | -0.2 pp | 61.8 % | +0.5 pp | 54.6 % |
+| Slater Plain | 40.2 % | 36.1 % | -4.1 pp | 41.0 % | +0.8 pp | 33.5 % |
+
+**Like-for-like at NASA's own pixel centres** (`compare_nasa_pixels.py`). The tables above compare our exact landing
+points with the NASA pixel that contains them; a pixel centre can be 85 m (120 m map) away, and on summits one pixel
+changes sunlit time by 20–30 pp. This script evaluates our model at the centre of every pixel of the 3 × 3 windows,
+in both maps, over the same 18.6 years, on the LOLA DEM of the **same resolution** (120 m for the 120 m map,
+`ldem_75s_60m_float` for the 60 m map), with the observer at the surface (0 m) and at 2 m (the app):
+
+| Site | NASA map (our DEM) | NASA centre | Ours 0 m | Ours 2 m | 3×3 mean bias 0 m | 3×3 mean abs 0 m | 3×3 mean bias 2 m |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Peak near Cabeus B | 120 m | 52.5 % | 52.7 % | 54.5 % | +0.5 pp | 1.0 pp | +2.6 pp |
+| Haworth | 120 m | 66.6 % | 66.9 % | 70.8 % | +0.6 pp | 1.7 pp | +7.3 pp |
+| Haworth | 60 m | 62.1 % | 65.2 % | 70.8 % | +3.0 pp | 3.0 pp | +13.4 pp |
+| Malapert Massif | 120 m | 69.8 % | 75.0 % | 81.9 % | +1.1 pp | 4.1 pp | +10.3 pp |
+| Malapert Massif | 60 m | 64.0 % | 57.4 % | 78.2 % | +2.5 pp | 4.4 pp | +17.3 pp |
+| Mons Mouton Plateau | 120 m | 42.7 % | 42.6 % | 43.0 % | -0.0 pp | 0.1 pp | +0.4 pp |
+| Mons Mouton | 120 m | 74.3 % | 78.2 % | 81.5 % | +3.6 pp | 3.6 pp | +11.7 pp |
+| Mons Mouton | 60 m | 56.8 % | 70.6 % | 80.2 % | +10.3 pp | 10.5 pp | +26.3 pp |
+| Nobile Rim 1 | 120 m | 83.5 % | 83.1 % | 86.2 % | +1.0 pp | 2.3 pp | +8.8 pp |
+| Nobile Rim 1 | 60 m | 76.8 % | 75.6 % | 85.4 % | +1.5 pp | 3.1 pp | +16.8 pp |
+| Nobile Rim 2 | 120 m | 52.4 % | 52.0 % | 53.1 % | -0.8 pp | 1.3 pp | +3.2 pp |
+| de Gerlache Rim 2 | 120 m | 78.5 % | 78.4 % | 80.1 % | -1.7 pp | 2.0 pp | +4.5 pp |
+| de Gerlache Rim 2 | 60 m | 72.5 % | 73.3 % | 80.3 % | +4.3 pp | 4.9 pp | +17.4 pp |
+| Slater Plain | 120 m | 58.3 % | 58.8 % | 60.2 % | +0.7 pp | 0.9 pp | +3.9 pp |
+| Slater Plain | 60 m | 52.9 % | 53.6 % | 59.4 % | +1.0 pp | 1.3 pp | +5.0 pp |
+
+All pixels: 120 m map, observer 0 m — bias +0.6 pp, mean |Δ| 1.9 pp, 93 % of 81 pixels within 5 pp; observer 2 m — bias +5.9 pp. 60 m map, observer 0 m — bias +3.8 pp, mean |Δ| 4.5 pp, 76 % of 54 pixels within 5 pp; observer 2 m — bias +16.1 pp.
+
+```bash
+python compare_nasa_pixels.py --dem /path/ldem_75s_120m_float.lbl --dem60 /path/ldem_75s_60m_float.lbl   # ~15 min
+python compare_nasa_pixels.py ... --refresh    # re-read the NASA 3x3 windows (data/nasa_illumination/pixels.csv)
+```
 
 **What it shows:**
 
-* **Like-for-like (NASA 120 m vs ours, both 120 m terrain):** 6 of 9 sites agree within 2 pp
-  and 8 of 9 within 5 pp (median +1.8 pp). Malapert Massif is the outlier at +11.4 pp.
-  Ours is never darker.
-* **Sources of the remaining excess:**
-  * Our observer stands 2 m above the terrain; NASA's height is not stated.
-  * Our horizon rays stop at 150 km.
-  * Our sites were picked as the sunniest candidate in each region on the same 120 m
-    DEM, which favours pixels where that DEM is optimistic.
-* **Finer terrain lowers the numbers.** Against the 60 m map ours is 7–22 pp higher.
-  Peaks and massifs such as Mons Mouton and Malapert are affected most. The 3 × 3 px
-  ranges show how steep the gradients are around those points: one pixel (120 m)
-  can change sunlit time by 20–30 pp. Our numbers are therefore an upper bound, the same
-  conclusion as the "120 m DEM optimism" caveat below.
-* **Earth agrees within 1 pp at 5 sites.** Three of the four outliers (+10–15 pp) are
-  summits or massifs (Cabeus B, Malapert, Mons Mouton), where a 2 m observer and smoothed
-  terrain matter most for a target only a few degrees above the horizon. Nobile Rim 1 is
-  +6.0 pp.
-* **Period effect is small:** at all 9 sites 2027–28 is within 1 pp of the 18.6-year
-  average.
+* **The method reproduces NASA's maps.** Under NASA's conditions (surface, same terrain resolution, NASA's pixel
+  centres) our sunlit time differs from the 120 m map by 1.9 pp on average (bias
+  +0.6 pp, every site ≤ 4.1 pp) and from the 60 m map by 4.5 pp
+  (Mons Mouton is the only site above 5 pp). There is no systematic excess.
+* **The app's numbers are higher by design.** The app's series put the panels and antenna 2 m above the ground.
+  On summits and rims that looks over nearby terrain: +5.9 pp on average at NASA's pixels,
+  +0…+9 pp at our points. The app shows how much the verdict depends on it (robustness row "PANELS 1–3 m",
+  `build_heights.py`, table below).
+* **The earlier "120 m DEM optimism" (+7…+22 pp vs the 60 m map) was mostly this**, plus comparing a 120 m model
+  with a 60 m map at a different point. On the 60 m DEM our 2 m values at the landing points change by −1.9…+0.9 pp
+  (Malapert 81.2 → 79.3 %, Mons Mouton 79.1 → 78.1 %, Nobile Rim 1 83.8 → 84.7 %). The finer DEM matters at the
+  surface, where small bumps decide.
+* **Point registration:** Nobile Rim 1 is −8.5 pp at our point (0 m) but 83.1 vs 83.5 % at NASA's pixel centre.
+* **Earth** agrees within 1 pp at 5 sites; at the surface the summit outliers shrink (Cabeus B +10.9 → +2.6,
+  Malapert +10.2 → +4.3, Mons Mouton +15.2 → +8.5 pp).
+* **Period effect is small:** at all 9 sites 2027–28 is within 1 pp of the 18.6-year average.
+
+### Model sensitivity (measured 2026-11-15)
+
+| Change | Effect on sunlit time at the 9 sites (18.6 years or whole data range) |
+|---|---|
+| Azimuth step 0.25° instead of 1° | ≤ 0.1 pp |
+| Horizon rays 300 km instead of 150 km | ≤ 0.3 pp |
+| Exact solar-disc segment instead of the linear approximation | 0.0 pp in mean sunFraction (the errors cancel); ≤ 5.8 pp in single hours |
+| LOLA 60 m DEM instead of 120 m (observer 2 m) | −1.9 … +0.9 pp |
+| Observer 1 m instead of 2 m | −0.1 … −4.6 pp (Nobile Rim 1, Mons Mouton, Malapert most) |
+| Observer 3 m instead of 2 m | +0.1 … +2.3 pp |
+| Observer at the surface (0 m) | −0.3 … −9.0 pp |
+
+`build_heights.py` writes the horizons for 0, 1, 2, 3, 5 and 10 m to `illumination/{siteId}/heights.json` (the 2 m
+mask must equal the yearly files', which the script checks); per-height sunlit time:
+
+```bash
+python build_heights.py --dem /path/to/ldem_75s_120m_float.lbl     # ~10 s, prints the table
+```
 
 ## Validation vs NASA statement
 
@@ -495,6 +542,16 @@ compute and a 3-year series ~10 ms.
     "horizonCentiDeg": [360 ints]            // the point's own horizon × 100, azimuth in its own frame
   }],
   "generatedWith": { "dem": "...", "method": "own-frame horizon + azShift/tilt (pipeline/ellipse.py)" }
+}
+```
+
+`illumination/{siteId}/heights.json` (`build_heights.py`, optional for the app; the robustness row "PANELS 1–3 m"):
+
+```jsonc
+{
+  "siteId": "nobile_rim_1", "lat": -85.55, "lon": 37.0, "seriesObserverHeightM": 2,
+  "heights": [{ "heightM": 0, "pctSunlit": 74.2, "pctComms": 61.0, "horizonCentiDeg": [360 ints] }, …],   // 0, 1, 2, 3, 5, 10 m
+  "generatedWith": { "dem": "...", "method": "horizon.horizon_profile per observer height" }
 }
 ```
 

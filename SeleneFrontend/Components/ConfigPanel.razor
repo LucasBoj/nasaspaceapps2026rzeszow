@@ -94,8 +94,14 @@
                             {
                                 <p class="site-source nasa-check">
                                     <Term Key="nasacheck">Sunlit time</Term> (18.6-yr avg, any sunlight):
-                                    NASA LOLA map @Pct(check.NasaSunPct) · our model @Pct(check.OursSunPct18y)
-                                    (@Delta(check.DeltaSunPct))@if (!double.IsNaN(check.NasaSunMinNearPct))
+                                    NASA LOLA map @Pct(check.NasaSunPct)@if (check is { OursSunPct18y0m: { } at0, DeltaSunPct0m: { } d0 })
+                                    {
+                                        <text> · our model at the surface @Pct(at0) (@Delta(d0)) · with panels 2 m up @Pct(check.OursSunPct18y)</text>
+                                    }
+                                    else
+                                    {
+                                        <text> · our model @Pct(check.OursSunPct18y) (@Delta(check.DeltaSunPct))</text>
+                                    }@if (!double.IsNaN(check.NasaSunMinNearPct))
                                     {
                                         <text> · NASA within ±120 m: @Pct(check.NasaSunMinNearPct)–@Pct(check.NasaSunMaxNearPct)</text>
                                     } ·

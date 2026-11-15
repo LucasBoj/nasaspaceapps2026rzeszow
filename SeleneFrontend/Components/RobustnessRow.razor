@@ -18,6 +18,20 @@
             </span>
         </div>
     }
+    @if (Height is { } h)
+    {
+        <div class="robust-item">
+            <span class="robust-label"><Term Key="panelheight">PANELS @Num(h.Low.HeightM)–@Num(h.High.HeightM) m</Term></span>
+            <span class="robust-badge @(h.Robust ? "ok" : "warn")">@(h.Robust ? "ROBUST" : "SENSITIVE")</span>
+            <span class="robust-detail">
+                @Num(h.Low.HeightM) m: <span class="@VerdictClass(h.Low.Verdict)">@VerdictLabel(h.Low.Verdict)</span>
+                (sunlight @Pct0(h.Low.SunPct), min @Pct0(h.Low.MinSocPct))
+                · @Num(h.High.HeightM) m: <span class="@VerdictClass(h.High.Verdict)">@VerdictLabel(h.High.Verdict)</span>
+                (sunlight @Pct0(h.High.SunPct), min @Pct0(h.High.MinSocPct))
+                · model @Num(h.NominalHeightM) m: sunlight @Pct0(h.NominalSunPct)
+            </span>
+        </div>
+    }
     @if (Ellipse is { } e)
     {
         var share = e.FeasibleShare * 100;
@@ -78,6 +92,8 @@
     [Parameter] public LoadSensitivity? Load { get; set; }
     [Parameter] public NasaSiteCheck? Nasa { get; set; }
     [Parameter] public EllipseResult? Ellipse { get; set; }
+    /// <summary>The mission with the panels at 1 m and 3 m instead of the model's 2 m.</summary>
+    [Parameter] public PanelHeightSensitivity? Height { get; set; }
     /// <summary>The lander's landing accuracy (radius of the ellipse) with its provenance.</summary>
     [Parameter] public NumberParam? Accuracy { get; set; }
 

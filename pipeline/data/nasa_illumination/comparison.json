@@ -7,7 +7,7 @@
   "nasaPeriod": "hourly over a full lunar nutation cycle (~18.6 years), exact dates not published on the product pages",
   "oursPeriod18y": "2009-07-13 + 18.6 years, hourly",
   "oursPeriod2027": "2027-01-01 .. 2028-12-31, hourly (as in the app)",
-  "oursModel": "LOLA LDEM 120 m horizon (150 km rays), observer 2 m above terrain, JPL DE421 via Skyfield",
+  "oursModel": "LOLA LDEM 120 m horizon (150 km rays), observer 2 m above terrain (and 0 m from heights.json), JPL DE421 via Skyfield",
   "sites": [
     {
       "siteId": "cabeus_b",
@@ -22,13 +22,16 @@
       "nasaSunPct60": null,
       "oursSunPct18y": 54.3,
       "oursSunPct2027": 53.8,
+      "oursSunPct18y0m": 52.5,
       "nasaEarthPct": 72.6,
       "nasaEarthPct60": null,
       "oursEarthAnyPct18y": 83.5,
       "oursEarthAppPct18y": 71.9,
       "deltaSunPct": 1.8,
       "deltaSunPct60": null,
-      "deltaEarthPct": 10.9
+      "deltaEarthPct": 10.9,
+      "deltaSunPct0m": 0.0,
+      "oursEarthAnyPct18y0m": 75.2
     },
     {
       "siteId": "haworth",
@@ -43,13 +46,16 @@
       "nasaSunPct60": 62.1,
       "oursSunPct18y": 70.6,
       "oursSunPct2027": 70.4,
+      "oursSunPct18y0m": 66.1,
       "nasaEarthPct": 60.2,
       "nasaEarthPct60": 59.8,
       "oursEarthAnyPct18y": 61.1,
       "oursEarthAppPct18y": 54.0,
       "deltaSunPct": 4.0,
       "deltaSunPct60": 8.5,
-      "deltaEarthPct": 0.9
+      "deltaEarthPct": 0.9,
+      "deltaSunPct0m": -0.5,
+      "oursEarthAnyPct18y0m": 60.2
     },
     {
       "siteId": "malapert_massif",
@@ -64,13 +70,16 @@
       "nasaSunPct60": 64.0,
       "oursSunPct18y": 81.2,
       "oursSunPct2027": 81.9,
+      "oursSunPct18y0m": 74.5,
       "nasaEarthPct": 65.2,
       "nasaEarthPct60": 70.9,
       "oursEarthAnyPct18y": 75.4,
       "oursEarthAppPct18y": 66.7,
       "deltaSunPct": 11.4,
       "deltaSunPct60": 17.2,
-      "deltaEarthPct": 10.2
+      "deltaEarthPct": 10.2,
+      "deltaSunPct0m": 4.7,
+      "oursEarthAnyPct18y0m": 69.5
     },
     {
       "siteId": "mons_mouton_plateau",
@@ -85,13 +94,16 @@
       "nasaSunPct60": null,
       "oursSunPct18y": 43.0,
       "oursSunPct2027": 42.7,
+      "oursSunPct18y0m": 42.6,
       "nasaEarthPct": 84.8,
       "nasaEarthPct60": null,
       "oursEarthAnyPct18y": 84.9,
       "oursEarthAppPct18y": 73.5,
       "deltaSunPct": 0.3,
       "deltaSunPct60": null,
-      "deltaEarthPct": 0.1
+      "deltaEarthPct": 0.1,
+      "deltaSunPct0m": -0.1,
+      "oursEarthAnyPct18y0m": 83.9
     },
     {
       "siteId": "mons_mouton",
@@ -106,13 +118,16 @@
       "nasaSunPct60": 56.8,
       "oursSunPct18y": 79.1,
       "oursSunPct2027": 79.5,
+      "oursSunPct18y0m": 71.0,
       "nasaEarthPct": 64.4,
       "nasaEarthPct60": 63.8,
       "oursEarthAnyPct18y": 79.6,
       "oursEarthAppPct18y": 69.9,
       "deltaSunPct": 4.8,
       "deltaSunPct60": 22.3,
-      "deltaEarthPct": 15.2
+      "deltaEarthPct": 15.2,
+      "deltaSunPct0m": -3.3,
+      "oursEarthAnyPct18y0m": 72.9
     },
     {
       "siteId": "nobile_rim_1",
@@ -127,13 +142,16 @@
       "nasaSunPct60": 76.8,
       "oursSunPct18y": 83.8,
       "oursSunPct2027": 84.3,
+      "oursSunPct18y0m": 75.0,
       "nasaEarthPct": 64.2,
       "nasaEarthPct60": 67.4,
       "oursEarthAnyPct18y": 70.2,
       "oursEarthAppPct18y": 62.3,
       "deltaSunPct": 0.3,
       "deltaSunPct60": 7.0,
-      "deltaEarthPct": 6.0
+      "deltaEarthPct": 6.0,
+      "deltaSunPct0m": -8.5,
+      "oursEarthAnyPct18y0m": 68.6
     },
     {
       "siteId": "nobile_rim_2",
@@ -148,13 +166,16 @@
       "nasaSunPct60": null,
       "oursSunPct18y": 53.4,
       "oursSunPct2027": 53.8,
+      "oursSunPct18y0m": 52.4,
       "nasaEarthPct": 66.3,
       "nasaEarthPct60": null,
       "oursEarthAnyPct18y": 66.5,
       "oursEarthAppPct18y": 58.9,
       "deltaSunPct": 1.0,
       "deltaSunPct60": null,
-      "deltaEarthPct": 0.2
+      "deltaEarthPct": 0.2,
+      "deltaSunPct0m": 0.0,
+      "oursEarthAnyPct18y0m": 65.7
     },
     {
       "siteId": "degerlache_rim_2",
@@ -169,13 +190,16 @@
       "nasaSunPct60": 72.5,
       "oursSunPct18y": 79.4,
       "oursSunPct2027": 79.6,
+      "oursSunPct18y0m": 76.4,
       "nasaEarthPct": 61.3,
       "nasaEarthPct60": 61.0,
       "oursEarthAnyPct18y": 61.8,
       "oursEarthAppPct18y": 54.6,
       "deltaSunPct": 0.9,
       "deltaSunPct60": 6.9,
-      "deltaEarthPct": 0.5
+      "deltaEarthPct": 0.5,
+      "deltaSunPct0m": -2.1,
+      "oursEarthAnyPct18y0m": 61.1
     },
     {
       "siteId": "slater_plain",
@@ -190,13 +214,16 @@
       "nasaSunPct60": 52.9,
       "oursSunPct18y": 60.1,
       "oursSunPct2027": 60.8,
+      "oursSunPct18y0m": 57.5,
       "nasaEarthPct": 40.2,
       "nasaEarthPct60": 36.5,
       "oursEarthAnyPct18y": 41.0,
       "oursEarthAppPct18y": 33.5,
       "deltaSunPct": 1.8,
       "deltaSunPct60": 7.2,
-      "deltaEarthPct": 0.8
+      "deltaEarthPct": 0.8,
+      "deltaSunPct0m": -0.8,
+      "oursEarthAnyPct18y0m": 36.1
     }
   ],
   "referencePoints": [
