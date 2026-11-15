@@ -8,8 +8,8 @@
       "value": 200,
       "unit": "W",
       "kind": "sourced",
-      "note": "3 panels, surface output (secondary source). The FCC IM-1 application gives a maximum of 788 W without saying whether it applies on the surface — not used until confirmed.",
-      "sourceUrl": "https://www.astronomy.com/space-exploration/intuitive-machines-preps-im-2-mission-for-moon-launch-this-week/"
+      "note": "Intuitive Machines' Nova-C release (2019, reposted by collectSPACE): \"At least 200 watts of power on the surface\" — used as the conservative value (astronomy.com, 2025: three panels \"afford 200 watts\"). Upper bound: the FCC IM-1 application gives \"a maximum of 788 W\" for the three fixed panels; if that is their summed rating, our normalisation (output at the best polar Sun direction) would give ~490 W. Compare with the SOLAR what-if.",
+      "sourceUrl": "http://www.collectspace.com/ubb/Forum35/HTML/000923.html"
     },
     "panels": {
       "mode": "fixed",
@@ -20,8 +20,8 @@
       ],
       "unit": "",
       "kind": "assumption",
-      "note": "Team description: 3 fixed panels (FCC IM-1 application confirms three fixed body-mounted solar panels; their directions are not published), 1 on the top deck and 2 on side walls of the hexagonal body, no Sun tracking (tip-overs of IM-1 and IM-2 cut their power). Assumed: the two walls are adjacent (60° apart) and the 3 panels share the output equally.",
-      "sourceUrl": ""
+      "note": "Team description: 3 fixed panels (FCC IM-1 application confirms three fixed body-mounted solar panels; their directions are not published), 1 on the top deck and 2 on side walls of the hexagonal body, no Sun tracking (tip-overs of IM-1 and IM-2 cut their power). astronomy.com (2025): \"one on the lander's top deck, plus two body-mounted arrays\". Assumed: the two walls are adjacent (60° apart) and the 3 panels share the output equally.",
+      "sourceUrl": "https://www.astronomy.com/space-exploration/intuitive-machines-preps-im-2-mission-for-moon-launch-this-week/"
     },
     "batteryWh": {
       "value": 1554,
@@ -94,7 +94,7 @@
       "value": 400,
       "unit": "W",
       "kind": "sourced",
-      "note": "up to 400 W from 3 panels",
+      "note": "Blue Ghost Mission 1: two side panels and one top-deck panel \"provide up to 400 W\" (Firefly). The 650 W in Wikipedia's infobox has no citation and is not used; Firefly's Blue Ghost product page lists > 400 W of payload power for later missions.",
       "sourceUrl": "https://fireflyspace.com/missions/blue-ghost-mission-1/"
     },
     "panels": {
@@ -173,8 +173,8 @@
       "value": 1000,
       "unit": "W",
       "kind": "assumption",
-      "note": "class estimate",
-      "sourceUrl": ""
+      "note": "Class estimate: output not published. Astrobotic Lunar Landers PUG (2021) p. 28: Griffin \"is designed to be power positive\" on the surface (so the array must exceed the ~700 W day load) and \"can be configured to carry larger solar arrays\" than Peregrine.",
+      "sourceUrl": "https://science.nasa.gov/wp-content/uploads/2023/11/astrobotic-lunar-landers-pug.pdf"
     },
     "panels": {
       "mode": "fixed",
@@ -183,8 +183,8 @@
       ],
       "unit": "",
       "kind": "assumption",
-      "note": "Team description: one large fixed panel on one side, optimised for polar missions; the lander yaws before touchdown so the panel faces the Sun. Assumed: the panel is vertical (tilt not public; at the pole the Sun stays a few degrees above the horizon).",
-      "sourceUrl": ""
+      "note": "Team description: one large fixed panel on one side, optimised for polar missions; the lander yaws before touchdown so the panel faces the Sun. Astrobotic Lunar Landers PUG (2021) pp. 24, 28: polar missions \"utilize side-mounted panels\" (the Griffin Mission One configuration). Assumed: one vertical panel carries the whole output (count, size and tilt not published).",
+      "sourceUrl": "https://science.nasa.gov/wp-content/uploads/2023/11/astrobotic-lunar-landers-pug.pdf"
     },
     "batteryWh": {
       "value": 2000,
@@ -204,8 +204,8 @@
       "value": 700,
       "unit": "W",
       "kind": "assumption",
-      "note": "≈ payload power 1.0 W/kg × 625 kg + bus — class estimate",
-      "sourceUrl": "https://astrobotic.com/lunar-delivery/landers"
+      "note": "Payload power from the Astrobotic Lunar Landers PUG (2021) p. 55: NOMINAL 1.0 W per kg of payload (PEAK 2.5 W/kg as scheduled) × 625 kg polar capacity (p. 24) = 625 W, plus ~75 W for the lander bus (assumption, not published).",
+      "sourceUrl": "https://science.nasa.gov/wp-content/uploads/2023/11/astrobotic-lunar-landers-pug.pdf"
     },
     "survivalLoadW": {
       "value": 150,
@@ -218,8 +218,8 @@
       "value": 14,
       "unit": "d",
       "kind": "sourced",
-      "note": "",
-      "sourceUrl": "https://www.nasaspaceflight.com/tag/viper/"
+      "note": "Astrobotic Lunar Landers PUG (2021) p. 24, polar configuration: \"Surface Operations Duration Up to 14 Days\".",
+      "sourceUrl": "https://science.nasa.gov/wp-content/uploads/2023/11/astrobotic-lunar-landers-pug.pdf"
     },
     "designedForNight": {
       "value": false,
