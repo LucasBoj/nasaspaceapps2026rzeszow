@@ -226,14 +226,31 @@
         </li>
     </ol>
 
+    @if (ShowResult && Analysis.Mission is { } res)
+    {
+        @* After touchdown the next steps replace "Land & analyze": the verdict in short and where to go next. *@
+        <section class="result-step @VerdictText.CssClass(res.Verdict)" id="step-result" aria-labelledby="result-title">
+            <h2 class="result-head" id="result-title"><span class="step-num" aria-hidden="true">✓</span> Result</h2>
+            <p class="result-verdict"><span aria-hidden="true">@VerdictText.Icon(res.Verdict)</span> @VerdictText.Label(res.Verdict)</p>
+            <p class="result-line">@Analysis.MissionSiteName · @MissionState.SelectedLander?.Name · lands @VerdictText.Date(res.LandingUtc) · @VerdictText.Days(res.DurationDays)</p>
+            <div class="result-actions">
+                <button type="button" class="btn-primary small result-another" @onclick="Ui.ShowHeatmapAsync">Try another date</button>
+                <button type="button" class="btn-secondary small result-lander" @onclick="Ui.ChangeLander">Change lander</button>
+                <button type="button" class="btn-secondary small result-new" @onclick="Ui.NewLanding">New landing</button>
+            </div>
+        </section>
+    }
     <div class="panel-actions">
         @{ var blockers = Ui.LandBlockers(); var outdated = Analysis.IsOutdated && Ui.VerdictRequested; }
+        @if (!ShowResult)
+        {
         <button type="button" class="btn-primary confirm-landing run-main" disabled="@(!Ui.CanConfirmLanding)"
                 aria-describedby="@(blockers.Count > 0 ? "run-blockers" : null)"
                 @onclick="() => Ui.ConfirmLandingAsync()">
             @(Ui.LandingInProgress ? "Landing…" : outdated ? "Update results" : Analysis.IsRunning && Ui.VerdictRequested ? $"Analyzing… {Analysis.Progress * 100:0}%" : "Land & analyze")
         </button>
-        @if (blockers.Count > 0)
+        }
+        @if (blockers.Count > 0 && !ShowResult)
         {
             <p class="reason blockers" id="run-blockers" role="status">
                 <span>To continue:</span>
@@ -288,6 +305,10 @@
     private static string ShortDate(DateTime? d) => d is { } v ? VerdictText.Date(v) : "—";
 
     private IlluminationIndexSite? IndexFor(string id) => index?.Sites.FirstOrDefault(s => s.SiteId == id);
+
+    /// <summary>Landed with a current result for this site: the panel shows the Result step instead of "Land & analyze".</summary>
+    private bool ShowResult => Ui.Landed && !Ui.LandingInProgress && Analysis.Mission is not null && !Analysis.IsOutdated
+                               && Analysis.MissionSiteId == MissionState.SelectedSite?.Id;
 
     private bool Done(int n) => n switch
     {

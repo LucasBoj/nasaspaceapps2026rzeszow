@@ -1,6 +1,6 @@
 // Canvas heatmap "site × landing day". One canvas instead of thousands of DOM cells.
 
-const MARGIN = { left: 150, right: 10, top: 20, bottom: 4 };
+const MARGIN = { left: 150, right: 10, top: 36, bottom: 4 };   // top: month labels + the BEST WINDOW label row
 const NO_GO = "#2a2f36";
 const LOW = [16, 44, 58];
 const HIGH = [79, 195, 247];
@@ -154,7 +154,7 @@ function draw(canvas, pulse = 0) {
       ctx.fillStyle = "#7f93a6";
       const label = MONTHS[date.getUTCMonth()] + (date.getUTCMonth() === 0 || d === 0 ? " " + String(date.getUTCFullYear()).slice(2) : "");
       const wide = g.cw * 28 / bucket > 30 || date.getUTCMonth() % 3 === 0 || d === 0;
-      if (wide && x + 2 >= labelEnd + 4) { ctx.fillText(label, x + 2, MARGIN.top / 2); labelEnd = x + 2 + ctx.measureText(label).width; }
+      if (wide && x + 2 >= labelEnd + 4) { ctx.fillText(label, x + 2, 9); labelEnd = x + 2 + ctx.measureText(label).width; }
     }
   }
 
@@ -185,9 +185,12 @@ function draw(canvas, pulse = 0) {
     ctx.font = '600 10px "IBM Plex Mono", monospace';
     const tw = ctx.measureText(label).width + 8;
     const bc = Math.floor(bd / bucket);
-    let lx = MARGIN.left + bc * g.cw + Math.max(5, g.cw) / 2 + 6;
-    if (lx + tw > g.w - MARGIN.right) lx = MARGIN.left + bc * g.cw - tw - 6;
-    const ly = MARGIN.top + bs * g.rh + g.rh / 2;
+    // In the label row above the plot, centred on the best column: it never covers a cell.
+    const colX = MARGIN.left + bc * g.cw + g.cw / 2;
+    const lx = Math.min(Math.max(MARGIN.left, colX - tw / 2), g.w - MARGIN.right - tw);
+    const ly = MARGIN.top - 11;
+    ctx.fillStyle = AMBER;
+    ctx.fillRect(Math.round(colX) - 1, ly + 7, 2, MARGIN.top - ly - 7);   // tick down to the column
     ctx.fillStyle = "rgba(10,14,19,0.9)";
     ctx.fillRect(lx, ly - 8, tw, 16);
     ctx.strokeStyle = AMBER; ctx.lineWidth = 1;

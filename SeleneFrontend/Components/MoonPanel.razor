@@ -31,7 +31,9 @@
     {
         <div class="viewer-hud">
             <div class="viewer-hud-buttons">
-                <button type="button" class="hud-btn" aria-label="Back to the south pole view (Home key)" title="Back to the south pole view (Home)"
+                <button type="button" class="hud-btn" aria-label="Back to the south pole view (Home key)"
+                        @onmouseenter="@(() => ShowTip("Back to the south pole view (Home key)"))" @onmouseleave="HideTip"
+                        @onfocus="@(() => ShowTip("Back to the south pole view (Home key)"))" @onblur="HideTip"
                         @onclick="SouthPoleViewAsync">⌂ View</button>
                 <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)"
                         aria-describedby="@(MissionState.SelectedSite is null ? "zoom-reason" : null)" @onclick="ZoomToSiteAsync">Zoom to site</button>
@@ -39,19 +41,26 @@
                 {
                     <button type="button" class="hud-btn play-mission" @onclick="Ui.PlayMissionAsync">▶ Play mission</button>
                 }
-                @if (Ui.Landed || Ui.LandingInProgress)
+                @if (Ui.Landed && !Ui.LandingInProgress)
                 {
-                    <button type="button" class="hud-btn new-landing" disabled="@Ui.LandingInProgress"
-                            aria-describedby="@(Ui.LandingInProgress ? "newlanding-reason" : null)" @onclick="Ui.NewLanding">New landing</button>
+                    <button type="button" class="hud-btn new-landing" @onclick="Ui.NewLanding">New landing</button>
                 }
                 @if (Ui.AnalystMode)
                 {
                     <button type="button" class="hud-btn" aria-label="Viewer settings" aria-expanded="@(settingsOpen ? "true" : "false")" aria-controls="hud-settings"
-                            title="Viewer settings" @onclick="() => settingsOpen = !settingsOpen">⚙</button>
+                            @onmouseenter="@(() => ShowTip("Viewer settings"))" @onmouseleave="HideTip"
+                            @onfocus="@(() => ShowTip("Viewer settings"))" @onblur="HideTip"
+                            @onclick="ToggleSettings">⚙</button>
                     <button type="button" class="hud-btn" aria-pressed="@(Ui.CandidatesOn ? "true" : "false")"
-                            disabled="@(!HasRegionSelected)" aria-describedby="@(HasRegionSelected ? null : "cand-reason")"
-                            title="Show all evaluated candidate landing sites in this region"
-                            @onclick="Ui.ToggleCandidates">Candidates</button>
+                            disabled="@(!HasRegionSelected)" aria-describedby="@(HasRegionSelected ? "cand-tip" : "cand-reason")"
+                            @onmouseenter="@(() => ShowTip(CandidatesTip))" @onmouseleave="HideTip"
+                            @onfocus="@(() => ShowTip(CandidatesTip))" @onblur="HideTip"
+                            @onclick="ToggleCandidates">Candidates</button>
+                }
+                @* HUD tooltip: in the button row, after the last button — never over another control. *@
+                @if (hudTip is not null)
+                {
+                    <span class="hud-tip" role="tooltip" id="@(hudTip == CandidatesTip ? "cand-tip" : null)">@hudTip</span>
                 }
             </div>
             @if (MissionState.SelectedSite is null)
@@ -61,10 +70,6 @@
             else if (Ui.AnalystMode && !HasRegionSelected)
             {
                 <p class="hud-reason" id="cand-reason">Candidates are shown for the 9 regions — choose one.</p>
-            }
-            @if (Ui.LandingInProgress)
-            {
-                <p class="hud-reason" id="newlanding-reason">New landing is available after touchdown.</p>
             }
             @if (settingsOpen && Ui.AnalystMode)
             {
@@ -86,16 +91,23 @@
                     <small>Brighter on screen only. The pole really is this dark — the Sun stays a few degrees above the horizon. Light direction from JPL ephemerides.</small>
                 </div>
             }
-            @if (badgeText is not null && Ui.AnalystMode)
+            @* Chips give way to the descent / replay HUD that uses this corner. Their tooltips open to the right. *@
+            @if (badgeText is not null && Ui.AnalystMode && !Ui.LandingInProgress && !Ui.ReplayPlaying)
             {
-                <div class="viewer-badge mode" title="@badgeTitle">@badgeText</div>
+                <div class="viewer-badge mode has-tip" tabindex="0">
+                    @badgeText
+                    @if (!string.IsNullOrEmpty(badgeTitle))
+                    {
+                        <span class="tip" role="tooltip">@badgeTitle</span>
+                    }
+                </div>
             }
-            @if (Ui.LandingAnimationEnabled && !Ui.ReplayPlaying && MissionState.SelectedLander is { Model: { } model } lander
+            @if (Ui.LandingAnimationEnabled && !Ui.ReplayPlaying && !Ui.LandingInProgress && MissionState.SelectedLander is { Model: { } model } lander
                  && (Ui.AnalystMode || modelStatus.GetValueOrDefault(model.Uri) == "loading"))
             {
                 var state = modelStatus.GetValueOrDefault(model.Uri);
-                <div class="viewer-badge model-status @state" tabindex="0" role="status"
-                     title="@($"{lander.Name} 3D model (visualisation only). {model.Credit}")">
+                <div class="viewer-badge model-status has-tip @state" tabindex="0" role="status">
+                    <span class="tip" role="tooltip">@($"{lander.Name} 3D model (visualisation only). {model.Credit}")</span>
                     @(state switch
                     {
                         "loading" => $"LOADING 3D MODEL · {lander.Name.ToUpperInvariant()}…",
@@ -138,7 +150,7 @@
             }
         </div>
     }
-    @if (moonLoaded && !Ui.LandingInProgress)
+    @if (moonLoaded && !Ui.LandingInProgress && !Ui.SummaryOpen)
     {
         <div class="viewer-compass"><SunEarthCompass /></div>
     }
@@ -354,6 +366,26 @@
 
     [JSInvokable] public void OnReplayEnded(string outcome) => Ui.ReplayEnded(outcome);
 
+    /// <summary>The user dragged / scrolled the camera or pressed Esc: the mission summary folds away.</summary>
+    [JSInvokable] public void OnViewerInteraction() => Ui.CollapseSummary();
+
+    private const string CandidatesTip = "Show all evaluated candidate landing sites in this region";
+    private string? hudTip;
+    private void ShowTip(string text) => hudTip = text;
+    private void HideTip() => hudTip = null;
+
+    private void ToggleSettings()
+    {
+        Ui.CollapseSummary();
+        settingsOpen = !settingsOpen;
+    }
+
+    private void ToggleCandidates()
+    {
+        Ui.CollapseSummary();
+        Ui.ToggleCandidates();
+    }
+
     /// <summary>NEW LANDING: remove the landed model and give the camera back.</summary>
     private void HandleNewLanding() => _ = InvokeAsync(async () =>
     {
@@ -438,6 +470,7 @@
 
     private async Task SouthPoleViewAsync()
     {
+        Ui.CollapseSummary();
         if (moonModule is null) return;
         try
         {
@@ -450,6 +483,7 @@
 
     private Task ZoomToSiteAsync()
     {
+        Ui.CollapseSummary();
         var site = MissionState.SelectedSite;
         if (site is null) return Task.CompletedTask;
         // A user-clicked custom site lives in the viewer under a fixed entity id.

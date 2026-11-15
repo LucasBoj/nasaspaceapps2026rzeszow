@@ -1154,7 +1154,7 @@ html, body {
 .heatmap-canvas {
     display: block;
     width: 100%;
-    height: 150px;
+    height: 166px;
 }
 
 .heatmap-tooltip {
@@ -2446,6 +2446,7 @@ body { font-size: var(--fs-m); line-height: 1.45; }
 .v-nogo .verdict-big { color: #ff6b6d; }   /* AA on the dark overlay */
 .verdict-sentence { font-size: var(--fs-m); margin-top: var(--s1); color: var(--text-primary); max-width: 64ch; }
 .verdict-numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); margin: 0; }
+.verdict-numbers.n5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .verdict-numbers dt { font-size: var(--fs-s); color: var(--text-dim); }
 .verdict-numbers dd { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: var(--fs-xl); font-weight: 500; line-height: 1.15; }
 .verdict-numbers dd small { display: inline; font-size: var(--fs-m); color: var(--text-dim); margin-left: 1px; }
@@ -2520,7 +2521,7 @@ body { font-size: var(--fs-m); line-height: 1.45; }
     .moon-viewer-canvas { bottom: auto; height: 58vh; }
     .verdict-card, .moon-viewer-container:has(.verdict-card.overlay) .verdict-card.overlay { position: static; translate: none; width: auto; max-height: none; margin: var(--s3); }
     .welcome-card { position: static; width: auto; margin: var(--s3); }
-    .verdict-numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .verdict-numbers, .verdict-numbers.n5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .panel-actions { position: static; margin: 0; background: none; padding: 0; }
     .analyst-toggle span:last-child { display: none; }
     .analyst-toggle::after { content: "Analyst"; font-size: var(--fs-s); }
@@ -2701,3 +2702,87 @@ html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: aut
 .custom-out { color: var(--status-warn); }
 .quick-estimate .term-btn { font-size: var(--fs-s); }
 .custom-progress { width: 320px; }
+
+/* ---- HUD tooltips (2026-11-15): never over another control ----
+   Button tips sit in the button row after the last button; chip tips open to the right of the chip. */
+.hud-tip {
+    align-self: center;
+    pointer-events: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-primary);
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    padding: 4px 8px;
+    white-space: nowrap;
+}
+.has-tip { position: relative; pointer-events: auto; }
+.has-tip > .tip {
+    display: none;
+    position: absolute; z-index: 20;
+    left: calc(100% + 8px); top: 0;   /* grows downwards: never up into the button row */
+    width: max-content; max-width: min(360px, 60vw);
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; letter-spacing: 0; white-space: normal;
+    color: var(--text-primary);
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    padding: 4px 8px;
+    pointer-events: none;
+}
+.has-tip:hover > .tip, .has-tip:focus-visible > .tip { display: block; }
+.viewer-badge.mode.has-tip { cursor: help; }
+.viewer-badge.mode.has-tip:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+
+/* Descent panel below the HUD button row (it used to cover ▶ Play mission / New landing). */
+.landing-panel { top: 52px; }
+
+/* Folded mission summary: one small button at the bottom of the Moon view. */
+.replay-summary-chip {
+    position: absolute; left: 50%; bottom: var(--s4); translate: -50% 0; z-index: 8;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: var(--fs-s); font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-color);
+    border-top: 2px solid var(--status-ok);
+    border-radius: 2px;
+    padding: 6px var(--s3);
+    cursor: pointer;
+}
+.replay-summary-chip.lost { border-top-color: var(--status-error); }
+.replay-summary-chip:hover { border-color: var(--accent-cyan); }
+.replay-summary-chip:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+.kbd { font-family: 'IBM Plex Mono', monospace; font-size: 11px; border: 1px solid var(--border-color); border-radius: 2px; padding: 0 4px; margin-left: 2px; }
+.landing-tip {
+    position: absolute; left: calc(100% + 8px); z-index: 20;
+    width: max-content; max-width: 320px;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; line-height: 1.4;
+    color: var(--text-primary); background: var(--bg-overlay);
+    border: 1px solid var(--border-color); border-radius: 2px; padding: 4px 8px;
+    pointer-events: none;
+}
+.landing-tip[hidden] { display: none; }
+.has-tip.tip-left > .tip { left: auto; right: calc(100% + 8px); top: 50%; translate: 0 -50%; }
+
+/* ---- Result step (right panel after touchdown) ---- */
+.result-step {
+    display: grid; gap: var(--s2);
+    padding: var(--s3) var(--s4);
+    background: var(--bg-raised);
+    border-radius: 2px;
+    box-shadow: inset 2px 0 0 var(--status-ok);
+}
+.result-step.v-marginal { box-shadow: inset 2px 0 0 var(--status-warn); }
+.result-step.v-nogo { box-shadow: inset 2px 0 0 var(--status-error); }
+.result-step.v-feasible .result-verdict { color: var(--status-ok); }
+.result-step.v-marginal .result-verdict { color: var(--status-warn); }
+.result-step.v-nogo .result-verdict { color: #ff6b6d; }
+.result-head { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-m); font-weight: 600; margin: 0; }
+.result-verdict { font-size: var(--fs-l); font-weight: 700; margin: 0; }
+.result-line { font-size: var(--fs-s); color: var(--text-secondary); margin: 0; }
+.result-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+/* Verdict card over the Moon: compact enough that the whole card (incl. its buttons) fits 1366×768 without scrolling. */
+.verdict-card.overlay { max-height: min(44vh, 360px); padding: var(--s3) var(--s5); gap: var(--s2); }
+.verdict-card.overlay .verdict-sentence, .verdict-card.overlay .verdict-ellipse { max-width: 80ch; }

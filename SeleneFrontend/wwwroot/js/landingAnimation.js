@@ -385,9 +385,17 @@ function buildHud(host, opts, onSkip) {
   catcher.addEventListener("click", onSkip);
   const panel = el("div", "landing-panel");
   const badge = el("span", "landing-badge", "SIMULATED DESCENT");
-  badge.title = "Illustrative descent profile: altitude, vertical speed and range follow the animated trajectory, " +
-    "not a flight-dynamics simulation. Lander model is schematic and not to scale.";
-  badge.tabIndex = 0;
+  // Tooltips open to the right of the panel (never over the HUD buttons or the telemetry).
+  const tip = el("div", "landing-tip"); tip.setAttribute("role", "tooltip"); tip.id = "landing-tip"; tip.hidden = true;
+  const withTip = (node, text) => {
+    node.dataset.tip = text; node.tabIndex = 0; node.setAttribute("aria-describedby", "landing-tip");
+    const show = () => { tip.textContent = node.dataset.tip; tip.style.top = `${node.offsetTop}px`; tip.hidden = false; };
+    const hide = () => { tip.hidden = true; };
+    node.addEventListener("mouseenter", show); node.addEventListener("focus", show);
+    node.addEventListener("mouseleave", hide); node.addEventListener("blur", hide);
+  };
+  withTip(badge, "Illustrative descent profile: altitude, vertical speed and range follow the animated trajectory, " +
+    "not a flight-dynamics simulation. Lander model is schematic and not to scale.");
   const title = el("div", "landing-title", `${opts.landerName} → ${opts.siteName}`);
   const rows = el("dl", "landing-telemetry");
   const value = {};
@@ -396,7 +404,7 @@ function buildHud(host, opts, onSkip) {
     value[k] = el("dd", null, "—");
     rows.append(value[k]);
   }
-  value.yaw.title = "Heading at touchdown that points the fixed solar panels at the Sun (from the mission analysis).";
+  withTip(value.yaw, "Heading at touchdown that points the fixed solar panels at the Sun (from the mission analysis).");
   value.yaw.textContent = opts.panels?.length ? "awaiting analysis…" : "—";
   const phases = el("ol", "landing-phases");
   const phaseEl = {};
@@ -408,7 +416,7 @@ function buildHud(host, opts, onSkip) {
   const skip = el("button", "hud-btn landing-skip", "SKIP ▸▸");
   skip.type = "button";
   skip.addEventListener("click", (e) => { e.stopPropagation(); onSkip(); });
-  panel.append(badge, title, status, rows, phases, skip);
+  panel.append(badge, title, status, rows, phases, skip, tip);
   root.append(catcher, panel);
   host.append(root);
 
@@ -425,7 +433,7 @@ function buildHud(host, opts, onSkip) {
     done() { root.classList.add("done"); skip.remove(); catcher.remove(); },
     status(text) { status.textContent = text; },
     model(credit) {
-      badge.title = "Illustrative descent profile: altitude, vertical speed and range follow the animated trajectory, " +
+      badge.dataset.tip = "Illustrative descent profile: altitude, vertical speed and range follow the animated trajectory, " +
         "not a flight-dynamics simulation. Lander model scaled to its approximate real size." + (credit ? ` ${credit}.` : "");
     },
     destroy() { host.replaceChildren(); },

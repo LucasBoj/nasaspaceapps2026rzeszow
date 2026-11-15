@@ -1,0 +1,9 @@
+{
+  "name": "selene-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser tests for SELENE OPS (Playwright, Chromium / Firefox / WebKit).",
+  "dependencies": {
+    "playwright": "1.61.1"
+  }
+}

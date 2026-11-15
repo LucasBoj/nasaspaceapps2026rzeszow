@@ -194,6 +194,8 @@ function setupCameraControls() {
   // for seconds at start-up (1 fps, measured 2026-11-14). guardCamera() keeps the clearance instead.
   scene.preRender.addEventListener(guardCamera);
   document.addEventListener("keydown", onKeyDown);
+  viewer.canvas.addEventListener("pointerdown", viewerInteraction, { passive: true });
+  viewer.canvas.addEventListener("wheel", viewerInteraction, { passive: true });
 
   viewer.camera.moveStart.addEventListener(() => { cameraMoving = true; updateFrameRate(); });
   viewer.camera.moveEnd.addEventListener(() => { cameraMoving = false; fullRate(300); });
@@ -202,7 +204,17 @@ function setupCameraControls() {
   fullRate(1500);   // first tiles and the intro flight
 }
 
+let lastInteraction = 0;
+/** Camera drag / wheel on the globe, or Esc: tell the app (it folds the mission summary). Throttled. */
+function viewerInteraction() {
+  const now = performance.now();
+  if (now - lastInteraction < 400) return;
+  lastInteraction = now;
+  dotNetRef?.invokeMethodAsync("OnViewerInteraction").catch(() => {});
+}
+
 function onKeyDown(e) {
+  if (e.key === "Escape" && !e.defaultPrevented && !document.querySelector("[role=dialog][aria-modal=true]")) { viewerInteraction(); return; }
   if (e.key !== "Home" || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
   const t = e.target;
   if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;

@@ -10,7 +10,7 @@
 @if (Visible && Analysis.Mission is { } m)
 {
     var cls = VerdictText.CssClass(m.Verdict);
-    <section class="verdict-card @cls @(Inline ? "inline" : "overlay") @(Outdated ? "outdated" : "")" aria-labelledby="verdict-title">
+    <section class="verdict-card @cls @(Inline ? "inline" : "overlay") @(Outdated ? "outdated" : "")" aria-labelledby="verdict-title" data-sun-pct="@P(m.SunPct)" data-min-soc="@P(m.MinSocPct)">
         @if (Outdated)
         {
             <div class="verdict-outdated" role="status">
@@ -40,19 +40,27 @@
             }
         </div>
 
-        <dl class="verdict-numbers">
-            <div>
-                <dt>Sunlight</dt>
-                <dd>@P(m.SunPct)<small>%</small></dd>
+        @* Numbers that tell windows apart (sunlight / contact are in the sentence; they are often 100 %). *@
+        <dl class="verdict-numbers n@(Analysis.Ellipse is null ? 4 : 5)">
+            <div class="@(m.EnergyLoadWh > 0 && m.EnergyProducedWh < m.EnergyLoadWh ? "low" : "")">
+                <dt><Term Key="energymargin">Energy made vs. used</Term></dt>
+                <dd class="energy-margin">@Ratio(m)<small>×</small></dd>
+            </div>
+            <div class="@(Analysis.MaxSurvivableDays is { } st && st + 1e-6 < m.DurationDays ? "low" : "")">
+                <dt>Longest possible stay</dt>
+                <dd class="max-stay">@Stay(Analysis.MaxSurvivableDays)<small>@(Analysis.MaxSurvivableDays is null ? "" : " days")</small></dd>
             </div>
             <div class="@(m.MinSocPct < MissionState.MinBatteryPercent ? "low" : "")">
                 <dt>Lowest battery</dt>
                 <dd>@P(m.MinSocPct)<small>%</small></dd>
             </div>
-            <div>
-                <dt>Earth contact</dt>
-                <dd>@P(m.CommsPct)<small>%</small></dd>
-            </div>
+            @if (Analysis.Ellipse is { } el)
+            {
+                <div class="@(el.FeasibleShare < 0.5 ? "low" : "")">
+                    <dt>Landing area OK</dt>
+                    <dd class="ellipse-ok">@P(el.FeasibleShare * 100)<small>%</small></dd>
+                </div>
+            }
             <div>
                 <dt>@(Analysis.Heatmap is not null ? "Best landing date" : "Landing date")</dt>
                 <dd class="date">@VerdictText.Date(m.LandingUtc)</dd>
@@ -103,6 +111,16 @@
 
     /// <summary>Settings (site, lander, dates, limits, what-if) changed since this result was computed.</summary>
     private bool Outdated => Analysis.IsOutdated || Analysis.MissionSiteId != MissionState.SelectedSite?.Id;
+
+    private static string Ratio(SimulationResult m) =>
+        m.EnergyLoadWh <= 0 ? "—" : (m.EnergyProducedWh / m.EnergyLoadWh).ToString(m.EnergyProducedWh / m.EnergyLoadWh >= 10 ? "0" : "0.0", CultureInfo.InvariantCulture);
+
+    private static string Stay(double? days) => days switch
+    {
+        null => "—",
+        >= AnalysisService.MaxSurvivableCapDays - 1e-6 => $"≥{AnalysisService.MaxSurvivableCapDays:0}",
+        { } d => d.ToString("0.0", CultureInfo.InvariantCulture),
+    };
 
     private static string P(double v) => Math.Round(v).ToString("0", CultureInfo.InvariantCulture);
 

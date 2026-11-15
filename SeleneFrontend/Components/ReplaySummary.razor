@@ -6,10 +6,17 @@
 @inject AnalysisService Analysis
 
 @* End of the mission replay (or the static summary with reduced motion). *@
-@if (Ui.ReplayOutcome is { } outcome && Analysis.Mission is { } m)
+@if (Ui.ReplayOutcome is { } folded && Ui.SummaryCollapsed && Analysis.Mission is not null)
+{
+    @* Folded (non-modal): one small button brings the card back. *@
+    <button type="button" class="replay-summary-chip @(folded == "lost" ? "lost" : "complete")" @onclick="Ui.ExpandSummary">
+        ▴ Mission summary · @(folded == "lost" ? "MISSION LOST" : "MISSION COMPLETE")
+    </button>
+}
+else if (Ui.ReplayOutcome is { } outcome && Analysis.Mission is { } m)
 {
     var lost = outcome == "lost";
-    <section class="replay-summary @(lost ? "lost" : "complete")" aria-labelledby="replay-title">
+    <section id="replay-summary" class="replay-summary @(lost ? "lost" : "complete")" aria-labelledby="replay-title">
         <div role="status" aria-live="polite">
             <p class="replay-kicker">@VerdictText.Icon(m.Verdict) @VerdictText.Label(m.Verdict) · @Analysis.MissionSiteName</p>
             <h2 id="replay-title" class="replay-title">@Title(outcome, m)</h2>
@@ -27,6 +34,7 @@
             <button type="button" class="btn-secondary small" @onclick="Ui.ShowHeatmapAsync">Try another date</button>
             <button type="button" class="btn-secondary small" @onclick="Ui.NewLanding">New landing</button>
             <button type="button" class="link-btn full-analysis-hint" @onclick="FullAnalysis">See the full analysis →</button>
+            <button type="button" class="link-btn summary-hide" @onclick="Ui.CollapseSummary" aria-controls="replay-summary">Hide <span class="kbd">Esc</span></button>
             <button type="button" class="link-btn" @onclick="Ui.CloseReplay">Close</button>
         </div>
         @if (Ui.ReducedMotion)

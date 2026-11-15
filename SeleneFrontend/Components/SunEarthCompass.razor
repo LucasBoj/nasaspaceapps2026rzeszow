@@ -18,8 +18,9 @@
     var earthOn = series.EarthVisible[index] == 1;
     @if (!Ui.AnalystMode && !simpleOpen)
     {
-        <button type="button" class="compass-toggle" aria-expanded="false" aria-label="Show where the Sun and Earth are"
-                title="Where are the Sun and Earth?" @onclick="() => simpleOpen = true">
+        <button type="button" class="compass-toggle has-tip tip-left" aria-expanded="false" aria-label="Show where the Sun and Earth are"
+                @onclick="() => simpleOpen = true">
+            <span class="tip" aria-hidden="true">Where are the Sun and Earth?</span>
             <svg viewBox="-12 -12 24 24" aria-hidden="true">
                 <circle r="10" class="compass-edge" />
                 <circle cx="@F(Math.Sin(sunAz * Math.PI / 180) * 6)" cy="@F(-Math.Cos(sunAz * Math.PI / 180) * 6)" r="3" class="compass-sun @(sunPct > 0 ? "" : "hidden")" />

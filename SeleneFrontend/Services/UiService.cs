@@ -306,6 +306,34 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     /// <summary>"lost", "complete-clps", "complete-hls" after a replay (or the static summary); null = none shown.</summary>
     public string? ReplayOutcome { get; private set; }
 
+    /// <summary>The summary card is non-modal: HUD use, camera moves or Esc fold it into a small "Mission summary" button.</summary>
+    public bool SummaryCollapsed { get; private set; }
+
+    /// <summary>The full summary card is on screen (not folded).</summary>
+    public bool SummaryOpen => ReplayOutcome is not null && !SummaryCollapsed;
+
+    public void CollapseSummary()
+    {
+        if (!SummaryOpen) return;
+        SummaryCollapsed = true;
+        Notify();
+    }
+
+    public void ExpandSummary()
+    {
+        if (ReplayOutcome is null || !SummaryCollapsed) return;
+        SummaryCollapsed = false;
+        Notify();
+    }
+
+    /// <summary>"Change lander" from the Result step: open step 2 (picking another lander ends the landing).</summary>
+    public void ChangeLander()
+    {
+        CloseReplay();
+        SetOpenStep(2);
+        Notify();
+    }
+
     /// <summary>Mission step under the replay cursor (−1 = no replay); separate event so only the timeline re-renders.</summary>
     public int ReplayStep { get; private set; } = -1;
     public event Action? ReplayStepChanged;
@@ -325,6 +353,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     {
         if (!CanPlayMission) return;
         ReplayOutcome = null;
+        SummaryCollapsed = false;
         if (ReducedMotion)
         {
             ReplayOutcome = OutcomeOf();
@@ -356,6 +385,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     {
         ReplayPlaying = false;
         ReplayOutcome = outcome;
+        SummaryCollapsed = false;
         Notify();
     }
 
@@ -365,6 +395,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         var wasActive = ReplayPlaying || ReplayOutcome is not null;
         ReplayPlaying = false;
         ReplayOutcome = null;
+        SummaryCollapsed = false;
         SetReplayStep(-1);
         if (wasActive) ReplayRequested?.Invoke(false);
         Notify();
