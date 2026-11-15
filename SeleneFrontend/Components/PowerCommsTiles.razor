@@ -4,7 +4,7 @@
 @* Key power and communication metrics of the simulated mission (challenge: Sun elevation, sunlight duration, comms). *@
 <div class="metric-tiles" role="list" aria-label="Power and communication metrics">
     <div class="metric-tile" role="listitem">
-        <span class="metric-label"><Term Key="sunel">SUN ELEVATION</Term></span>
+        <span class="metric-label"><Term Key="sunel">Sun elevation</Term></span>
         @if (double.IsNaN(M.SunElevMinDeg))
         {
             <span class="metric-value">—</span>
@@ -22,7 +22,7 @@
     </div>
 
     <div class="metric-tile" role="listitem">
-        <span class="metric-label"><Term Key="lit">SUNLIGHT</Term></span>
+        <span class="metric-label"><Term Key="lit">Sunlight</Term></span>
         <span class="metric-value">@D0(M.SunPct)% of hours</span>
         <span class="metric-sub">longest light @Hours(M.LongestLitH) · longest dark @Hours(M.LongestDarkH)</span>
     </div>
@@ -30,20 +30,20 @@
     <div class="metric-tile @EfficiencyTone" role="listitem">
         @if (M.FixedPanels)
         {
-            <span class="metric-label"><Term Key="paneleff">PANELS · FIXED</Term></span>
+            <span class="metric-label"><Term Key="paneleff">Panels · fixed</Term></span>
             <span class="metric-value">@(double.IsNaN(M.PanelEfficiency) ? "—" : $"{D0(M.PanelEfficiency * 100)}% of ideal")</span>
             <span class="metric-sub"><Term Key="heading">heading</Term> @D0(M.HeadingDeg ?? 0)° @(M.HeadingAuto ? "(AUTO)" : "(manual)")</span>
         }
         else
         {
-            <span class="metric-label"><Term Key="incidence">PANELS · IDEAL</Term></span>
+            <span class="metric-label"><Term Key="incidence">Panels · ideal</Term></span>
             <span class="metric-value">always facing the Sun</span>
             <span class="metric-sub">upper bound — no incidence loss</span>
         }
     </div>
 
     <div class="metric-tile @EnergyTone" role="listitem">
-        <span class="metric-label">SOLAR ENERGY</span>
+        <span class="metric-label">Solar energy</span>
         <span class="metric-value">@Energy(M.EnergyProducedWh) / @Energy(M.EnergyLoadWh)</span>
         <span class="metric-sub">produced / used · @(M.EnergyLoadWh > 0 ? $"{D2(M.EnergyProducedWh / M.EnergyLoadWh)}×" : "—")@if (M.BatteryRoundTripEff < 1)
             {
@@ -53,7 +53,7 @@
     </div>
 
     <div class="metric-tile" role="listitem">
-        <span class="metric-label"><Term Key="earth">EARTH COMMS</Term></span>
+        <span class="metric-label"><Term Key="earth">Earth comms</Term></span>
         <span class="metric-value">@D0(M.CommsPct)% in view</span>
         <span class="metric-sub">
             <Term Key="commsgap">longest gap</Term> @Hours(M.LongestCommsGapH)@(double.IsNaN(M.EarthClearanceMinDeg) ? "" : $" · terrain margin {D1(M.EarthClearanceMinDeg)}°")
@@ -63,7 +63,7 @@
     @if (MaxStayDays is { } stay)
     {
         <div class="metric-tile @(stay + 1e-6 >= M.DurationDays ? "good" : "bad")" role="listitem">
-            <span class="metric-label"><Term Key="maxstay">MAX STAY</Term></span>
+            <span class="metric-label"><Term Key="maxstay">Max stay</Term></span>
             <span class="metric-value">@(stay >= CapDays - 1e-6 ? $"≥ {D0(CapDays)} d" : $"{D1(stay)} d")</span>
             <span class="metric-sub">from this landing · planned @D1(M.DurationDays) d</span>
         </div>

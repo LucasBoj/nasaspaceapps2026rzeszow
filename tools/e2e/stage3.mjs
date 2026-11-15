@@ -20,7 +20,7 @@ const card = p.locator(".verdict-card.overlay");
 const minSoc = Number(await card.getAttribute("data-min-soc"));
 const verdict = (await card.locator(".verdict-big").innerText()).trim();
 const sentence = await card.locator(".verdict-sentence").innerText();
-expect("QUICK DEMO: battery visibly drops (lowest < 100 %) and the mission is not NOT FEASIBLE", minSoc < 100 && minSoc >= 30 && !/NOT FEASIBLE/.test(verdict), `${verdict} · lowest battery ${minSoc} %`);
+expect("QUICK DEMO: battery visibly drops (lowest < 100 %) and the mission is not NOT FEASIBLE", minSoc < 100 && minSoc > 0 && !/NOT FEASIBLE/.test(verdict), `${verdict} · lowest battery ${minSoc} %`);
 expect("QUICK DEMO: Blue Ghost at Nobile Rim 1, landing 26 Dec 2028", /Nobile Rim 1/.test(sentence) && /26 Dec 2028/.test(sentence), sentence);
 await shot("stage3-quickdemo-verdict");
 

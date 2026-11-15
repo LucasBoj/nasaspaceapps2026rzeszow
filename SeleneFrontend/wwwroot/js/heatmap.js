@@ -117,7 +117,7 @@ function draw(canvas, pulse = 0) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, g.w, g.h);
 
-  ctx.font = '11px "IBM Plex Mono", monospace';
+  ctx.font = '12px "IBM Plex Sans", sans-serif';   // ≥ 12 px, Sans (package C)
   ctx.textBaseline = "middle";
 
   // Cells (merge runs of identical colour per row for speed and crisp edges).
@@ -135,7 +135,7 @@ function draw(canvas, pulse = 0) {
     }
     ctx.fillStyle = s === data.selected[0] ? "#d7e2ec" : "#7f93a6";
     ctx.textAlign = "right";
-    ctx.fillText(data.sites[s].toUpperCase(), MARGIN.left - 8, y + g.rh / 2);
+    ctx.fillText(data.sites[s], MARGIN.left - 8, y + g.rh / 2);
   }
 
   // Month labels and separators.
@@ -181,14 +181,14 @@ function draw(canvas, pulse = 0) {
       ctx.restore();
     }
     outline(bs, bd, AMBER, 2);
-    const label = "BEST WINDOW";
-    ctx.font = '600 10px "IBM Plex Mono", monospace';
+    const label = "Best window";
+    ctx.font = '600 12px "IBM Plex Sans", sans-serif';
     const tw = ctx.measureText(label).width + 8;
     const bc = Math.floor(bd / bucket);
     // In the label row above the plot, centred on the best column: it never covers a cell.
     const colX = MARGIN.left + bc * g.cw + g.cw / 2;
     const lx = Math.min(Math.max(MARGIN.left, colX - tw / 2), g.w - MARGIN.right - tw);
-    const ly = MARGIN.top - 11;
+    const ly = MARGIN.top - 12;
     ctx.fillStyle = AMBER;
     ctx.fillRect(Math.round(colX) - 1, ly + 7, 2, MARGIN.top - ly - 7);   // tick down to the column
     ctx.fillStyle = "rgba(10,14,19,0.9)";

@@ -2,89 +2,109 @@
 @using SeleneFrontend.Models
 @using SeleneFrontend.Services
 
-@* How much the verdict trusts its inputs: load uncertainty (simulated) and landing accuracy (NASA map, ±1 pixel). *@
+@* How much the verdict trusts its inputs, in two groups: power assumptions (load ±20 %) and landing accuracy
+   (the lander's landing ellipse, with its map beside the text, and the NASA map one 120 m pixel off). *@
 <div class="robustness" role="group" aria-label="Verdict robustness">
-    @if (Load is { } s)
+    @if (Load is not null || Height is not null)
     {
-        <div class="robust-item">
-            <span class="robust-label"><Term Key="loadsens">LOAD ±@Pct0(s.DeltaFraction * 100)</Term></span>
-            <span class="robust-badge @(s.Robust ? "ok" : "warn")">@(s.Robust ? "ROBUST" : "SENSITIVE")</span>
-            <span class="robust-detail">
-                −@Pct0(s.DeltaFraction * 100):
-                <span class="@VerdictClass(s.Low)">@VerdictLabel(s.Low)</span> (min @Pct0(s.MinSocLowPct))
-                · +@Pct0(s.DeltaFraction * 100):
-                <span class="@VerdictClass(s.High)">@VerdictLabel(s.High)</span> (min @Pct0(s.MinSocHighPct))
-                · @BreakEven(s)
-            </span>
-        </div>
+        <section class="robust-group" aria-labelledby="robust-power">
+            <h4 class="robust-group-title" id="robust-power">Power assumptions</h4>
+            @if (Load is { } s)
+            {
+                <div class="robust-item">
+                    <span class="robust-label"><Term Key="loadsens">Load ±@Pct0(s.DeltaFraction * 100)</Term></span>
+                    <span class="robust-badge @(s.Robust ? "ok" : "warn")">@(s.Robust ? "ROBUST" : "SENSITIVE")</span>
+                    <span class="robust-detail">
+                        −@Pct0(s.DeltaFraction * 100):
+                        <span class="@VerdictClass(s.Low)">@VerdictLabel(s.Low)</span> (min @Pct0(s.MinSocLowPct))
+                        · +@Pct0(s.DeltaFraction * 100):
+                        <span class="@VerdictClass(s.High)">@VerdictLabel(s.High)</span> (min @Pct0(s.MinSocHighPct))
+                        · @BreakEven(s)
+                    </span>
+                </div>
+            }
+            @if (Height is { } h)
+            {
+                <div class="robust-item">
+                    <span class="robust-label"><Term Key="panelheight">Panels @Num(h.Low.HeightM)–@Num(h.High.HeightM) m</Term></span>
+                    <span class="robust-badge @(h.Robust ? "ok" : "warn")">@(h.Robust ? "ROBUST" : "SENSITIVE")</span>
+                    <span class="robust-detail">
+                        @Num(h.Low.HeightM) m: <span class="@VerdictClass(h.Low.Verdict)">@VerdictLabel(h.Low.Verdict)</span>
+                        (sunlight @Pct0(h.Low.SunPct), min @Pct0(h.Low.MinSocPct))
+                        · @Num(h.High.HeightM) m: <span class="@VerdictClass(h.High.Verdict)">@VerdictLabel(h.High.Verdict)</span>
+                        (sunlight @Pct0(h.High.SunPct), min @Pct0(h.High.MinSocPct))
+                        · this lander @Num(h.NominalHeightM) m: sunlight @Pct0(h.NominalSunPct)
+                    </span>
+                </div>
+            }
+        </section>
     }
-    @if (Height is { } h)
+    @if (Ellipse is not null || (Nasa is { } nc && !double.IsNaN(nc.NearLossPp)))
     {
-        <div class="robust-item">
-            <span class="robust-label"><Term Key="panelheight">PANELS @Num(h.Low.HeightM)–@Num(h.High.HeightM) m</Term></span>
-            <span class="robust-badge @(h.Robust ? "ok" : "warn")">@(h.Robust ? "ROBUST" : "SENSITIVE")</span>
-            <span class="robust-detail">
-                @Num(h.Low.HeightM) m: <span class="@VerdictClass(h.Low.Verdict)">@VerdictLabel(h.Low.Verdict)</span>
-                (sunlight @Pct0(h.Low.SunPct), min @Pct0(h.Low.MinSocPct))
-                · @Num(h.High.HeightM) m: <span class="@VerdictClass(h.High.Verdict)">@VerdictLabel(h.High.Verdict)</span>
-                (sunlight @Pct0(h.High.SunPct), min @Pct0(h.High.MinSocPct))
-                · this lander @Num(h.NominalHeightM) m: sunlight @Pct0(h.NominalSunPct)
-            </span>
-        </div>
-    }
-    @if (Ellipse is { } e)
-    {
-        var share = e.FeasibleShare * 100;
-        var holds = share >= EllipseOkPct;
-        <div class="robust-item ellipse-item">
-            <span class="robust-label"><Term Key="ellipse">ELLIPSE ±@Pct0Num(e.RadiusM) m</Term></span>
-            <span class="robust-badge @(holds ? "ok" : "warn")">@Pct0(share) FEASIBLE</span>
-            <span class="robust-detail">
-                @e.Count spots within @Pct0Num(e.RadiusM) m:
-                <span class="v-feasible">@e.Feasible FEASIBLE</span>
-                @if (e.Marginal > 0) { <text> · </text><span class="v-marginal">@e.Marginal MARGINAL</span> }
-                @if (e.NotFeasible > 0) { <text> · </text><span class="v-nogo">@e.NotFeasible NOT FEASIBLE</span> }
-                · sunlight @Pct0(e.MinSunPct)–@Pct0(e.MaxSunPct) of the mission
-                @if (e.MaxSlopeDeg is { } slope)
+        <section class="robust-group accuracy" aria-labelledby="robust-accuracy">
+            <h4 class="robust-group-title" id="robust-accuracy">Landing accuracy</h4>
+            <div class="robust-group-body">
+                @if (Ellipse is { } em)
                 {
-                    <text> · steepest slope @slope.ToString("0.0", CultureInfo.InvariantCulture)° (120 m DEM)</text>
-                }
-                @if (Accuracy is { } acc)
-                {
-                    <text> · </text>
-                    <span class="robust-source" title="@acc.Note">radius @KindLabel(acc.Kind)@if (!string.IsNullOrEmpty(acc.SourceUrl))
+                    <svg class="ellipse-map" viewBox="@ViewBox(em)" role="img" aria-label="@MapLabel(em)">
+                        <title>@MapLabel(em)</title>
+                        @foreach (var p in em.Points)
                         {
-                            <text> (</text><a href="@acc.SourceUrl" target="_blank" rel="noopener">source</a><text>)</text>
-                        }</span>
+                            <rect x="@Num(p.E - em.SpacingM / 2)" y="@Num(-p.N - em.SpacingM / 2)" width="@Num(em.SpacingM)" height="@Num(em.SpacingM)"
+                                  class="ep @PointClass(p.Verdict)" />
+                        }
+                        <circle cx="0" cy="0" r="@Num(em.RadiusM)" class="ep-ring" />
+                        <path d="@Cross(em)" class="ep-target" />
+                        <text x="0" y="@Num(-em.RadiusM - em.SpacingM * 0.9)" class="ep-north">N</text>
+                    </svg>
                 }
-            </span>
-            <svg class="ellipse-map" viewBox="@ViewBox(e)" role="img" aria-label="@MapLabel(e)">
-                <title>@MapLabel(e)</title>
-                @foreach (var p in e.Points)
+                <div class="robust-items">
+                @if (Ellipse is { } e)
                 {
-                    <rect x="@Num(p.E - e.SpacingM / 2)" y="@Num(-p.N - e.SpacingM / 2)" width="@Num(e.SpacingM)" height="@Num(e.SpacingM)"
-                          class="ep @PointClass(p.Verdict)" />
+                    var share = e.FeasibleShare * 100;
+                    var holds = share >= EllipseOkPct;
+                    <div class="robust-item ellipse-item">
+                        <span class="robust-label"><Term Key="ellipse">Ellipse ±@Pct0Num(e.RadiusM) m</Term></span>
+                        <span class="robust-badge @(holds ? "ok" : "warn")">@Pct0(share) FEASIBLE</span>
+                        <span class="robust-detail">
+                            @e.Count spots within @Pct0Num(e.RadiusM) m:
+                            <span class="v-feasible">@e.Feasible FEASIBLE</span>
+                            @if (e.Marginal > 0) { <text> · </text><span class="v-marginal">@e.Marginal MARGINAL</span> }
+                            @if (e.NotFeasible > 0) { <text> · </text><span class="v-nogo">@e.NotFeasible NOT FEASIBLE</span> }
+                            · sunlight @Pct0(e.MinSunPct)–@Pct0(e.MaxSunPct) of the mission
+                            @if (e.MaxSlopeDeg is { } slope)
+                            {
+                                <text> · steepest slope @slope.ToString("0.0", CultureInfo.InvariantCulture)° (120 m DEM)</text>
+                            }
+                            @if (Accuracy is { } acc)
+                            {
+                                <text> · </text>
+                                <span class="robust-source" title="@acc.Note">radius @KindLabel(acc.Kind)@if (!string.IsNullOrEmpty(acc.SourceUrl))
+                                    {
+                                        <text> (</text><a href="@acc.SourceUrl" target="_blank" rel="noopener">source</a><text>)</text>
+                                    }</span>
+                            }
+                        </span>
+                    </div>
                 }
-                <circle cx="0" cy="0" r="@Num(e.RadiusM)" class="ep-ring" />
-                <path d="@Cross(e)" class="ep-target" />
-                <text x="0" y="@Num(-e.RadiusM - e.SpacingM * 0.9)" class="ep-north">N</text>
-            </svg>
-        </div>
-    }
-    @if (Nasa is { } n && !double.IsNaN(n.NearLossPp))
-    {
-        <div class="robust-item">
-            <span class="robust-label"><Term Key="pointspread">LANDING ±120 m</Term></span>
-            <span class="robust-badge @(n.NearLossPp >= SpreadWarnPp ? "warn" : "ok")">@(n.NearLossPp >= SpreadWarnPp ? "POINT-SENSITIVE" : "STABLE")</span>
-            <span class="robust-detail">
-                NASA LOLA map, sunlit time: this point @Pct1(n.NasaSunPct), within one 120 m pixel
-                @Pct1(n.NasaSunMinNearPct)–@Pct1(n.NasaSunMaxNearPct)
-                @if (n.NearLossPp >= SpreadWarnPp)
+                @if (Nasa is { } n && !double.IsNaN(n.NearLossPp))
                 {
-                    <text> · a landing 120 m off can lose up to @Pp1(n.NearLossPp) of sunlight</text>
+                    <div class="robust-item">
+                        <span class="robust-label"><Term Key="pointspread">One pixel off (120 m)</Term></span>
+                        <span class="robust-badge @(n.NearLossPp >= SpreadWarnPp ? "warn" : "ok")">@(n.NearLossPp >= SpreadWarnPp ? "POINT-SENSITIVE" : "STABLE")</span>
+                        <span class="robust-detail">
+                            NASA LOLA map, sunlit time: this point @Pct1(n.NasaSunPct), within one 120 m pixel
+                            @Pct1(n.NasaSunMinNearPct)–@Pct1(n.NasaSunMaxNearPct)
+                            @if (n.NearLossPp >= SpreadWarnPp)
+                            {
+                                <text> · a landing 120 m off can lose up to @Pp1(n.NearLossPp) of sunlight</text>
+                            }
+                        </span>
+                    </div>
                 }
-            </span>
-        </div>
+                </div>
+            </div>
+        </section>
     }
 </div>
 

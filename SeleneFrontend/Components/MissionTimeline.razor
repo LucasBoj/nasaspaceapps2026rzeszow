@@ -7,10 +7,14 @@
 <div class="timeline">
     <div class="timeline-readout" aria-live="polite">@Readout</div>
     <div class="timeline-body">
+        @* Track names and the battery axis, in px of the 120 px plot (y = view-box y × 1.2). *@
         <div class="timeline-labels" aria-hidden="true">
-            <span style="top: 8%">LIGHT</span>
-            <span style="top: 34%">EARTH</span>
-            <span style="top: 52%">BATTERY</span>
+            <span style="top: 18px">Light</span>
+            <span style="top: 48px">Earth</span>
+            <span style="top: @F(SocY(75) * 1.2)px">Battery</span>
+            <span class="tl-axis" style="top: @F(SocY(100) * 1.2)px">100%</span>
+            <span class="tl-axis" style="top: @F(SocY(50) * 1.2)px">50%</span>
+            <span class="tl-axis" style="top: @F(SocY(0) * 1.2)px">0%</span>
         </div>
         <div class="timeline-plot" @onmouseleave="() => SetHover(-1)">
             <svg viewBox="0 0 @N 100" preserveAspectRatio="none" class="timeline-svg" role="img"
@@ -97,7 +101,6 @@
         <span><i class="lg-earth"></i>Earth visible</span>
         <span><i class="lg-soc"></i>battery</span>
         <span><i class="lg-threshold"></i>min battery @F(ThresholdPct)%</span>
-        <span>x axis: mission day</span>
     </div>
 </div>
 
@@ -185,7 +188,9 @@
         var every = days > 40 ? 10 : days > 20 ? 5 : days > 10 ? 2 : 1;
         for (var d = 0; d < days; d += every)
         {
-            yield return ((d + 1).ToString(CultureInfo.InvariantCulture), d * 24 / Result.StepHours / N * 100);
+            // "Day 1 … Day 7" for short missions; longer ones keep "Day 1" and then plain numbers.
+            var label = days <= 10 || d == 0 ? $"Day {d + 1}" : (d + 1).ToString(CultureInfo.InvariantCulture);
+            yield return (label, d * 24 / Result.StepHours / N * 100);
         }
     }
 
