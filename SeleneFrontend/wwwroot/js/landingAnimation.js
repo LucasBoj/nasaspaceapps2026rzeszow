@@ -234,36 +234,6 @@ function altitude(u) {
 /** Animation second at which the descent passes YAW_DONE_ALT_M (inverse of altitude()): the yaw deadline. */
 const YAW_DONE_S = DESCENT_S * (1 - Math.pow(YAW_DONE_ALT_M / START_ALT_M, 1 / 2.6));
 
-// Terminal slow-down: below TERMINAL_ALT_M the animation clock eases from 1× to TERMINAL_RATE over
-// TERMINAL_BLEND_S real seconds (no jump in speed), so the final approach takes ~3.6 s instead of
-// ~1.8 s. DESCENT_S, YAW_DONE_S and the path samples stay in "path seconds"; the frame loop
-// converts real seconds with pathSeconds() and deadlines back with realSeconds().
-const TERMINAL_ALT_M = 1500;
-const TERMINAL_RATE = 0.45;
-const TERMINAL_BLEND_S = 0.5;
-const TERMINAL_START_S = DESCENT_S * (1 - Math.pow(TERMINAL_ALT_M / START_ALT_M, 1 / 2.6));
-const TERMINAL_BLEND_PATH_S = TERMINAL_BLEND_S * (1 + TERMINAL_RATE) / 2;   // path seconds covered by the blend
-
-/** Real animation seconds → path seconds (monotone, C1). */
-function pathSeconds(s) {
-  const x = s - TERMINAL_START_S;
-  if (x <= 0) return s;
-  if (x <= TERMINAL_BLEND_S) return TERMINAL_START_S + x - (1 - TERMINAL_RATE) * x * x / (2 * TERMINAL_BLEND_S);
-  return TERMINAL_START_S + TERMINAL_BLEND_PATH_S + TERMINAL_RATE * (x - TERMINAL_BLEND_S);
-}
-
-/** Inverse of pathSeconds(). */
-function realSeconds(p) {
-  const y = p - TERMINAL_START_S;
-  if (y <= 0) return p;
-  if (y >= TERMINAL_BLEND_PATH_S) return TERMINAL_START_S + TERMINAL_BLEND_S + (y - TERMINAL_BLEND_PATH_S) / TERMINAL_RATE;
-  const k = 1 - TERMINAL_RATE;
-  return TERMINAL_START_S + (TERMINAL_BLEND_S / k) * (1 - Math.sqrt(Math.max(0, 1 - 2 * k * y / TERMINAL_BLEND_S)));
-}
-
-const LANDING_S = realSeconds(DESCENT_S);        // real seconds from the start to touchdown
-const YAW_DONE_REAL_S = realSeconds(YAW_DONE_S); // real second of the yaw deadline
-
 /** Horizontal offset in the local east/north frame (m): drift towards the site plus a late correction. */
 function offset(u) {
   const drift = START_RANGE_M * Math.pow(1 - u, 1.5);
@@ -996,16 +966,15 @@ export async function play(viewer, options) {
       if (s > 0.6) { frames++; frameTime += dt; state.fps = 1000 / (frameTime / frames); }   // skip start-up jank
       if (!simplified && frames >= 25 && state.fps < FPS_FLOOR) simplify();
 
-      const sp = pathSeconds(s);                 // slowed clock in the terminal phase
-      const u = Math.min(1, sp / DESCENT_S);
+      const u = Math.min(1, s / DESCENT_S);
       // Final approach: follow the rendered terrain (sampled every few frames, eased in). With the
       // ground still unknown, sample from the start and jump straight to the first height.
       const unknownGround = !anchored;
-      if ((unknownGround || sp > DESCENT_S * 0.55) && (frameNo++ % 6) === 0) {
+      if ((unknownGround || s > DESCENT_S * 0.55) && (frameNo++ % 6) === 0) {
         const g = renderedGround();
         if (acceptGround(g)) groundAdj += (g - ground - groundAdj) * (unknownGround ? 1 : 0.35);
       }
-      current = pathAt(sp);
+      current = pathAt(s);
       // Yaw manoeuvre: from the terminal phase on, turn towards the analysis heading so the turn
       // ends around touchdown (at least 60°/s; faster when little time is left).
       if (yaw.target !== null && altitude(u) < YAW_START_ALT_M) {
@@ -1014,7 +983,7 @@ export async function play(viewer, options) {
           // Before the deadline (altitude YAW_DONE_ALT_M) the rate is chosen so the turn ends exactly
           // at the deadline (the last frame snaps); a target that arrives after it is caught up at a
           // fixed fast rate. No exponential tail, so the lander is aligned well before touchdown.
-          const left = YAW_DONE_REAL_S - s;
+          const left = YAW_DONE_S - s;
           const rate = left > 0 ? Math.min(YAW_LATE_RATE, Math.max(YAW_MIN_RATE, Math.abs(diff) / left)) : YAW_LATE_RATE;
           const step = rate * (dt / 1000);
           yaw.heading += Math.sign(diff) * Math.min(Math.abs(diff), step);
@@ -1053,7 +1022,7 @@ export async function play(viewer, options) {
           state.fx.push(viewer.entities.add(flash));
         }
         safeLookAt(camera, landedAt(), finalHpr);
-        if (s >= LANDING_S + SETTLE_S) { finish("landed"); return; }
+        if (s >= DESCENT_S + SETTLE_S) { finish("landed"); return; }
       }
       state.frame = requestAnimationFrame(tick);
     };
