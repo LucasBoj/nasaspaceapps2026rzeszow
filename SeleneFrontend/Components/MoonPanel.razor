@@ -444,12 +444,20 @@
         Ui.ToggleCandidates();
     }
 
-    /// <summary>NEW LANDING: remove the landed model and give the camera back.</summary>
+    /// <summary>
+    /// NEW LANDING: remove the landed model and give the camera back. It flies out to the south-pole overview
+    /// (as ⌂ View): left at the landed close-up a few metres over an empty spot, it showed a dark texture
+    /// with no context while the user picks the next site.
+    /// </summary>
     private void HandleNewLanding() => _ = InvokeAsync(async () =>
     {
         landedKey = null;
         if (moonModule is null) return;
-        try { await moonModule.InvokeVoidAsync("clearLandingMarker"); }
+        try
+        {
+            await moonModule.InvokeVoidAsync("clearLandingMarker");
+            await moonModule.InvokeVoidAsync("resetView", true);
+        }
         catch (JSDisconnectedException) { }
     });
 
