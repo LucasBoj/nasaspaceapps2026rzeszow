@@ -5,11 +5,11 @@
     "manufacturer": "Intuitive Machines",
     "class": "clps",
     "solarArrayW": {
-      "value": 200,
+      "value": 494,
       "unit": "W",
-      "kind": "sourced",
-      "note": "Intuitive Machines' Nova-C release (2019, reposted by collectSPACE): \"At least 200 watts of power on the surface\" — used as the conservative value (astronomy.com, 2025: three panels \"afford 200 watts\"). Upper bound: the FCC IM-1 application gives \"a maximum of 788 W\" for the three fixed panels; if that is their summed rating, our normalisation (output at the best polar Sun direction) would give ~490 W. Compare with the SOLAR what-if.",
-      "sourceUrl": "http://www.collectspace.com/ubb/Forum35/HTML/000923.html"
+      "kind": "derived",
+      "note": "Derived from the FCC IM-1 application (Intuitive Machines): \"Three fixed body-mounted solar panels provide a maximum of 788 W\", read as the summed rating of the three panels at normal incidence. In our model solarArrayW is the output at the best polar Sun direction (el 0–10°) for this layout: 788 W × K = 788 × 0.626 = 494 W (K from the assumed panel layout, see panels). Team decision 2026-11-15. Lower bound for comparison (SOLAR what-if): Intuitive Machines' 2019 release, \"At least 200 watts of power on the surface\" (collectSPACE repost; astronomy.com 2025: \"afford 200 watts\").",
+      "sourceUrl": "https://apps.fcc.gov/els/GetAtt.html?amp=&id=266519&x="
     },
     "panels": {
       "mode": "fixed",

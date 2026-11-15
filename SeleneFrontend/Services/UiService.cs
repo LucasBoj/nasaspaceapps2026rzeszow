@@ -264,8 +264,9 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         if (state.SelectedLanderClass != "clps") await state.SelectLanderClass("clps");
         await state.SelectSite(RecommendedSiteId, fly: fly);
         await state.SelectLander(RecommendedLanderId);
-        // With fixed panels the Sun leaves the panels' view after ~7–8 days at the pole, so a 14-day
-        // CLPS mission is never feasible there; the demo shows a feasible 7-day surface stay instead.
+        // A 7-day surface stay (IM-1 operated ~7 days). With fixed panels the Sun leaves the panels' view after
+        // ~7–8 days at the pole for Blue Ghost and Griffin; Nova-C (494 W, derived from the FCC filing since
+        // 2026-11-15) also manages its 14-day design life in the best window of every region.
         await state.UpdateMissionDuration(RecommendedMissionDays);
         state.ResetWhatIf();
     }
