@@ -1,6 +1,6 @@
 # ROADMAP — SELENE OPS
 
-**Ostatnia aktualizacja:** 2026-11-15 CET (scalone `custom-sites`)
+**Ostatnia aktualizacja:** 2026-11-15 01:50 CET (scalone `custom-sites`, plan UI)
 
 > **Zasada aktualizacji:** po każdym zadaniu przenieś ukończone pozycje do **Done** (data, godzina, commit), dopisz nowo odkryte zadania lub problemy do **Todo** albo **Known issues** i dodaj wpis do **AI usage log**. **Nie usuwaj historii z Done.**
 > Commit w Done to commit, w którym jest praca. Wpis do roadmapy może trafić do tego samego commita albo do następnego.
@@ -154,6 +154,13 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 
 - [ ] **Start aplikacji: co zostało** (limit fps i współdzielona mapa ciepła zrobione 2026-11-14 22:45) — (1) blok .NET 1,2–1,6 s przy starcie (runtime + pierwszy render Blazor + deserializacja JSON przez refleksję; do sprawdzenia: `JsonSerializerContext` z generatorem źródeł), (2) preload 5 modeli GLB przez `requestIdleCallback` po zakończeniu analizy zamiast 3 s po starcie, (3) pomiar `tools/startup-profile` na laptopie do prezentacji bez innych programów (`--cpu 4` jako słaby laptop) — C
 
+- [ ] **Czytelność i intuicyjność UI — plan z przeglądu 2026-11-15** (zrzuty 1366×768 i 1920×1080, SIMPLE i ANALYST, Chrome bez okna z GPU) — C (+ kto robił przebudowę UX, żeby nie dublować)
+  - **A. Błędy widoczne na demo (najpierw, ~2 h):** (1) HUD „SIMULATED DESCENT” zasłania przycisk „▶ Play mission” w pasku nad Księżycem; (2) przy 1366×768 karta werdyktu wychodzi poza ekran (przyciski ucięte) — zwęzić/skompaktować; (3) po lądowaniu prawy panel dalej pokazuje krok 3 i „Land & analyze” — zamienić na krok „Wynik” (werdykt w skrócie, „Try another date”, „Change lander”, „New landing”); (4) karta werdyktu pokazuje 100 / 100 / 100 % przy mocnych lądownikach — zamiast tego liczby, które coś różnicują (zapas energii ×, najdłuższy pobyt, obszar lądowania OK %); (5) etykieta „BEST WINDOW” nachodzi na komórki mapy, chipy najlepszych dat bez roku.
+  - **B. Intuicyjność SIMPLE (~3 h):** lista miejsc z paskiem światła, sortowaniem i oznaczeniem „suggested” + podświetlenie pinezki przy najechaniu; mniej etykiet na globie (pełna nazwa tylko dla wybranego i najechanego, bez nakładania się, zwykłe litery zamiast MONO CAPS); kadr z biegunem wyżej (dziś pół ekranu to czarne niebo); kroki 1–2 jako „suggested”, a nie ✓, dopóki użytkownik ich nie potwierdzi; karty lądowników z 3 liczbami i jednym zdaniem „czym się różni”. Karta „Custom site” (nowa, `custom-sites`) w tym samym języku co lista 9 regionów: wyraźnie „szybkie oszacowanie, teren 240 m”, a nie drugi rodzaj wyniku.
+  - **C. Czytelność ANALYST (~3 h):** minimum 12 px dla każdego tekstu, etykiety Sans zamiast mono caps; usunąć powtórzenie werdyktu (linia pod kartą) i podwójne COMPARE (zakładka + przycisk); panel odporności w 2 grupach („Założenia mocy”: LOAD; „Celność lądowania”: ELLIPSE + NASA ±120 m) z mapą elipsy przy swoim tekście; oś czasu z osią baterii 0/50/100 % i dniami „Day 1…7”; heatmapa z rzadszymi etykietami miesięcy i legendą pod spodem.
+  - **D. Wow, jeśli starczy czasu:** elipsa lądowania jako kolorowe punkty na terenie 3D wokół lądownika.
+  - Weryfikacja po każdym pakiecie: zrzuty w 1366×768 i 1920×1080 (oba tryby), axe bez błędów critical/serious, `prefers-reduced-motion`, testy xUnit; pluginy do pomocy: frontend-design, Design (design-critique, accessibility-review, ux-copy), UI Design Review.
+
 ### P2
 
 - [ ] Raport misji do druku/PDF — C
@@ -208,6 +215,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — sekcja 10 UX: jeden główny przycisk, widoczne powody blokady, „Nearest region”, „Update results”; testy w 3 silnikach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — kurs lądowania w animacji: analiza geometrii i tekstury `nova_c.glb` (brak paneli bocznych), płyty paneli z danych, manewr yaw, obrót markera, scalenie z przebudową UX i nowymi modelami, testy w przeglądarce
 
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — przegląd UI: wyszukanie pluginów do UI, zrzuty ekranów (Chrome bez okna przez DevTools), plan poprawek czytelności
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — Nova-C 494 W: wyprowadzenie z FCC × K, przeliczenie wyników 3 lądowników CLPS × 9 regionów × 7/14 dni (sonda w xUnit, usunięta), test spójności, sprawdzenie w przeglądarce, aktualizacja dokumentacji
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — źródła mocy paneli i obciążeń: wyszukiwanie i odczyt źródeł (FCC IM-1, komunikat IM, Firefly, Wikipedia, Astrobotic PUG przez pypdf), aktualizacja `landers.json`, symulacja wpływu 200/490/788 W dla Nova-C
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — elipsa lądowania: pobranie DEM LOLA i kerneli, moduł pipeline (siatka horyzontów, transformacja układu, walidacja vs pełne przeliczenie i mapa NASA 3×3), źródła celności lądowników (Firefly, NASA/IM-2, NASA HLS), logika i UI we frontendzie, testy
