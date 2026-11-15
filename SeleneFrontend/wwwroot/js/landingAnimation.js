@@ -344,6 +344,11 @@ function localToWorld(origin, rot, east, north, up, result) {
   return Cesium.Cartesian3.add(origin, v, result ?? new Cesium.Cartesian3());
 }
 
+/**
+ * Ground height (m) at `carto`: 0 in 2D mosaic mode (the ellipsoid is the ground), the detailed 3D tile
+ * height when it arrives within `timeoutMs`, otherwise null (unknown; never 0 — the Cesium Moon tiles
+ * can be kilometres above the ellipsoid, Nobile Rim 1 +6.7 km).
+ */
 async function groundHeight(viewer, carto, timeoutMs) {
   const scene = viewer.scene;
   if (!scene.sampleHeightSupported || scene.globe.show) return 0;   // 2D mosaic mode → ellipsoid
@@ -356,9 +361,9 @@ async function groundHeight(viewer, carto, timeoutMs) {
     ]);
     const h = sampled?.[0]?.height;
     if (Number.isFinite(h)) { groundCache.set(key, h); return h; }
-    return 0;                                     // not available in time → ellipsoid fallback
+    return null;                                  // tiles too slow → unknown
   } catch {
-    return 0;
+    return null;
   }
 }
 
@@ -597,8 +602,11 @@ export async function play(viewer, options) {
   const aborted = () => myGeneration !== generation || viewer.isDestroyed();
 
   const site = Cesium.Cartographic.fromDegrees(options.lon, options.lat, 0);
-  const ground = await groundHeight(viewer, site, options.reducedMotion ? 300 : 700);
+  const sampledGround = await groundHeight(viewer, site, options.reducedMotion ? 300 : 700);
   if (aborted()) return { status: "cancelled", fps: 0, simplified: false };
+  // Unknown ground (first landing while the site's tiles still stream in): build the path on the
+  // ellipsoid and lift everything by the first rendered terrain height (groundAdj, see acceptGround).
+  const ground = sampledGround ?? 0;
   const siteGround = Cesium.Cartesian3.fromRadians(site.longitude, site.latitude, ground, Cesium.Ellipsoid.MOON);
   const rot = enuRotation(siteGround);
   // Heading (rad, clockwise from north): the lander starts at 0 and yaws to the analysis heading
@@ -661,6 +669,25 @@ export async function play(viewer, options) {
       const h = viewer.scene.sampleHeight(site, [...prims, ...entities, ...(active?.fx ?? [])]);
       return Number.isFinite(h) ? h : undefined;
     } catch { return undefined; }
+  };
+  // Sanity check for rendered-terrain samples: within 500 m of the known ground. With the ground
+  // unknown the first sample is adopted whatever its distance; rejecting it left the lander (and the
+  // close-up camera) kilometres under the terrain — a black scene on the first QUICK DEMO.
+  let groundRef = sampledGround;              // reference for the ±500 m check (null = unknown)
+  let anchored = sampledGround !== null;      // groundAdj already lifts the path onto the terrain
+  const anchor = (h) => { groundRef = h; groundAdj = h - ground; anchored = true; };
+  // A first sample from coarse tiles can be off by more than the check allows: the detailed height,
+  // when it finally arrives, becomes the reference (and is cached for the next landing here).
+  if (!anchored) {
+    groundHeight(viewer, site, 30000).then((h) => {
+      if (h === null || viewer.isDestroyed()) return;
+      if (anchored) groundRef = h; else anchor(h);
+    });
+  }
+  const acceptGround = (g) => {
+    if (g === undefined) return false;
+    if (!anchored) { anchor(g); return true; }
+    return Math.abs(g - groundRef) < 500;
   };
   let current = pathAt(0);
   const placeModel = () => {
@@ -795,6 +822,12 @@ export async function play(viewer, options) {
   const drop = 0.12 * 2 * finalRange * Math.tan(fovy / 2) / Math.cos(finalPitch);
   const landedAt = () => localToWorld(surface(), rot, 0, 0, parts.height * 0.5 - drop);
   orbitClearance = Math.max(2, 0.3 * frame);
+  // Ground still unknown: the coarser tiles already on screen usually give a height before the clock
+  // starts, so the descent begins at the right altitude instead of jumping in its first frames.
+  // (The detailed height may also have arrived during the model load: re-place from pathAt either way.)
+  if (!anchored) acceptGround(renderedGround());
+  current = pathAt(0);
+  placeModel();
 
   return new Promise((resolve) => {
     const state = { viewer, entities, prims, fx: [], frame: 0, hud, onKey, resolve, fps: 0, simplified: false, engine };
@@ -807,7 +840,7 @@ export async function play(viewer, options) {
       cancelAnimationFrame(state.frame);
       document.removeEventListener("keydown", state.onKey, true);
       const g = renderedGround();
-      if (g !== undefined && Math.abs(g - ground) < 500) groundAdj = g - ground;   // final snap to the rendered terrain
+      if (acceptGround(g)) groundAdj = g - ground;   // final snap to the rendered terrain
       current = surface();
       if (yaw.target !== null) yaw.heading = yaw.target;   // skip / short descent: end at the target heading
       placeModel();
@@ -845,7 +878,7 @@ export async function play(viewer, options) {
       settleTimer = setInterval(() => {
         if (viewer.isDestroyed() || performance.now() - t0s > 8000) { stopSettle(); return; }
         const g = renderedGround();
-        if (g === undefined || Math.abs(g - ground) > 500) return;
+        if (!acceptGround(g)) return;
         const delta = g - ground - groundAdj;
         if (Math.abs(delta) < 0.3) return;
         groundAdj += delta;
@@ -894,10 +927,12 @@ export async function play(viewer, options) {
       if (!simplified && frames >= 25 && state.fps < FPS_FLOOR) simplify();
 
       const u = Math.min(1, s / DESCENT_S);
-      // Final approach: follow the rendered terrain (sampled every few frames, eased in).
-      if (s > DESCENT_S * 0.55 && (frameNo++ % 6) === 0) {
+      // Final approach: follow the rendered terrain (sampled every few frames, eased in). With the
+      // ground still unknown, sample from the start and jump straight to the first height.
+      const unknownGround = !anchored;
+      if ((unknownGround || s > DESCENT_S * 0.55) && (frameNo++ % 6) === 0) {
         const g = renderedGround();
-        if (g !== undefined && Math.abs(g - ground) < 500) groundAdj += (g - ground - groundAdj) * 0.35;
+        if (acceptGround(g)) groundAdj += (g - ground - groundAdj) * (unknownGround ? 1 : 0.35);
       }
       current = pathAt(s);
       // Yaw manoeuvre: from the terminal phase on, turn towards the analysis heading so the turn
