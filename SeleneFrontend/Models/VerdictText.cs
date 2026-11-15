@@ -117,7 +117,9 @@ public static class VerdictText
         var parts = new List<string>();
         if (r.LandingPoints > 1) parts.Add($"touching down anywhere within {Math.Round(r.Spec.RadiusM).ToString("0", inv)} m of the target");
         if (r.Spec.LoadDelta > 0) parts.Add($"power use {P(r.Spec.LoadDelta * 100)}% higher or lower");
-        if (r.HeadingVaried && r.Spec.HeadingErrorDeg > 0) parts.Add($"the lander turned up to {P(r.Spec.HeadingErrorDeg)}° off its planned heading");
+        if (r.HeadingVaried && r.Spec.HeadingErrorDeg > 0)
+            parts.Add(analyst ? $"the lander turned up to {P(r.Spec.HeadingErrorDeg)}° off its planned heading"
+                              : $"the lander turned slightly (up to {P(r.Spec.HeadingErrorDeg)}°)");   // SIMPLE: no "heading"
         var what = parts.Count == 0 ? "" : " — " + string.Join(", ", parts);
         if (!analyst)
             return $"The mission works in {r.Feasible} of {r.Samples} simulated landings{what}.";

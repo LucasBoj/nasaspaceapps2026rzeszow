@@ -104,8 +104,10 @@ public class UncertaintySentenceTests
         var spec = new UncertaintySpec(400, 0.2, 15, 400, 1);
         var r = new MonteCarloResult(spec, 400, 348, 40, 12, 137, true, 0.83, 0.90);
         Assert.Equal("The mission works in 348 of 400 simulated landings — touching down anywhere within 400 m of the target, " +
-                     "power use 20% higher or lower, the lander turned up to 15° off its planned heading.",
+                     "power use 20% higher or lower, the lander turned slightly (up to 15°).",
                      VerdictText.UncertaintySentence(r, analyst: false));
+        Assert.DoesNotContain("heading", VerdictText.UncertaintySentence(r, analyst: false));   // SIMPLE: plain words
+        Assert.Contains("off its planned heading", VerdictText.UncertaintySentence(r, analyst: true));
         Assert.Contains("FEASIBLE 87% (95% interval 83–90%), MARGINAL 10%, NOT FEASIBLE 3%", VerdictText.UncertaintySentence(r, analyst: true));
         // Ideal tracking and no ellipse: only the load was sampled.
         var onlyLoad = r with { LandingPoints = 1, HeadingVaried = false };

@@ -69,7 +69,7 @@
                     <button type="button" class="hud-btn psr-toggle" aria-pressed="@(psrOn ? "true" : "false")"
                             @onmouseenter="@(() => ShowTip(PsrTip))" @onmouseleave="HideTip"
                             @onfocus="@(() => ShowTip(PsrTip))" @onblur="HideTip"
-                            @onclick="TogglePsrAsync">Ice (PSR)</button>
+                            @onclick="TogglePsrAsync">@(Ui.AnalystMode ? "Ice (PSR)" : "Water ice areas")</button>
                 }
                 @* HUD tooltip: in the button row, after the last button — never over another control. *@
                 @if (hudTip is not null)
