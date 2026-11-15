@@ -1,0 +1,282 @@
+@using System.Globalization
+@using System.Net.Http.Json
+@using System.Text.Json
+@using SeleneFrontend.Models
+@using SeleneFrontend.Services
+@inject HttpClient Http
+@inject MissionConfigState MissionState
+
+@* IM-2 "Athena" (March 2025) retrospective: the same model, run for the planned and the actual landing site,
+   over every orientation (which way Athena faced or fell is not published), plus a no-sunlight case. *@
+<section class="results-panel casestudy" aria-labelledby="casestudy-title">
+    <h3 id="casestudy-title">CASE STUDY · IM-2 ATHENA (NOVA-C) · MARCH 2025</h3>
+
+    @if (error is not null)
+    {
+        <p class="results-error" role="alert">Case study unavailable: @error</p>
+    }
+    else if (doc is null || result is null)
+    {
+        <p class="cs-status" role="status">Computing the planned and the actual landing site…</p>
+        <div class="skeleton-block" style="height: 160px"></div>
+    }
+    else
+    {
+        var c = doc;
+        var r = result;
+        var tw = Pt("target").Window;
+        var aw = Pt("actual").Window;
+        <p class="cs-intro">
+            Athena touched down on @c.LandingUtc.ToString("d MMM yyyy, HH:mm", Inv) UTC near the centre of Mons Mouton,
+            <span class="num">≈ @F0(c.OffsetM) m</span> from its target, <strong>on its side in a @F0(c.CraterDiameterM) m crater</strong>.
+            Contact ended <strong>@F1(c.OnSurfaceHours) h</strong> later. What our model says about those hours:
+        </p>
+
+        <div class="cs-scroll" tabindex="0" role="region" aria-label="Case study table">
+        <table class="cs-table">
+            <caption class="sr-only">IM-2 Athena: planned vs actual site, upright, on its side and without sunlight, during the @F1(c.OnSurfaceHours) h on the surface</caption>
+            <thead>
+                <tr>
+                    <th scope="col">First @F1(c.OnSurfaceHours) h</th>
+                    <th scope="col">Planned site<br /><span class="cs-sub">upright · any heading</span></th>
+                    <th scope="col">Actual site<br /><span class="cs-sub">upright · any heading</span></th>
+                    <th scope="col">Actual site<br /><span class="cs-sub">on its side · any way</span></th>
+                    <th scope="col">No sunlight<br /><span class="cs-sub">dark crater floor</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row"><Term Key="lit">Sun visible</Term></th>
+                    <td>@F0(tw.SunAnyPct)% of hours</td>
+                    <td>@F0(aw.SunAnyPct)% of hours</td>
+                    <td>@F0(aw.SunAnyPct)% (same sky)</td>
+                    <td>0% if deeper than @F1(aw.CraterFloorDarkIfDeeperThanM) m</td>
+                </tr>
+                <tr>
+                    <th scope="row"><Term Key="sunel">Sun elevation</Term></th>
+                    <td>@F1(tw.SunElevMinDeg)–@F1(tw.SunElevMaxDeg)°</td>
+                    <td>@F1(aw.SunElevMinDeg)–@F1(aw.SunElevMaxDeg)°</td>
+                    <td>same</td>
+                    <td>—</td>
+                </tr>
+                <tr>
+                    <th scope="row"><Term Key="earth">Earth visible</Term></th>
+                    <td>@F0(tw.EarthPct)%</td>
+                    <td>@F0(aw.EarthPct)%</td>
+                    <td>same</td>
+                    <td>not modelled</td>
+                </tr>
+                <tr class="cs-key">
+                    <th scope="row">Mean solar power</th>
+                    <td>@Range(r.Target.MeanWindowPowerW, "W")</td>
+                    <td>@Range(r.Actual.MeanWindowPowerW, "W")</td>
+                    <td>@Range(r.Tipped.MeanWindowPowerW, "W")</td>
+                    <td>0 W</td>
+                </tr>
+                <tr class="cs-key">
+                    <th scope="row">Battery lasts <span class="cs-sub">(design life @F0(r.DurationDays) d)</span></th>
+                    <td>@HoursRange(r.Target.SurvivedHours)</td>
+                    <td>@HoursRange(r.Actual.SurvivedHours)</td>
+                    <td>@HoursRange(r.Tipped.SurvivedHours)</td>
+                    <td><strong>@Hours(r.Dark.DayLoadHours)–@Hours(r.Dark.SurvivalLoadHours)</strong> <span class="cs-sub">Athena: @F1(c.OnSurfaceHours) h</span></td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+        <p class="cs-sub cs-tablenote">
+            Ranges cover @r.Actual.Orientations headings upright and @r.Tipped.Orientations ways of lying on its side; the middle value is the median.
+            Nova-C figures from the specs (@F0(r.ArrayW) W array, @F0(r.BatteryWh) Wh battery; loads include ASSUMPTION values).
+        </p>
+
+        <figure class="cs-chart">
+            <svg viewBox="0 0 @ChartW @ChartH" role="img" aria-label="@ChartAria">
+                @{ var max = ChartMax; }
+                <polygon class="cs-band up" points="@Band(r.Actual, max)" />
+                <polygon class="cs-band side" points="@Band(r.Tipped, max)" />
+                <polyline class="cs-line up" points="@Line(r.Actual.PowerMedian, max)" />
+                <polyline class="cs-line side" points="@Line(r.Tipped.PowerMedian, max)" />
+                <line class="cs-end" x1="@X(c.OnSurfaceHours + StartOffsetH)" x2="@X(c.OnSurfaceHours + StartOffsetH)" y1="0" y2="@ChartH" />
+                <text class="cs-endlabel" x="@X(c.OnSurfaceHours + StartOffsetH)" y="12">contact ended</text>
+                <text class="cs-axis" x="2" y="12">@F0(max) W</text>
+                <text class="cs-axis" x="2" y="@(ChartH - 4)">0</text>
+            </svg>
+            <figcaption>
+                Solar power at the actual site, first @ChartHours h from 6 Mar 17:00 UTC (bands: all orientations, line: median):
+                <span class="cs-key-up">upright</span> · <span class="cs-key-side">on its side</span>.
+                @SiteDiffText
+            </figcaption>
+        </figure>
+
+        <p class="cs-finding"><strong>What it shows:</strong> @Finding</p>
+        <p class="cs-note">
+            <strong>The crater:</strong> 20 m is far below the 120 m terrain model, so the horizon cannot contain it. Geometry
+            alone says the floor centre of a 20 m crater saw no Sun at all during those hours if it was deeper than
+            <span class="num">@F1(aw.CraterFloorDarkIfDeeperThanM) m</span> (the Sun stayed below @F1(aw.SunElevMaxDeg)°).
+            The crater's depth is not published.
+        </p>
+        @if (c.NasaLongTerm is { } nasa && nasa.Points.TryGetValue("target", out var nt) && nasa.Points.TryGetValue("actual", out var na))
+        {
+            <p class="cs-note">
+                <strong>Long-term check:</strong> NASA's LOLA illumination map (120 m, ~18.6-year average) gives
+                @F0(nt["sun"].Pct)% sunlit time at the planned site and @F0(na["sun"].Pct)% at the actual site
+                (<a href="@nasa.Url" target="_blank" rel="noopener">Mazarico et al. 2011</a>): the two sites are equivalent there too.
+            </p>
+        }
+        <p class="cs-note">
+            <strong>Honest limits:</strong> the tool shows light and power at a site; it cannot predict a tip-over. Which way
+            Athena faced or fell is not published, hence the ranges. A secondary source reports the arrays gave "only about
+            100 watts" (<a href="@c.SecondaryUrl" target="_blank" rel="noopener">Wikipedia, citing CNN/Intuitive Machines</a>);
+            we compare with it, we do not tune the model to it. Cold, dust and the damaged antenna and altimeter reported for
+            Athena are not modelled. The planned surface duration is not published, so the @F0(r.DurationDays)-day design life is used.
+        </p>
+        <p class="cs-sources">
+            Sources: target <a href="@Pt("target").SourceUrl" target="_blank" rel="noopener">LROC 1401</a> ·
+            landing point and crater <a href="@Pt("actual").SourceUrl" target="_blank" rel="noopener">LROC 1408</a> ·
+            times and attitude <a href="@c.SourceUrl" target="_blank" rel="noopener">NASA release 25-025</a>.
+            @c.OffsetNote
+        </p>
+    }
+</section>
+
+@code {
+    private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+    private const int ChartHours = 24;         // chart span
+    private const double ChartW = 600, ChartH = 140;
+    private const double StartOffsetH = 0.5;   // series start 17:00, touchdown 17:30
+
+    private CaseStudyDoc? doc;
+    private Computed? result;
+    private string? error;
+
+    private sealed record Computed(OrientationCase Target, OrientationCase Actual, OrientationCase Tipped, DarkCase Dark,
+                                   double DurationDays, double ArrayW, double BatteryWh);
+
+    private CaseStudyPoint Pt(string id) => doc!.Points[id];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            doc = await Http.GetFromJsonAsync<CaseStudyDoc>("data/casestudy/im2/case.json", JsonOpts)
+                  ?? throw new InvalidOperationException("empty case.json");
+            var target = await Load(Pt("target").File);
+            var actual = await Load(Pt("actual").File);
+            var lander = MissionState.AllLanders.FirstOrDefault(l => l.Id == doc.LanderId)
+                         ?? throw new InvalidOperationException($"lander '{doc.LanderId}' not in landers.json");
+            if (lander.SolarArrayW is null || lander.BatteryWh is null || lander.DayLoadW is null || lander.SurvivalLoadW is null)
+                throw new InvalidOperationException("Nova-C power data incomplete");
+
+            // Data values only (no what-if): the published figures as in the specs table.
+            var inputs = new LanderInputs(lander.SolarArrayW.Value, lander.BatteryWh.Value, lander.DayLoadW.Value, lander.SurvivalLoadW.Value,
+                ParamKind.Weakest(lander.SolarArrayW, lander.Panels, lander.BatteryWh, lander.DayLoadW, lander.SurvivalLoadW),
+                lander.Panels, null, false, lander.BatteryRoundTripEff?.Value ?? 1.0);
+            var thresholds = new MissionThresholds(MissionState.MinBatteryPercent, MissionState.MinCommsPercent);
+            var days = lander.MissionDurationDays?.Value ?? 14;
+            var window = doc.OnSurfaceHours + StartOffsetH;
+            await Task.Yield();   // show the "computing" state first
+
+            result = new Computed(
+                CaseStudyIm2.Upright(target, inputs, doc.LandingUtc, days, thresholds, window),
+                CaseStudyIm2.Upright(actual, inputs, doc.LandingUtc, days, thresholds, window),
+                CaseStudyIm2.Tipped(actual, inputs, doc.LandingUtc, days, thresholds, window),
+                CaseStudyIm2.Dark(actual, inputs, doc.LandingUtc, days, thresholds),
+                days, inputs.SolarArrayW, inputs.BatteryWh);
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"[CaseStudy] {ex.Message}");
+            error = "the case-study data could not be loaded (generated by pipeline/case_study_im2.py).";
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[CaseStudy] {ex}");
+            error = ex.Message;
+        }
+    }
+
+    private async Task<IlluminationSeries> Load(string file) =>
+        await Http.GetFromJsonAsync<IlluminationSeries>($"data/casestudy/im2/{file}", JsonOpts)
+        ?? throw new InvalidOperationException($"empty {file}");
+
+    private static string F0(double v) => double.IsFinite(v) ? v.ToString("0", Inv) : "—";
+    private static string F1(double v) => double.IsFinite(v) ? v.ToString("0.0", Inv) : "—";
+    private static string Hours(double h) => !double.IsFinite(h) ? "—" : h >= 48 ? $"{F1(h / 24)} d" : $"{F0(h)} h";
+    private static string Range(Spread s, string unit) => $"{F0(s.Min)}–{F0(s.Max)} {unit} (median {F0(s.Median)})";
+    private static string HoursRange(Spread s) => $"{Hours(s.Min)}–{Hours(s.Max)} (median {Hours(s.Median)})";
+
+    /// <summary>Worded from the numbers, not fixed text.</summary>
+    private string Finding
+    {
+        get
+        {
+            var r = result!;
+            var c = doc!;
+            var pT = r.Target.MeanWindowPowerW;
+            var pA = r.Actual.MeanWindowPowerW;
+            var sameSites = Math.Abs(pT.Median - pA.Median) <= 0.05 * Math.Max(1, pA.Max) && Pt("target").Window.SunAnyPct == Pt("actual").Window.SunAnyPct;
+            var siteText = sameSites
+                ? $"the ~{F0(c.OffsetM)} m miss changed nothing in our model: both sites had the Sun in view the whole time and give the same power range. "
+                : $"the ~{F0(c.OffsetM)} m miss mattered: upright power {Range(pT, "W")} at the planned site vs {Range(pA, "W")} at the actual one. ";
+            var attitude = $"Power depended on attitude: upright {F0(pA.Min)}–{F0(pA.Max)} W depending on the heading, on its side " +
+                           $"{F0(r.Tipped.MeanWindowPowerW.Min)}–{F0(r.Tipped.MeanWindowPowerW.Max)} W depending on how it lay, so the reported ~100 W " +
+                           "does not tell how Athena lay. ";
+            var lo = r.Dark.DayLoadHours - 2; var hi = r.Dark.SurvivalLoadHours + 2;
+            var darkText = c.OnSurfaceHours >= lo && c.OnSurfaceHours <= hi
+                ? $"What matches the end after {F1(c.OnSurfaceHours)} h: with no usable sunlight, the {F0(r.BatteryWh)} Wh battery lasts " +
+                  $"{Hours(r.Dark.DayLoadHours)}–{Hours(r.Dark.SurvivalLoadHours)} on our loads — and a 20 m crater needs to be only " +
+                  $"~{F1(Pt("actual").Window.CraterFloorDarkIfDeeperThanM)} m deep to keep its floor in shadow at this Sun elevation."
+                : $"With no usable sunlight the battery would last {Hours(r.Dark.DayLoadHours)}–{Hours(r.Dark.SurvivalLoadHours)}, " +
+                  $"which does not match the {F1(c.OnSurfaceHours)} h Athena lasted.";
+            return siteText + attitude + darkText;
+        }
+    }
+
+    /// <summary>Largest per-hour difference of the upright median power between the two sites (computed, not assumed).</summary>
+    private string SiteDiffText
+    {
+        get
+        {
+            var r = result!;
+            var n = Math.Min(ChartHours, Math.Min(r.Target.PowerMedian.Length, r.Actual.PowerMedian.Length));
+            var d = Enumerable.Range(0, n).Select(i => Math.Abs(r.Target.PowerMedian[i] - r.Actual.PowerMedian[i])).DefaultIfEmpty(0).Max();
+            return $"The planned site differs by at most {F1(d)} W per hour (upright median).";
+        }
+    }
+
+    // ---- chart ----
+    private double ChartMax
+    {
+        get
+        {
+            var r = result!;
+            var m = new[] { r.Actual.PowerMax, r.Tipped.PowerMax }.SelectMany(a => a.Take(ChartHours)).DefaultIfEmpty(1).Max();
+            return Math.Max(1, Math.Ceiling(m / 50) * 50);
+        }
+    }
+
+    private static string X(double h) => (h / ChartHours * ChartW).ToString("0.#", Inv);
+    private static string Y(double w, double max) => (ChartH - 2 - Math.Clamp(w / max, 0, 1) * (ChartH - 18)).ToString("0.#", Inv);
+
+    private static string Line(double[] p, double max) =>
+        string.Join(' ', p.Take(ChartHours).Select((w, i) => $"{X(i + 0.5)},{Y(w, max)}"));
+
+    private static string Band(OrientationCase o, double max)
+    {
+        var n = Math.Min(ChartHours, o.PowerMax.Length);
+        var top = Enumerable.Range(0, n).Select(i => $"{X(i + 0.5)},{Y(o.PowerMax[i], max)}");
+        var bottom = Enumerable.Range(0, n).Reverse().Select(i => $"{X(i + 0.5)},{Y(o.PowerMin[i], max)}");
+        return string.Join(' ', top.Concat(bottom));
+    }
+
+    private string ChartAria
+    {
+        get
+        {
+            var r = result!;
+            return $"Solar power at the actual site over the first {ChartHours} hours: upright {F0(r.Actual.MeanWindowPowerW.Min)} to " +
+                   $"{F0(r.Actual.MeanWindowPowerW.Max)} watts on average depending on heading, on its side {F0(r.Tipped.MeanWindowPowerW.Min)} to " +
+                   $"{F0(r.Tipped.MeanWindowPowerW.Max)} watts depending on how it lay; contact ended after {F1(doc!.OnSurfaceHours)} hours.";
+        }
+    }
+}

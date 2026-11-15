@@ -4,3 +4,6 @@ out/
 SeleneFrontend/wwwroot/models/source/
 tools/optimize-models/node_modules/
 tools/e2e/node_modules
+
+# LOLA DEM for the pipeline (233 MB, PDS download, see pipeline/README.md)
+pipeline/dem/

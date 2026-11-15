@@ -77,12 +77,19 @@
                                 aria-selected="@(Ui.ResultsTab == "mission" ? "true" : "false")" @onclick="@(() => Ui.SetResultsTab("mission"))">MISSION</button>
                         <button type="button" role="tab" class="results-tab @(Ui.ResultsTab == "compare" ? "active" : "")"
                                 aria-selected="@(Ui.ResultsTab == "compare" ? "true" : "false")" @onclick="@(() => Ui.SetResultsTab("compare"))">COMPARE</button>
+                        <button type="button" role="tab" class="results-tab @(Ui.ResultsTab == "casestudy" ? "active" : "")"
+                                aria-selected="@(Ui.ResultsTab == "casestudy" ? "true" : "false")" @onclick="@(() => Ui.SetResultsTab("casestudy"))"
+                                title="IM-2 Athena (March 2025): planned vs actual site, upright vs on its side">CASE STUDY: IM-2</button>
                     </div>
                 </div>
 
                 @if (Ui.ResultsTab == "compare")
                 {
                     <CompareView />
+                }
+                else if (Ui.ResultsTab == "casestudy")
+                {
+                    <CaseStudyView />
                 }
                 else
                 {

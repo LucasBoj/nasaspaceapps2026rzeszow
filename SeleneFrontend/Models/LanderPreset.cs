@@ -74,6 +74,12 @@ public sealed class PanelLayout : LanderParam
     public string Mode { get; set; } = IdealMode;
     public List<PanelFacet> Facets { get; set; } = [];
 
+    /// <summary>
+    /// Normalization K to use instead of computing it from this layout (not set in landers.json). A tipped-over
+    /// lander (IM-2 case study) keeps the upright layout's K: same panels, same watts, only the geometry changes.
+    /// </summary>
+    public double? NormalizationOverride { get; set; }
+
     public bool IsFixed => Mode == FixedMode && Facets.Count > 0 && Facets.Sum(f => Math.Max(0, f.Share)) > 0;
 }
 

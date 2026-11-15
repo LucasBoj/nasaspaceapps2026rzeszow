@@ -349,6 +349,70 @@ mask must equal the yearly files', which the script checks); per-height sunlit t
 python build_heights.py --dem /path/to/ldem_75s_120m_float.lbl     # ~10 s, prints the table
 ```
 
+## Case study: IM-2 Athena (March 2025)
+
+`case_study_im2.py` replays a real CLPS landing with the same method as the 9 regions (LOLA 120 m horizon,
+150 km rays, observer 2 m, JPL DE421): Intuitive Machines' Nova-C lander **Athena** (IM-2) at the planned
+and at the actual landing point, hourly from 2025-03-06 17:00 UTC for 15 days.
+
+| Fact | Value | Source |
+|---|---|---|
+| Planned site | −84.78°, 29.13°E (given to 0.01°, about ±150 m) | [LROC 1401](https://lroc.im-ldi.com/images/1401), 26 Feb 2025 |
+| Actual site | −84.7906°, 29.1957°E, "on its side within a 20-meter diameter crater" | [LROC 1408](https://lroc.im-ldi.com/images/1408), 10 Mar 2025 |
+| Distance | 369 m between the two coordinates (NASA: "more than … 400 meters" in the text, "about 820 feet" in a caption) | computed; [NASA release 25-025](https://www.nasa.gov/news-release/nasa-receives-some-data-before-intuitive-machines-ends-lunar-mission/) |
+| Touchdown / end of contact | ~17:30 UTC 6 Mar / 06:15 UTC 7 Mar 2025 → **12.75 h** on the surface | NASA release 25-025 |
+
+```bash
+python case_study_im2.py --dem dem/ldem_75s_120m_float.lbl   # → SeleneFrontend/wwwroot/data/casestudy/im2/, docs/im2_case_study.png
+```
+
+![IM-2 Athena: Sun elevation, terrain horizon and crater-shadow depth](docs/im2_case_study.png)
+
+**Light and Earth** (from the series):
+
+| | Planned, on the surface (12.75 h) | Actual, on the surface | Planned, 14 days | Actual, 14 days |
+|---|---:|---:|---:|---:|
+| Sun: any part of the disc visible | 100 % | 100 % | 95.8 % | 94.9 % |
+| Earth visible | 100 % | 100 % | 85.4 % | 85.4 % |
+| Sun elevation, max | 2.96° | 2.96° | 5.37° | 5.36° |
+| Lowest Sun clearance above the LOLA horizon | 1.64° | 1.61° | −1.23° | −1.11° |
+| 20 m crater floor stays dark if deeper than | 0.56 m | 0.56 m | 0.99 m | 0.99 m |
+
+NASA's LOLA 120 m illumination map (~18.6-year average, Mazarico et al. 2011) gives 46.5 % sunlit time at the
+planned site and 46.8 % at the actual one, and 93 % Earth visibility at both.
+
+**Power and battery** (frontend, `Services/CaseStudyIm2.cs`; Nova-C figures from `landers.json`: 494 W array,
+1554 Wh battery, loads partly ASSUMPTION). Which way Athena faced or fell is not published, so every result is a
+range over orientations: 24 headings upright, 24 fall directions × 12 headings on its side (panel normals rotated
+by 90°, same panels and K).
+
+| First 12.75 h | Mean solar power | Battery lasts (14 d design life) |
+|---|---:|---:|
+| Planned site, upright | 12–466 W (median 143) | 10 h – 13.9 d |
+| Actual site, upright | 12–466 W (median 143) | 10 h – 13.8 d |
+| Actual site, on its side | 0–524 W (median 194) | 9 h – 13.8 d |
+| No sunlight at all (dark crater floor) | 0 W | **9–14 h** (day / survival load) |
+
+**What it shows:**
+
+* The ~370 m miss changed nothing in our model. Both points had the Sun (2.4–3.0° high) and the Earth in view
+  the whole time, give the same power range, and NASA's long-term map rates them the same.
+* Power depended on attitude, not on the site. Upright it ranges from 12 to 466 W with the heading, and on its
+  side from 0 to 524 W with how it lay. The reported "only about 100 watts" (secondary source: Wikipedia, citing
+  CNN and Intuitive Machines) fits inside both ranges, so it does not tell how Athena lay.
+* What matches the end after 12.75 h is having no usable sunlight: the 1554 Wh battery alone lasts 9–14 h on our
+  loads. A 20 m crater needs to be only ~0.6 m deep to keep its floor centre in shadow at this Sun elevation.
+  Athena was reported to rest in a "shadowed crater" (secondary source).
+
+**Limits:**
+
+* The tool shows light and power at a site; it cannot predict a tip-over.
+* The 20 m crater is below the 120 m DEM resolution. We state only the depth above which its floor is dark; the
+  real depth is not published.
+* The following are not modelled: cold, dust, the antenna and the altimeter (reported failures), and the lander's
+  real loads.
+* The planned surface duration is not published, so the 14-day design life from the specs is used.
+
 ## Validation vs NASA statement
 
 NASA's 2022 release states that *"All 13 regions contain sites that provide continuous

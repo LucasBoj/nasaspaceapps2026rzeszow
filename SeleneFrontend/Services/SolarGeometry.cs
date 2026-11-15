@@ -27,7 +27,7 @@ public sealed class PanelModel
         SinE = facets.Select(f => Math.Sin(Rad(f.NormalElevDeg))).ToArray();
         OffsetRad = facets.Select(f => Rad(f.AzOffsetDeg)).ToArray();
         Share = facets.Select(f => f.Share / total).ToArray();
-        Normalization = ComputeNormalization();
+        Normalization = layout.NormalizationOverride is > 0 ? layout.NormalizationOverride.Value : ComputeNormalization();
     }
 
     /// <summary>Compiled model for a fixed layout; null for ideal tracking (or no layout).</summary>

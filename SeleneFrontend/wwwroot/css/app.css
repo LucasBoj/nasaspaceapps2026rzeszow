@@ -1875,6 +1875,35 @@ a { color: var(--accent-cyan); }
 .chip:hover { border-color: var(--accent-cyan); color: var(--text-primary); }
 .chip.on { color: #000; background: var(--accent-cyan); border-color: var(--accent-cyan); }
 
+/* ---- Case study: IM-2 Athena (ResultsStrip → CASE STUDY) ---- */
+.casestudy { display: flex; flex-direction: column; gap: 0.6rem; }
+.cs-intro, .cs-finding, .cs-note, .cs-sources, .cs-status { font-size: 0.8rem; color: var(--text-secondary); margin: 0; }
+.cs-intro strong, .cs-finding strong, .cs-note strong { color: var(--text-primary); }
+.cs-finding { color: var(--text-primary); }
+.cs-sources { font-size: 0.7rem; }
+.cs-scroll { overflow-x: auto; }
+.cs-scroll:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+.cs-table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 0.74rem; }
+.cs-table th, .cs-table td { border-bottom: 1px solid var(--border-color); padding: 0.35rem 0.5rem; text-align: right; vertical-align: top; }
+.cs-table th[scope="row"], .cs-table thead th:first-child { text-align: left; color: var(--text-secondary); font-weight: 500; }
+.cs-table thead th { color: var(--text-primary); font-weight: 600; letter-spacing: 0.04em; }
+.cs-table .cs-key td { color: var(--text-primary); font-weight: 600; }
+.cs-sub { display: inline-block; font-size: 0.64rem; color: var(--text-secondary); font-weight: 400; }
+.cs-chart { margin: 0; }
+.cs-chart svg { display: block; width: 100%; height: 140px; background: rgba(127, 147, 166, 0.06); border: 1px solid var(--border-color); border-radius: 2px; }
+.cs-chart figcaption { font-family: 'IBM Plex Mono', monospace; font-size: 0.64rem; color: var(--text-secondary); margin-top: 0.3rem; }
+.cs-band.up { fill: rgba(79, 195, 247, 0.16); }
+.cs-band.side { fill: rgba(255, 176, 32, 0.16); }
+.cs-line { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.cs-line.up { stroke: var(--accent-cyan); }
+.cs-line.side { stroke: var(--status-warn); }
+.cs-tablenote { margin: 0; }
+.cs-end { stroke: var(--status-error); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.cs-endlabel, .cs-axis { font-family: 'IBM Plex Mono', monospace; font-size: 9px; fill: var(--text-secondary); }
+.cs-endlabel { text-anchor: start; transform: translateX(4px); }
+.cs-key-up { color: var(--accent-cyan); }
+.cs-key-side { color: var(--status-warn); }
+
 .compare-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
