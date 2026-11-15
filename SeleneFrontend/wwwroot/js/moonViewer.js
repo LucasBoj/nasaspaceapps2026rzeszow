@@ -113,6 +113,7 @@ export async function initViewer(elementId, token, dotNetReference) {
     selectionIndicator: false,
     skyAtmosphere: false,
     scene3DOnly: true,
+    msaaSamples: 4,   // antialiasing (WebGL2 MSAA): terrain silhouettes and lander edges; ignored where unsupported
   });
 
   const scene = viewer.scene;
