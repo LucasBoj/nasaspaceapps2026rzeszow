@@ -41,22 +41,35 @@ export class EngineFx {
     this.up = opts.up;
     const s = this.size;
     this.scratch = new Cesium.Cartesian3();
+    this.scratchShift = new Cesium.Cartesian3();
     this.groundCenter = new Cesium.Cartesian3();
+    this.nozzlePos = new Cesium.Cartesian3();
+    this.hasNozzle = false;
     this.prims = [];
+
+    const plumeEmitter = new Cesium.ConeEmitter(Cesium.Math.toRadians(10));
+    const origPlumeEmit = plumeEmitter.emit.bind(plumeEmitter);
+    plumeEmitter.emit = (p) => {
+      origPlumeEmit(p);
+      if (this.hasNozzle) {
+        p._nozzle = Cesium.Cartesian3.clone(this.nozzlePos, p._nozzle);
+      }
+    };
 
     this.plume = new Cesium.ParticleSystem({
       image: glow(),
       startColor: new Cesium.Color(1.0, 0.9, 0.7, 1.0),
       endColor: new Cesium.Color(1.0, 0.45, 0.12, 0.0),
-      startScale: 0.9, endScale: 3.2,
-      minimumParticleLife: 0.25, maximumParticleLife: 0.45,
-      minimumSpeed: 5 * s, maximumSpeed: 7 * s,                // plume length ≈ 2–3 × lander size at full throttle
-      imageSize: new Cesium.Cartesian2(0.4 * s, 0.4 * s),
+      startScale: 0.8, endScale: 2.5,
+      minimumParticleLife: 0.12, maximumParticleLife: 0.25,
+      minimumSpeed: 6 * s, maximumSpeed: 10 * s,                // plume length ≈ 1.5–2.5 × lander size at full throttle
+      imageSize: new Cesium.Cartesian2(0.35 * s, 0.35 * s),
       sizeInMeters: true,
       emissionRate: 0,
-      emitter: new Cesium.ConeEmitter(Cesium.Math.toRadians(10)),
+      emitter: plumeEmitter,
       emitterModelMatrix: DOWN,
       lifetime: Number.MAX_VALUE,
+      updateCallback: (p) => this.plumeTick(p),
     });
     this.dust = new Cesium.ParticleSystem({
       image: dust(),
@@ -87,6 +100,14 @@ export class EngineFx {
     viewer.clock.shouldAnimate = true;
   }
 
+  /** Plume: shift active particles by nozzle displacement so the exhaust moves with the lander. */
+  plumeTick(particle) {
+    if (!this.hasNozzle || !particle._nozzle) return;
+    const shift = Cesium.Cartesian3.subtract(this.nozzlePos, particle._nozzle, this.scratchShift);
+    Cesium.Cartesian3.add(particle.position, shift, particle.position);
+    Cesium.Cartesian3.clone(this.nozzlePos, particle._nozzle);
+  }
+
   /** Dust: radial outward along the local horizontal plus an upward component (stays above slopes). */
   radial(particle) {
     const up = this.up();
@@ -107,13 +128,15 @@ export class EngineFx {
     const s = this.size;
     const t = Math.max(0, Math.min(1, f.throttle ?? 0));
     if (f.nozzle) {
+      Cesium.Cartesian3.clone(f.nozzle, this.nozzlePos);
+      this.hasNozzle = true;
       const m = Cesium.Transforms.eastNorthUpToFixedFrame(f.nozzle);
       this.plume.modelMatrix = m;
       this.core.position = f.nozzle;
     }
-    this.plume.emissionRate = t > 0.02 ? 60 + 140 * t : 0;
-    this.plume.minimumSpeed = (2 + 3 * t) * s;
-    this.plume.maximumSpeed = (3 + 4 * t) * s;
+    this.plume.emissionRate = t > 0.02 ? 70 + 160 * t : 0;
+    this.plume.minimumSpeed = (3 + 5 * t) * s;
+    this.plume.maximumSpeed = (5 + 8 * t) * s;
     this.core.show = t > 0.02 && !!f.nozzle;
     this.core.color = new Cesium.Color(1, 0.93, 0.8, 0.35 + 0.6 * t);
     this.core.width = this.core.height = (0.5 + 0.5 * t) * s;
