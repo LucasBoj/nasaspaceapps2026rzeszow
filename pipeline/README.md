@@ -465,6 +465,40 @@ exceptions differ by 0.5–2.3 days (HW_K2023 2027, SP09 2027, NR205 2028), whic
 plausible given their much finer DEMs. This is a consistency check, not a
 like-for-like validation.
 
+## Science layer: permanently shadowed regions (water ice)
+
+Artemis goes to the south pole for water ice, which survives only in craters that never see the Sun. A solar lander
+needs the opposite. `build_psr.py` turns NASA's LOLA map of permanently shadowed regions into a sun-vs-ice trade-off:
+
+```bash
+python build_psr.py --psr /path/to/lpsr_75s_120m_201608.lbl     # ~15 s → SeleneFrontend/wwwroot/data/science/psr.json
+```
+
+* **Input:** `LPSR_75S_120M_201608` (Mazarico et al. 2011, PDS Geosciences Node, `extras/illumination/img/`, 116 MB),
+  a binary map on exactly the grid of our 120 m DEM. 27,702 km² of PSR in 75–90°S, 2310 regions ≥ 1 km², 334 ≥ 10 km².
+* **Output** (`data/science/psr.json`, 21 KB gzip): for the 9 sites and the 78 Wueller et al. (2026) candidates of
+  their regions, the straight-line distance to the nearest PSR pixel (any size, ≥ 1 km², ≥ 10 km²), the PSR area within
+  2 / 5 / 10 km, the nearest PSR ≥ 1 km² and, per region, the Pareto front of "more sunlight" (candidates' `sunPct`,
+  ≥ half the disc, panels 2 m, 2026-11 … 2035) vs "closer to a PSR ≥ 1 km²". Plus simplified PSR outlines (≥ 0.05 km²,
+  simplified to half a pixel) within 15 km of each site for the 3D view.
+* **Tests** (`tests/test_psr.py`): the floors of Shackleton and Faustini are PSR, the Malapert site is not, distances are
+  ordered, and along each front less sunlight always buys a closer PSR.
+
+| Site | Nearest PSR | PSR ≥ 1 km² | PSR ≥ 10 km² | PSR within 5 km | Front (sunlit · km to PSR ≥ 1 km²) |
+|---|---:|---:|---:|---:|---|
+| Peak near Cabeus B | 7.4 km | 10.4 km | 17.0 km | 0.0 km² | PCB04* 53 % · 10.4 |
+| Haworth | 1.2 km | 8.3 km | 10.5 km | 0.8 km² | HW_K2023* 65 % · 8.3 → HW01 56 % · 2.2 → HW10 18 % · 0.8 |
+| Malapert Massif | 0.6 km | 10.5 km | 28.9 km | 0.3 km² | MMA_K2023* 78 % · 10.5 → MMA04 16 % · 3.2 |
+| Mons Mouton Plateau | 0.4 km | 5.0 km | 20.5 km | 0.9 km² | MMP11 41 % · 3.2 → MMP05 25 % · 0.6 (site MMP10 41 % · 5.0, chosen for Earth contact) |
+| Mons Mouton | 1.5 km | 12.0 km | 22.2 km | 0.9 km² | MMO02* 75 % · 12.0 → MMO01 71 % · 6.3 → MMO07 28 % · 1.0 |
+| Nobile Rim 1 | 3.4 km | 11.8 km | 16.6 km | 1.1 km² | NR103* 78 % · 11.8 → NR102 65 % · 6.8 |
+| Nobile Rim 2 | 1.5 km | 7.4 km | 15.7 km | 0.4 km² | NR205* 52 % · 7.4 → NR202 49 % · 2.6 → **NR201 45 % · 0.3** (19.5 km² of PSR within 5 km) |
+| de Gerlache Rim 2 | 1.2 km | 6.9 km | 9.2 km | 0.9 km² | dGR2_K2023* 76 % · 6.9 → dGR204 52 % · 4.4 |
+| Slater Plain | 1.0 km | 5.2 km | 18.3 km | 1.4 km² | SP09* 58 % · 5.2 → SP05 33 % · 3.0 |
+
+\* = our site (the sunniest candidate). Limits: distances are straight lines, not walking paths; permanent shadow marks
+where ice *can* be trapped (cold traps), not where it has been detected; the PSR map is the 2016 release at 120 m.
+
 ## Landing ellipse
 
 Landers miss their target. Blue Ghost Mission 1 touched down within its 100 m target, Nova-C IM-2 more than

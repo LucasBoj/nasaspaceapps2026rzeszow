@@ -132,6 +132,17 @@
                             }
                         </div>
                     }
+                    @* Science layer (both modes): water ice in permanently shadowed craters vs the sunlight a solar lander needs. *@
+                    @if (MissionState.Psr is { } psrData && psrData.SiteFor(MissionState.SelectedSite?.Id) is { } psr)
+                    {
+                        <p class="site-ice">
+                            <Term Key="psr" AriaLabel="What is a permanently shadowed region?">ⓘ</Term>
+                            @PsrText.Sentence(psr)@if (psrData.RegionFor(psr.SiteId) is { } region && PsrText.TradeOff(region) is { } trade)
+                            {
+                                <text>&#32;@trade</text>
+                            }
+                        </p>
+                    }
                     <button type="button" class="btn-secondary small step-next" disabled="@(MissionState.SelectedSite is null)"
                             aria-describedby="@(MissionState.SelectedSite is null ? "next1-reason" : null)" @onclick="() => { Ui.ConfirmSite(); Open(2); }">Next: choose a lander</button>
                     @if (MissionState.SelectedSite is null)

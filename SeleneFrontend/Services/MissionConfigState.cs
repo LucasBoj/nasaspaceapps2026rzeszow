@@ -23,6 +23,9 @@ public class MissionConfigState
     /// <summary>Our sunlit time vs NASA's LOLA illumination maps (optional; null if the file is missing).</summary>
     public NasaIlluminationCheck? NasaCheck { get; private set; }
 
+    /// <summary>Permanently shadowed regions (possible water ice) near the sites (optional; null until loaded or if missing).</summary>
+    public PsrScience? Psr { get; private set; }
+
     public NasaSiteCheck? NasaCheckFor(string? siteId) =>
         siteId is null ? null : NasaCheck?.Sites.FirstOrDefault(s => s.SiteId == siteId);
     public List<LanderPreset> FilteredLanders => AllLanders.Where(l => l.Class == SelectedLanderClass).ToList();
@@ -128,6 +131,20 @@ public class MissionConfigState
     public bool IsLoaded { get; private set; }
     public string? LoadError { get; private set; }
 
+    private async Task LoadPsrAsync()
+    {
+        try
+        {
+            var json = await _httpClient.GetStringAsync("data/science/psr.json");
+            Psr = JsonSerializer.Deserialize<PsrScience>(json, JsonOpts);
+            OnStateChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[MissionConfigState] PSR science layer unavailable: {ex.Message}");
+        }
+    }
+
     public async Task LoadData()
     {
         LoadError = null;
@@ -169,6 +186,7 @@ public class MissionConfigState
             {
                 SelectedSite = AvailableSites[0];
             }
+            _ = LoadPsrAsync();      // optional science layer, not awaited: it must not delay the start
             
             IsLoaded = AvailableSites.Count > 0 && AllLanders.Count > 0;
             if (!IsLoaded) LoadError = "site or lander catalog is empty";

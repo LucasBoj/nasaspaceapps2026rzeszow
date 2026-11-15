@@ -718,6 +718,44 @@ export function clearCandidates() {
   for (const e of viewer.entities.values.filter((x) => entityKind(x) === "candidate")) viewer.entities.remove(e);
 }
 
+// ---- Science layer: permanently shadowed regions near the selected site (NASA LOLA, Mazarico et al. 2011) ----
+
+const PSR_FILL = Cesium.Color.fromCssColorString("#5c6bc0").withAlpha(0.4);
+const PSR_EDGE = Cesium.Color.fromCssColorString("#b3bcff");
+
+/** polys: [{ rings: [[[lon, lat], …]], areaKm2, distKm }] — outer ring only, already simplified by the pipeline. */
+export function showPsr(polys) {
+  if (!viewer || viewer.isDestroyed()) return;
+  clearPsr();
+  (polys ?? []).forEach((p, i) => {
+    const ring = p.rings?.[0];
+    if (!ring || ring.length < 4) return;
+    const positions = Cesium.Cartesian3.fromDegreesArray(ring.flat(), Cesium.Ellipsoid.MOON);
+    viewer.entities.add({
+      id: `psr-${i}`,
+      properties: { kind: "psr" },
+      polygon: { hierarchy: positions, material: PSR_FILL, classificationType: Cesium.ClassificationType.BOTH },
+    });
+    viewer.entities.add({
+      id: `psr-edge-${i}`,
+      properties: { kind: "psr" },
+      polyline: { positions, clampToGround: true, width: 1.5, material: PSR_EDGE,
+                  classificationType: Cesium.ClassificationType.BOTH },
+    });
+  });
+  fullRate(1500);   // ground primitives are built asynchronously over the next frames
+}
+
+export function clearPsr() {
+  if (!viewer || viewer.isDestroyed()) return;
+  for (const e of viewer.entities.values.filter((x) => entityKind(x) === "psr")) viewer.entities.remove(e);
+  fullRate(300);
+}
+
+/** Test hook: number of PSR outlines on the globe. */
+window.__selenePsrCount = () => (viewer && !viewer.isDestroyed()
+  ? viewer.entities.values.filter((e) => entityKind(e) === "psr" && e.polygon).length : null);
+
 export function flyToSite(siteId) {
   if (!viewer) return;
   releaseCamera();

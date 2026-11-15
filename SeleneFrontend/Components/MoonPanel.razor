@@ -57,6 +57,13 @@
                             @onfocus="@(() => ShowTip(CandidatesTip))" @onblur="HideTip"
                             @onclick="ToggleCandidates">Candidates</button>
                 }
+                @if (MissionState.Psr is not null && HasRegionSelected)
+                {
+                    <button type="button" class="hud-btn psr-toggle" aria-pressed="@(psrOn ? "true" : "false")"
+                            @onmouseenter="@(() => ShowTip(PsrTip))" @onmouseleave="HideTip"
+                            @onfocus="@(() => ShowTip(PsrTip))" @onblur="HideTip"
+                            @onclick="TogglePsrAsync">Ice (PSR)</button>
+                }
                 @* HUD tooltip: in the button row, after the last button — never over another control. *@
                 @if (hudTip is not null)
                 {
@@ -115,6 +122,15 @@
                         "ready" => $"3D MODEL · {lander.Name.ToUpperInvariant()} · STYLIZED",
                         _ => $"3D MODEL · {lander.Name.ToUpperInvariant()} · QUEUED",
                     })
+                </div>
+            }
+            @if (psrOn && HasRegionSelected && MissionState.Psr?.SiteFor(MissionState.SelectedSite?.Id) is { } psrSite)
+            {
+                <div class="hud-legend psr-legend">
+                    <span class="legend-swatch psr" aria-hidden="true"></span>
+                    <span><Term Key="psr">Permanently shadowed</Term> craters within @MissionState.Psr.OutlineRadiusKm.ToString("0", System.Globalization.CultureInfo.InvariantCulture) km
+                        (where water ice can be trapped) · nearest ≥ 1 km²: @psrSite.D1Km.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) km
+                        · NASA LOLA, Mazarico et al. 2011</span>
                 </div>
             }
             @if (Ui.CandidatesOn && HasRegionSelected)
@@ -380,6 +396,32 @@
     [JSInvokable] public void OnViewerInteraction() => Ui.CollapseSummary();
 
     private const string CandidatesTip = "Show all evaluated candidate landing sites in this region";
+    private const string PsrTip = "Show craters in permanent shadow near this site, where water ice can be trapped";
+    private bool psrOn;
+    private string? psrShownFor;
+
+    private async Task TogglePsrAsync()
+    {
+        Ui.CollapseSummary();
+        psrOn = !psrOn;
+        await SyncPsrAsync();
+    }
+
+    /// <summary>Show / hide the PSR outlines (data/science/psr.json) around the selected region's site.</summary>
+    private async Task SyncPsrAsync()
+    {
+        if (!moonLoaded || moonModule is null) return;
+        var site = psrOn && HasRegionSelected ? MissionState.Psr?.SiteFor(MissionState.SelectedSite!.Id) : null;
+        if (site?.SiteId == psrShownFor) return;
+        psrShownFor = site?.SiteId;
+        try
+        {
+            if (site is null) await moonModule.InvokeVoidAsync("clearPsr");
+            else await moonModule.InvokeVoidAsync("showPsr", site.Outlines);
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex) { Console.Error.WriteLine($"[MoonPanel] PSR layer: {ex.Message}"); }
+    }
     private string? hudTip;
     private void ShowTip(string text) => hudTip = text;
     private void HideTip() => hudTip = null;
@@ -474,6 +516,7 @@
     {
         _ = SyncViewerAsync();
         _ = InvokeAsync(SyncCandidatesAsync);
+        _ = InvokeAsync(SyncPsrAsync);
         _ = InvokeAsync(SyncLandingMarkerAsync);
         _ = InvokeAsync(StateHasChanged); // keeps HUD button state in sync with the selection
     }

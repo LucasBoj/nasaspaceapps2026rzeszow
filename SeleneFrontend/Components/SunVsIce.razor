@@ -1,0 +1,83 @@
+@using System.Globalization
+@using SeleneFrontend.Models
+
+@* Science trade-off for one region: sunlight a solar lander needs vs distance to water ice in permanently shadowed craters. *@
+@if (Region is { Candidates.Count: > 0 } r)
+{
+    var maxKm = Math.Max(10, Math.Ceiling(r.Candidates.Max(c => c.D1Km) / 5) * 5);
+    var front = r.Candidates.Where(c => c.Pareto).OrderBy(c => c.D1Km).ToList();
+    var ice = r.IceFirst();
+    <section class="results-panel sun-vs-ice" aria-labelledby="svi-title">
+        <h3 id="svi-title"><Term Key="sunvsice">Sun vs ice</Term> · @(Name ?? r.SiteId) · @r.Candidates.Count candidate sites</h3>
+        <div class="svi-body">
+            <svg class="svi-chart" viewBox="0 0 @W @H" role="img" aria-label="@ChartLabel(r, ice)">
+                <title>@ChartLabel(r, ice)</title>
+                @for (var y = 0; y <= 100; y += 25)
+                {
+                    <g><line x1="@L" x2="@(W - R)" y1="@Y(y)" y2="@Y(y)" class="svi-grid" />
+                    <text x="@(L - 6)" y="@(Y(y) + 4)" class="svi-tick" text-anchor="end">@y%</text></g>
+                }
+                @for (var x = 0.0; x <= maxKm + 1e-9; x += 5)
+                {
+                    <g><text x="@X(x, maxKm)" y="@(H - B + 16)" class="svi-tick" text-anchor="middle">@x.ToString("0", CultureInfo.InvariantCulture)</text></g>
+                }
+                <text x="@((L + W - R) / 2)" y="@(H - 4)" class="svi-axis" text-anchor="middle">km to nearest PSR ≥ 1 km² (left = closer to ice)</text>
+                <text x="12" y="@((T + H - B) / 2)" class="svi-axis" text-anchor="middle" transform="rotate(-90 12 @((T + H - B) / 2))">sunlit (≥ half the disc)</text>
+                @if (front.Count > 1)
+                {
+                    <polyline class="svi-front" points="@string.Join(" ", front.Select(c => $"{N(X(c.D1Km, maxKm))},{N(Y(c.SunPct))}"))" />
+                }
+                @foreach (var c in r.Candidates.OrderBy(c => c.IsSite))
+                {
+                    <circle cx="@N(X(c.D1Km, maxKm))" cy="@N(Y(c.SunPct))" r="@(c.IsSite ? 6 : 4)"
+                            class="svi-pt @(c.IsSite ? "site" : c.Pareto ? "front" : "")"><title>@PointText(c)</title></circle>
+                }
+            </svg>
+            <table class="svi-table">
+                <caption>Best trade-offs (Pareto front): no other candidate is both sunnier and closer to ice</caption>
+                <thead><tr><th scope="col">Site</th><th scope="col">Sunlit</th><th scope="col">Earth</th><th scope="col">PSR ≥ 1 km²</th><th scope="col">PSR within 5 km</th></tr></thead>
+                <tbody>
+                    @foreach (var c in front.OrderByDescending(c => c.SunPct))
+                    {
+                        <tr class="@(c.IsSite ? "site" : "")">
+                            <th scope="row">@c.CandidateId@(c.IsSite ? " (this site)" : ReferenceEquals(c, ice) ? " (ice-first)" : "")</th>
+                            <td>@P(c.SunPct)</td><td>@P(c.EarthPct)</td><td>@Km(c.D1Km)</td><td>@Km2(c.PsrKm2Within5)</td>
+                        </tr>
+                    }
+                    @if (r.Site is { Pareto: false } s)
+                    {
+                        <tr class="site"><th scope="row">@s.CandidateId (this site, chosen for Earth contact)</th>
+                            <td>@P(s.SunPct)</td><td>@P(s.EarthPct)</td><td>@Km(s.D1Km)</td><td>@Km2(s.PsrKm2Within5)</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="svi-source">
+            PSR: NASA LOLA <a href="@Url" target="_blank" rel="noopener">Mazarico et al. 2011</a> (120 m) · candidates:
+            <a href="https://doi.org/10.1029/2025JE009434" target="_blank" rel="noopener">Wueller et al. 2026</a> · sunlight: our model,
+            panels 2 m up, 2026-11 … 2035 · straight-line distances, not walking paths. Permanent shadow marks where ice can be trapped, not where it was found.
+        </p>
+    </section>
+}
+
+@code {
+    [Parameter] public PsrRegion? Region { get; set; }
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string Url { get; set; } = "";
+
+    private const double W = 420, H = 230, L = 46, R = 12, T = 10, B = 40;
+    private static double X(double km, double maxKm) => L + Math.Min(km, maxKm) / maxKm * (W - L - R);
+    private static double Y(double pct) => T + (100 - pct) / 100 * (H - T - B);
+    private static string N(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string P(double v) => Math.Round(v).ToString("0", CultureInfo.InvariantCulture) + "%";
+    private static string Km(double v) => v.ToString("0.0", CultureInfo.InvariantCulture) + " km";
+    private static string Km2(double v) => v.ToString("0.0", CultureInfo.InvariantCulture) + " km²";
+
+    private static string PointText(PsrCandidate c) =>
+        $"{c.CandidateId}{(c.IsSite ? " (this site)" : "")}: sunlit {P(c.SunPct)}, Earth {P(c.EarthPct)}, PSR ≥ 1 km² at {Km(c.D1Km)}, {Km2(c.PsrKm2Within5)} of PSR within 5 km";
+
+    private static string ChartLabel(PsrRegion r, PsrCandidate? ice) =>
+        $"Sunlight versus distance to the nearest permanently shadowed crater for {r.Candidates.Count} candidate sites. "
+        + (r.Site is { } s ? $"This site: sunlit {P(s.SunPct)}, {Km(s.D1Km)} from a PSR. " : "")
+        + (ice is not null ? $"Ice-first option {ice.CandidateId}: sunlit {P(ice.SunPct)}, {Km(ice.D1Km)} from a PSR." : "");
+}
