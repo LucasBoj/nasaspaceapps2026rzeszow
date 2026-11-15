@@ -348,7 +348,8 @@ export function setViewerFlags(isLocked, isEnhanced) {
   locked = !!isLocked;
   const enhanceChanged = enhance !== !!isEnhanced;
   enhance = !!isEnhanced;
-  viewer.scene.canvas.title = locked ? LOCKED_TITLE : "";
+  // No hover tooltip over the whole view while landed (it sat on the model): a click offers a new landing instead.
+  viewer.scene.canvas.title = "";
   if (locked && hoveredId) { const prev = hoveredId; hoveredId = null; restylePin(prev); }
   viewer.scene.canvas.style.cursor = "";
   for (const e of viewer.entities.values) if (entityKind(e) === "site") styleSitePin(e, e.id === selectedSiteId);
