@@ -139,7 +139,7 @@ Cel: zero zgrzytów na ścieżce jurora i QUICK DEMO, które pokazuje sens narz�
 
 ## 🔄 In progress
 
-_(nic przypisanego — wpisz się tutaj, gdy zaczynasz zadanie)_
+- **Walidacja modelu vs NASA piksel po pikselu + wysokość paneli** (od 2026-11-15 ~09:40, Claude Code): pipeline (`compare_nasa_illumination.py`, nowy plik wysokości horyzontu), dane `illumination/*`, `RobustnessRow.razor` (nowy wiersz), `AnalysisService`, README/ROADMAP. Wynik pomiarów: rozjazd z NASA to głównie wysokość obserwatora (2 m vs powierzchnia) i rejestracja piksela, nie rozdzielczość DEM (60 m zmienia ≤ 2 pp).
 
 ## 📋 Todo — według priorytetu
 
