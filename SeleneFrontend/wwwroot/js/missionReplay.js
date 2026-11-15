@@ -68,8 +68,12 @@ function buildHud(host, data, st) {
     speeds.append(b); return b;
   });
   const skip = el("button", "hud-btn replay-skip", "Skip ▸▸"); skip.type = "button";
+  // Watch from the surface: the camera next to the lander, Earth and Sun labelled in the sky.
+  const watch = el("button", "hud-btn replay-surface", "Watch from the surface"); watch.type = "button";
+  if (!st.hooks.watchFromSurface) watch.hidden = true;
+  watch.addEventListener("click", () => { if (st.hooks.watchFromSurface?.()) watch.hidden = true; });
   skip.addEventListener("click", () => finish(st, true));
-  controls.append(playBtn, scrub, speeds, skip);
+  controls.append(playBtn, scrub, speeds, skip, watch);
 
   root.append(head, clock, rows, note, strip.root, banner, controls);
   host.append(root);
@@ -176,6 +180,8 @@ function sample(st, f) {
     el: lerp(d.sunEl[i], d.sunEl[j], t),
     pct: lerp(d.sunPct[i], d.sunPct[j], t),
     soc: lerp(d.soc[i], d.soc[j], t),
+    eAz: d.earthAz?.length ? lerpAngle(d.earthAz[i], d.earthAz[j], t) : undefined,
+    eEl: d.earthEl?.length ? lerp(d.earthEl[i], d.earthEl[j], t) : undefined,
     earth: d.earth[t < 0.5 ? i : j] === 1,
     step: i,
   };
@@ -193,7 +199,7 @@ function tick(st, now) {
     if (!st.paused) st.progress = Math.min(1, st.progress + dt / BASE_SECONDS);
     const f = st.progress * st.endStep;
     const s = sample(st, f);
-    hooks.setSun(s.az, s.el, s.pct);
+    hooks.setSun(s.az, s.el, s.pct, s.eAz, s.eEl);
     st.hud.update(f, s.soc, s.pct, s.earth, s.el);
     if (s.step !== st.lastStep && now - st.lastStepSent > 120) {   // timeline cursor, ~8 updates/s
       st.lastStep = s.step; st.lastStepSent = now;
@@ -212,7 +218,7 @@ function tick(st, now) {
       const nozzle = Cesium.Cartesian3.add(base, Cesium.Cartesian3.multiplyByScalar(info.up, nz[2], new Cesium.Cartesian3()), new Cesium.Cartesian3());
       st.fx?.update({ nozzle, ground: info.base, throttle: 1, dust: Math.max(0, 1 - target / (3 * info.sizeM)) });
       const cam = viewer.camera;   // follow the lander: same heading and pitch, range grows a little
-      if (Number.isFinite(cam.heading)) {
+      if (Number.isFinite(cam.heading) && !hooks.surfaceActive?.()) {   // from the surface: watch it go
         cam.lookAt(Cesium.Cartesian3.add(base, Cesium.Cartesian3.multiplyByScalar(info.up, 0.5 * info.heightM, new Cesium.Cartesian3()), new Cesium.Cartesian3()),
           new Cesium.HeadingPitchRange(cam.heading, cam.pitch, st.range0 * (1 + 1.5 * k)));
       }
@@ -255,7 +261,7 @@ function finish(st, skipped) {
   if (skipped && st.phase === "mission") {
     // Jump to the end state without the ending animation.
     const s = sample(st, st.endStep);
-    hooks.setSun(s.az, s.el, s.pct);
+    hooks.setSun(s.az, s.el, s.pct, s.eAz, s.eEl);
     st.hud.update(st.endStep, s.soc, s.pct, s.earth, s.el);
     hooks.onStep(st.endStep);
   }

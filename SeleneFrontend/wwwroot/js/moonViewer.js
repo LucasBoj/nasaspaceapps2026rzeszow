@@ -1,4 +1,6 @@
 // Cesium ion asset ID of the lunar 3D terrain tileset — sprawdź w Cesium ion (Asset Depot → Moon terrain).
+import * as sky from "./skyView.js";
+
 const MOON_TERRAIN_ION_ASSET_ID = 2684829;
 
 const MOON_TREK_WAC_URL =
@@ -117,6 +119,9 @@ export async function initViewer(elementId, token, dotNetReference) {
   scene.globe.showGroundAtmosphere = false;
   scene.globe.baseColor = Cesium.Color.fromCssColorString("#1a1d21");
   scene.backgroundColor = Cesium.Color.BLACK;
+  // Stars: Cesium makes its default sky box only for the Earth ellipsoid, so add the bundled Tycho-2 one here
+  // (self-hosted in lib/cesium, no network). Faint enough not to compete with the grazing-lit terrain.
+  try { scene.skyBox = Cesium.SkyBox.createEarthSkyBox(); scene.skyBox.show = true; } catch { /* no stars */ }
   // Sun and Moon billboards belong to Earth's sky — hide them.
   if (scene.sun) scene.sun.show = false;
   if (scene.moon) scene.moon.show = false;
@@ -270,6 +275,7 @@ function guardCamera() {
     return;
   }
   if (flying > 0) return;
+  if (surface) return;   // Surface view keeps its own clearance (keepAboveTerrain)
   const lockedOrbit = !Cesium.Matrix4.equals(camera.transform, Cesium.Matrix4.IDENTITY);
   if (!lockedOrbit) {
     lastGoodView = {
@@ -392,6 +398,7 @@ function southPoleView() {
 /** South-pole overview. Instant by default; pass animate=true for a camera flight. */
 export function resetView(animate = false) {
   if (!viewer) return;
+  exitSurfaceView();
   releaseCamera();
   const view = southPoleView();
   if (animate && !reducedMotion) {
@@ -758,6 +765,7 @@ window.__selenePsrCount = () => (viewer && !viewer.isDestroyed()
 
 export function flyToSite(siteId) {
   if (!viewer) return;
+  exitSurfaceView();
   releaseCamera();
   const entity = viewer.entities.getById(siteId);
   if (!entity) return;
@@ -773,6 +781,7 @@ export function flyToSite(siteId) {
 
 /** Play the landing animation; resolves with { status, fps, simplified }. */
 export async function playLanding(options, hudHost) {
+  exitSurfaceView();
   if (!viewer) return { status: "unavailable" };
   fullRate(2000);   // until the module reports isAnimating()
   const m = await landing();
@@ -835,10 +844,13 @@ let sunLightKey = null;
  * If the Sun is hidden (sunFraction 0) a weak, cool fill light from above keeps models visible.
  */
 let lastSun = null;
+let lastEarth = null;    // [az, el] of the Earth at the shown moment (deg)
 let baseLightIntensity = null;   // intensity set by setSunLight (the replay fades relative to it)
 
-export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
+export function setSunLight(lat, lon, azDeg, elDeg, sunPct, earthAzDeg, earthElDeg) {
   if (!viewer || viewer.isDestroyed()) return;
+  if (earthAzDeg !== undefined) { lastEarth = [earthAzDeg, earthElDeg]; }
+  sky.update(viewer, lat, lon, azDeg, elDeg, lastEarth?.[0] ?? NaN, lastEarth?.[1] ?? NaN);
   lastSun = [lat, lon, azDeg, elDeg, sunPct];
   lastSunAzDeg = azDeg;
   const key = `${lat.toFixed(4)},${lon.toFixed(4)},${azDeg.toFixed(1)},${elDeg.toFixed(1)},${sunPct > 0},${enhance}`;
@@ -879,6 +891,144 @@ export function setSunLight(lat, lon, azDeg, elDeg, sunPct) {
   viewer.shadowMap.darkness = sunPct > 0 ? 0.35 : 0.6;
 }
 
+// ---- Surface view: stand next to the lander and look at the sky (Earth, Sun, stars) ----
+
+let surface = null;   // { pos, heading, pitch, timer, saved, handlers }
+const SURFACE_EYE_M = 3;
+const SURFACE_PITCH = [-10, 30];
+
+function applySurfaceCamera() {
+  viewer.camera.setView({
+    destination: surface.pos,
+    orientation: { heading: surface.heading, pitch: Cesium.Math.toRadians(surface.pitch), roll: 0 },
+  });
+  fullRate(200);
+}
+
+/** Keep the eye SURFACE_EYE_M above the rendered terrain (tiles refine by tens of metres after arriving). */
+function keepAboveTerrain() {
+  if (!surface || !viewer || viewer.isDestroyed()) return;
+  const carto = Cesium.Cartographic.fromCartesian(surface.pos, Cesium.Ellipsoid.MOON);
+  let ground = null;
+  if (viewer.scene.sampleHeightSupported) {
+    try { ground = viewer.scene.sampleHeight(carto, landingModule?.markerObjects?.() ?? []); } catch { ground = null; }
+  }
+  if (!Number.isFinite(ground)) ground = viewer.scene.globe.getHeight(carto) ?? surface.ground;
+  if (!Number.isFinite(ground)) return;
+  surface.ground = ground;
+  // The lander on the same refined ground as the eye (a late +68 m tile jump would bury it).
+  const info = landingModule?.landedInfo?.();
+  if (info && !info.lift && viewer.scene.sampleHeightSupported) {
+    const bc = Cesium.Cartographic.fromCartesian(info.base, Cesium.Ellipsoid.MOON);
+    let g = null;
+    try { g = viewer.scene.sampleHeight(bc, landingModule.markerObjects?.() ?? []); } catch { g = null; }
+    if (Number.isFinite(g)) landingModule.regroundMarker?.(viewer, g);
+  }
+  if (Math.abs(carto.height - (ground + SURFACE_EYE_M)) > 0.5) {
+    carto.height = ground + SURFACE_EYE_M;
+    surface.pos = Cesium.Cartographic.toCartesian(carto, Cesium.Ellipsoid.MOON);
+    applySurfaceCamera();
+  }
+}
+
+/**
+ * Surface view: the camera 3 m above the terrain beside the lander (or at the site), looking level towards the
+ * Earth. Drag turns around the vertical and tilts −10…+30°; the eye never goes below the terrain.
+ */
+export function enterSurfaceView(lat, lon, withLabels = false) {
+  if (!viewer || viewer.isDestroyed() || !terrainTileset) return false;
+  viewer.camera.cancelFlight();
+  releaseCamera();
+  const site = Cesium.Cartesian3.fromDegrees(lon, lat, 0, Cesium.Ellipsoid.MOON);
+  const earthAz = lastEarth?.[0] ?? lastSunAzDeg ?? 0;
+  const az = Cesium.Math.toRadians(earthAz);
+  // Stand behind-left of the lander as seen towards the Earth, so it is in the foreground but not in the way.
+  const info = landingModule?.landedInfo?.();
+  const size = info?.sizeM ?? 0;
+  const back = size ? size * 3.5 + 8 : 0, side = size ? size * 0.5 + 1 : 0;   // lander in the lower middle, below the Earth
+  const east = -Math.sin(az) * back + Math.cos(az) * -side, north = -Math.cos(az) * back - Math.sin(az) * -side;
+  const enu = Cesium.Transforms.eastNorthUpToFixedFrame(info?.base ?? site);
+  const offset = Cesium.Matrix4.multiplyByPoint(enu, new Cesium.Cartesian3(east, north, 0), new Cesium.Cartesian3());
+  const carto = Cesium.Cartographic.fromCartesian(offset, Cesium.Ellipsoid.MOON);
+  const siteCarto = Cesium.Cartographic.fromCartesian(info?.base ?? site, Cesium.Ellipsoid.MOON);
+  carto.height = (siteCarto?.height ?? 0) + SURFACE_EYE_M;
+  const ssc = viewer.scene.screenSpaceCameraController;
+  const saved = surface?.saved ?? { rotate: ssc.enableRotate, translate: ssc.enableTranslate, zoom: ssc.enableZoom, tilt: ssc.enableTilt, look: ssc.enableLook };
+  ssc.enableRotate = ssc.enableTranslate = ssc.enableZoom = ssc.enableTilt = ssc.enableLook = false;
+  if (surface?.timer) clearInterval(surface.timer);
+  surface?.handlers?.forEach(([t, f]) => viewer.canvas.removeEventListener(t, f));
+  // Half the Earth's elevation: the Earth above the middle of the view, the lander in the foreground below it.
+  const startPitch = Math.max(SURFACE_PITCH[0], Math.min(SURFACE_PITCH[1], (lastEarth?.[1] ?? 4) * 0.5));
+  surface = { pos: Cesium.Cartographic.toCartesian(carto, Cesium.Ellipsoid.MOON), heading: az, pitch: startPitch, saved, ground: carto.height - SURFACE_EYE_M };
+  let drag = null;
+  const down = (e) => { drag = { x: e.clientX, y: e.clientY }; };
+  const move = (e) => {
+    if (!drag || !surface) return;
+    surface.heading -= Cesium.Math.toRadians((e.clientX - drag.x) * 0.15);
+    surface.pitch = Math.max(SURFACE_PITCH[0], Math.min(SURFACE_PITCH[1], surface.pitch + (e.clientY - drag.y) * 0.12));
+    drag = { x: e.clientX, y: e.clientY };
+    applySurfaceCamera();
+  };
+  const up = () => { drag = null; };
+  surface.handlers = [["pointerdown", down], ["pointermove", move], ["pointerup", up], ["pointerleave", up]];
+  surface.handlers.forEach(([t, f]) => viewer.canvas.addEventListener(t, f));
+  surface.timer = setInterval(keepAboveTerrain, 400);
+  // Map pins draw through the terrain (no depth test): from the surface they would float in the sky.
+  surface.hidden = viewer.entities.values.filter((e) => ["site", "custom"].includes(entityKind(e)) || e.id === SELECTION_RING_ID || e.id === SELECTION_LEADER_ID);
+  surface.hidden.forEach((e) => { e.show = false; });
+  sky.setShown(viewer, true, withLabels, reducedMotion);
+  if (viewer.scene.skyBox) viewer.scene.skyBox.show = true;   // stars
+  applySurfaceCamera();
+  keepAboveTerrain();
+  dotNetRef?.invokeMethodAsync("OnSurfaceViewChanged", true).catch(() => {});
+  return true;
+}
+
+/** Leave Surface view: mouse controls back, sky objects hidden. The caller moves the camera (orbit / site). */
+export function exitSurfaceView() {
+  if (!surface || !viewer || viewer.isDestroyed()) return;
+  const ssc = viewer.scene.screenSpaceCameraController;
+  ssc.enableRotate = surface.saved.rotate; ssc.enableTranslate = surface.saved.translate; ssc.enableZoom = surface.saved.zoom;
+  ssc.enableTilt = surface.saved.tilt; ssc.enableLook = surface.saved.look;
+  clearInterval(surface.timer);
+  surface.handlers.forEach(([t, f]) => viewer.canvas.removeEventListener(t, f));
+  surface.hidden?.forEach((e) => { e.show = true; });
+  surface = null;
+  sky.setShown(viewer, false);
+  dotNetRef?.invokeMethodAsync("OnSurfaceViewChanged", false).catch(() => {});
+}
+
+/** Labels on the Earth / Sun while watching the mission from the surface. */
+export function setSkyLabels(on) { if (surface) sky.setShown(viewer, true, on, reducedMotion); }
+
+/** Test hooks: Surface view state and where the sky bodies are drawn (az/el from the site). */
+window.__seleneSurface = () => {
+  if (!viewer || viewer.isDestroyed()) return null;
+  const c = Cesium.Cartographic.fromCartesian(viewer.camera.positionWC, Cesium.Ellipsoid.MOON);
+  let ground = null;
+  try { ground = viewer.scene.sampleHeight(c, landingModule?.markerObjects?.() ?? []); } catch { /* ignore */ }
+  const info = landingModule?.landedInfo?.();
+  const toLander = info ? Cesium.Cartesian3.distance(viewer.camera.positionWC, info.base) : null;
+  const lb = info ? Cesium.Cartographic.fromCartesian(info.base, Cesium.Ellipsoid.MOON).height : null;
+  let landerPx = null;
+  if (info) { const w = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, Cesium.Cartesian3.add(info.base, Cesium.Cartesian3.multiplyByScalar(info.up, 0.5 * (info.heightM ?? 2), new Cesium.Cartesian3()), new Cesium.Cartesian3())); landerPx = w ? [Math.round(w.x), Math.round(w.y)] : null; }
+  return { active: !!surface, toLander, landerSize: info?.sizeM ?? null, landerBase: lb, landerPx, height: c.height, ground: Number.isFinite(ground) ? ground : null, pitch: Cesium.Math.toDegrees(viewer.camera.pitch), heading: Cesium.Math.toDegrees(viewer.camera.heading) };
+};
+window.__seleneSky = (lat, lon) => sky.bodyAzEl(lat, lon);
+/** Test hooks (E2E): show the sky for any hour of the data, and stand on the surface at a site. */
+window.__seleneSetSky = (lat, lon, sunAz, sunEl, sunPct, earthAz, earthEl) => { sunLightKey = null; setSunLight(lat, lon, sunAz, sunEl, sunPct, earthAz, earthEl); };
+window.__seleneEnterSurface = (lat, lon) => enterSurfaceView(lat, lon, true);
+/** Is the Earth sphere the first thing the camera sees at its centre (i.e. not hidden by terrain)? */
+window.__seleneEarthVisible = () => {
+  const lab = viewer?.entities.getById("sky-earth-label");
+  if (!lab || !window.__seleneSky(0, 0)?.shown) return null;
+  const p = lab.position.getValue(Cesium.JulianDate.now());
+  const w = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, p);
+  if (!w || w.x < 0 || w.y < 0 || w.x > viewer.canvas.clientWidth || w.y > viewer.canvas.clientHeight) return { onScreen: false };
+  const picked = viewer.scene.pick(w);
+  return { onScreen: true, visible: !!picked && picked.id === "sky-earth", x: w.x, y: w.y };
+};
+
 // ---- Mission replay (isolated module, loaded on first use) ----
 
 let replayModule = null;
@@ -891,7 +1041,9 @@ export async function playReplay(data, hudHost) {
   replayModule ??= await import("./missionReplay.js");
   replayData = data;
   replayModule.play(viewer, data, hudHost, {
-    setSun: (az, el, pct) => setSunLight(data.lat, data.lon, az, el, pct),
+    setSun: (az, el, pct, eAz, eEl) => setSunLight(data.lat, data.lon, az, el, pct, eAz, eEl),
+    surfaceActive: () => !!surface,
+    watchFromSurface: () => enterSurfaceView(data.lat, data.lon, true),
     scaleLight: (k) => {
       if (viewer?.scene?.light && baseLightIntensity != null) viewer.scene.light.intensity = baseLightIntensity * k;
     },
@@ -906,9 +1058,11 @@ export function stopReplay() {
   replayModule?.stop(true);
   if (replayData && viewer && !viewer.isDestroyed()) {
     sunLightKey = null;
-    setSunLight(replayData.lat, replayData.lon, replayData.sunAz[0], replayData.sunEl[0], replayData.sunPct[0]);
+    setSunLight(replayData.lat, replayData.lon, replayData.sunAz[0], replayData.sunEl[0], replayData.sunPct[0],
+      replayData.earthAz?.[0], replayData.earthEl?.[0]);
   }
   replayData = null;
+  setSkyLabels(false);
 }
 
 export function cancelLanding() {

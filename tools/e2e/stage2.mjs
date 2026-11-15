@@ -20,7 +20,7 @@ const hit = (a, b) => a && b && a.x < b.x + b.width - 0.5 && b.x < a.x + a.width
 const overlaps = (p, sel, own) => p.evaluate(([sel, own]) => {
   const t = document.querySelector(sel); if (!t) return ["(missing)"];
   const r = t.getBoundingClientRect(); const out = [];
-  for (const e of document.querySelectorAll(".moon-viewer-container button, .moon-viewer-container .viewer-badge, .moon-viewer-container .hud-reason, .moon-viewer-container .compass, .moon-viewer-container .replay-hud, .moon-viewer-container .landing-panel")) {
+  for (const e of document.querySelectorAll(".moon-viewer-container button, .moon-viewer-container .viewer-badge, .moon-viewer-container .hud-reason, .moon-viewer-container .compass, .moon-viewer-container .replay-hud, .moon-viewer-container .landing-panel, .moon-viewer-container .ai-model-badge")) {
     if (e === t || e.contains(t) || t.contains(e) || (own && e.closest(own))) continue;
     const q = e.getBoundingClientRect(); if (!q.width || !q.height || getComputedStyle(e).visibility === "hidden") continue;
     if (r.x < q.right - 0.5 && q.x < r.right - 0.5 && r.y < q.bottom - 0.5 && q.y < r.bottom - 0.5) out.push((e.className || e.tagName).toString().slice(0, 40) + ":" + (e.textContent || "").trim().slice(0, 20));
@@ -60,7 +60,7 @@ for (const [W, H] of [[1366, 768], [1920, 1080]]) {
     await shot(p, `after-${tag}-summary`);
     // ⌂ View: folds the card and moves the camera at once
     const h0 = await p.evaluate(() => { const c = window.__scene?.camera; return null; });
-    await p.locator(".hud-btn", { hasText: "View" }).click(); await p.waitForTimeout(400);
+    await p.locator(".hud-btn[aria-label^='Back to the south pole']").click(); await p.waitForTimeout(400);
     expect(`${tag} ⌂ View folds the summary into “Mission summary”`, (await p.locator(".replay-summary").count()) === 0 && (await p.locator(".replay-summary-chip").isVisible()));
     expect(`${tag} compass back when the summary is folded`, (await p.locator(".viewer-compass").count()) === 1);
     await p.locator(".replay-summary-chip").click(); await p.waitForTimeout(300);
@@ -84,7 +84,7 @@ for (const [W, H] of [[1366, 768], [1920, 1080]]) {
     await shot(p, `after-${tag}-heatmap`);
     await p.evaluate(() => window.scrollTo(0, 0));
     // HUD tooltips in Analyst: View / settings / Candidates and the chips
-    for (const [name, sel] of [["⌂ View", ".hud-btn:has-text('View')"], ["⚙", ".hud-btn[aria-label='Viewer settings']"], ["Candidates", ".hud-btn:has-text('Candidates')"]]) {
+    for (const [name, sel] of [["⌂ View", ".hud-btn[aria-label^='Back to the south pole']"], ["⚙", ".hud-btn[aria-label='Viewer settings']"], ["Candidates", ".hud-btn:has-text('Candidates')"]]) {
       await p.locator(sel).first().hover(); await p.waitForTimeout(250);
       const o = await overlaps(p, ".hud-tip");
       expect(`${tag} tooltip for ${name} covers no control or chip`, o.length === 0 && (await p.locator(".hud-tip").count()) === 1, o.join(", "));

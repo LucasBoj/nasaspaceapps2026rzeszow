@@ -32,11 +32,18 @@
         <div class="viewer-hud">
             <div class="viewer-hud-buttons">
                 <button type="button" class="hud-btn" aria-label="Back to the south pole view (Home key)"
-                        @onmouseenter="@(() => ShowTip("Back to the south pole view (Home key)"))" @onmouseleave="HideTip"
-                        @onfocus="@(() => ShowTip("Back to the south pole view (Home key)"))" @onblur="HideTip"
+                        @onmouseenter="@(() => ShowTip("South pole view (Home key)"))" @onmouseleave="HideTip"
+                        @onfocus="@(() => ShowTip("South pole view (Home key)"))" @onblur="HideTip"
                         @onclick="SouthPoleViewAsync">⌂ View</button>
                 <button type="button" class="hud-btn" disabled="@(MissionState.SelectedSite is null)"
                         aria-describedby="@(MissionState.SelectedSite is null ? "zoom-reason" : null)" @onclick="ZoomToSiteAsync">Zoom to site</button>
+                @if (terrain3D && MissionState.SelectedSite is not null && !Ui.LandingInProgress)
+                {
+                    @* Stand on the surface and look at the sky: Earth and Sun where the data puts them, hidden by real terrain. *@
+                    <button type="button" class="hud-btn surface-view" aria-pressed="@(surfaceView ? "true" : "false")" @onclick="ToggleSurfaceViewAsync">
+                        @(surfaceView ? "Back to orbit view" : "Surface view")
+                    </button>
+                }
                 @if (Ui.CanPlayMission && !Ui.ReplayPlaying)
                 {
                     <button type="button" class="hud-btn play-mission" @onclick="Ui.PlayMissionAsync">▶ Play mission</button>
@@ -178,7 +185,7 @@
     @if (moonLoaded && Ui.LandingAnimationEnabled && (Ui.LandingInProgress || Ui.Landed)
          && MissionState.SelectedLander is { Model: { } aiModel } && modelStatus.GetValueOrDefault(aiModel.Uri) != "failed")
     {
-        <div class="ai-model-badge" role="note">AI-generated 3D model · Meshy AI + Microsoft TRELLIS.2</div>
+        <div class="ai-model-badge" role="note" aria-label="AI-generated 3D model (Meshy AI + Microsoft TRELLIS.2, see Credits)">AI-generated 3D model</div>
     }
     <ReplaySummary />
     <WelcomeCard />
@@ -373,6 +380,8 @@
             lat = site.Lat, lon = site.Lon,
             sunAz = Enumerable.Range(start, n).Select(i => series.SunAzCentiDeg[i] / 100.0).ToArray(),
             sunEl = Enumerable.Range(start, n).Select(i => series.SunElevCentiDeg[i] / 100.0).ToArray(),
+            earthAz = series.EarthAzCentiDeg.Length >= start + n ? Enumerable.Range(start, n).Select(i => series.EarthAzCentiDeg[i] / 100.0).ToArray() : [],
+            earthEl = series.EarthElevCentiDeg.Length >= start + n ? Enumerable.Range(start, n).Select(i => series.EarthElevCentiDeg[i] / 100.0).ToArray() : [],
             sunPct = m.Sun.Take(n).ToArray(),
             earth = m.Earth.Take(n).ToArray(),
             soc = m.SocPct.Take(n).Select(v => Math.Round(v, 1)).ToArray(),
@@ -401,7 +410,32 @@
     /// <summary>The user dragged / scrolled the camera or pressed Esc: the mission summary folds away.</summary>
     [JSInvokable] public void OnViewerInteraction() => Ui.CollapseSummary();
 
-    private const string CandidatesTip = "Show all evaluated candidate landing sites in this region";
+    private bool terrain3D;
+    private bool surfaceView;
+
+    [JSInvokable] public void OnSurfaceViewChanged(bool on) { surfaceView = on; StateHasChanged(); }
+
+    private async Task ToggleSurfaceViewAsync()
+    {
+        Ui.CollapseSummary();
+        if (moonModule is null || MissionState.SelectedSite is not { } site) return;
+        try
+        {
+            if (surfaceView)
+            {
+                await moonModule.InvokeVoidAsync("exitSurfaceView");
+                await ZoomToSiteAsync();
+            }
+            else
+            {
+                await SyncSunLightAsync(site);
+                await moonModule.InvokeAsync<bool>("enterSurfaceView", site.Lat, site.Lon, Ui.ReplayPlaying);
+            }
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    private const string CandidatesTip = "Show the evaluated candidate sites";
     private const string PsrTip = "Show craters in permanent shadow near this site, where water ice can be trapped";
     private bool psrOn;
     private string? psrShownFor;
@@ -497,6 +531,7 @@
             var token = Config["CesiumIonToken"] ?? "";
             var result = await moonModule.InvokeAsync<InitResult>("initViewer", "moon-viewer-element", token, dotNetRef);
 
+            terrain3D = result.TerrainLoaded;
             if (!result.TerrainLoaded)
             {
                 // 2D is a supported mode, not a failure: show it as a mode label.
@@ -652,8 +687,10 @@
                          ?? series.Start;
             var i = series.IndexOf(moment);
             if (i < 0) return;
+            var hasEarth = series.EarthAzCentiDeg.Length > i && series.EarthElevCentiDeg.Length > i;
             await moonModule.InvokeVoidAsync("setSunLight", site.Lat, site.Lon,
-                series.SunAzCentiDeg[i] / 100.0, series.SunElevCentiDeg[i] / 100.0, series.SunFraction[i]);
+                series.SunAzCentiDeg[i] / 100.0, series.SunElevCentiDeg[i] / 100.0, series.SunFraction[i],
+                hasEarth ? series.EarthAzCentiDeg[i] / 100.0 : (double?)null, hasEarth ? series.EarthElevCentiDeg[i] / 100.0 : (double?)null);
         }
         catch (JSDisconnectedException) { }
         catch (Exception ex)

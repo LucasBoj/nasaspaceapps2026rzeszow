@@ -2909,3 +2909,13 @@ html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: aut
     pointer-events: none;
 }
 @media (max-width: 560px) { .ai-model-badge { top: auto; bottom: 64px; right: 8px; } }
+/* A pressed HUD toggle stays readable under the mouse (dark text needs the cyan background). */
+.hud-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent-cyan); color: #000; }
+
+/* HUD tooltip beside the button row, out of the flow: showing it never reflows (or shrinks) the buttons —
+   with the Surface view button the row got wide enough for a reflow loop under the mouse. */
+.viewer-hud-buttons { position: relative; }
+.viewer-hud-buttons > .hud-btn { flex: none; }
+.hud-tip { position: absolute; left: calc(100% + 8px); top: 50%; translate: 0 -50%; }
+/* AI badge one row below the HUD buttons (right side of the chip row is free; button tooltips stay in row 1). */
+.ai-model-badge { top: 52px; }

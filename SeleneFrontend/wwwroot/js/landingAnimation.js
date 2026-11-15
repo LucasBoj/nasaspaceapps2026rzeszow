@@ -472,6 +472,37 @@ export function landedInfo() {
  * Raise (or lower) the landed lander along the local vertical by dz metres: models and entities alike.
  * The terrain-follow loop stops first, so it cannot pull the lander back to the ground mid-ascent.
  */
+/** The landed lander's own scene objects (for terrain sampling that must not hit the lander itself). */
+export function markerObjects() { return [...marker, ...markerPrims.filter((m) => !m.isDestroyed())]; }
+
+/**
+ * Put the landed lander back on the rendered ground at `groundHeight` (m above the ellipsoid) — the terrain
+ * tiles can refine by ~68 m long after the settle loop has stopped (seen from the surface camera). Moves the
+ * base too, so a later lift-off still starts from the ground.
+ */
+export function regroundMarker(viewer, groundHeight) {
+  if (!landed || !viewer || viewer.isDestroyed() || !Number.isFinite(groundHeight)) return 0;
+  const baseH = Cesium.Cartographic.fromCartesian(landed.base, Cesium.Ellipsoid.MOON)?.height;
+  const dz = groundHeight - baseH;
+  if (!Number.isFinite(dz) || Math.abs(dz) < 0.3 || Math.abs(dz) > 500) return 0;
+  stopSettle();
+  const shift = Cesium.Cartesian3.multiplyByScalar(landed.up, dz, new Cesium.Cartesian3());
+  const now = Cesium.JulianDate.now();
+  for (const e of marker) {
+    const p = e.position?.getValue(now);
+    if (p) e.position = new Cesium.ConstantPositionProperty(Cesium.Cartesian3.add(p, shift, new Cesium.Cartesian3()));
+    const line = e.polyline?.positions?.getValue(now);
+    if (line) e.polyline.positions = new Cesium.ConstantProperty(line.map((q) => Cesium.Cartesian3.add(q, shift, new Cesium.Cartesian3())));
+  }
+  for (const m of markerPrims) {
+    if (m.isDestroyed()) continue;
+    const t = Cesium.Matrix4.getTranslation(m.modelMatrix, new Cesium.Cartesian3());
+    m.modelMatrix = Cesium.Matrix4.setTranslation(m.modelMatrix, Cesium.Cartesian3.add(t, shift, t), new Cesium.Matrix4());
+  }
+  landed.base = Cesium.Cartesian3.add(landed.base, shift, new Cesium.Cartesian3());
+  return dz;
+}
+
 export function liftMarker(viewer, dz) {
   if (!landed || !viewer || viewer.isDestroyed() || !Number.isFinite(dz) || dz === 0) return;
   stopSettle();
