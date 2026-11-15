@@ -56,6 +56,14 @@
             <span class="verdict-basis">
                 <Term Key="basedon" AriaLabel="What does 'based on' mean?">ⓘ</Term>
                 based on @BasisText(m.BasedOn) lander values
+                @if (CustomResult is { } cs)
+                {
+                    <span class="quick-estimate">· <Term Key="quickestimate">Quick estimate · 240 m terrain</Term></span>
+                    @if (cs.SlopeDeg is > 10)
+                    {
+                        <span class="custom-steep">· ⚠ steep terrain — risky landing (@cs.SlopeDeg?.ToString("0.0", CultureInfo.InvariantCulture)°)</span>
+                    }
+                }
             </span>
             <span class="verdict-actions">
                 @if (Inline)
@@ -90,6 +98,9 @@
     private bool Outdated => Analysis.IsOutdated || Analysis.MissionSiteId != MissionState.SelectedSite?.Id;
 
     private static string P(double v) => Math.Round(v).ToString("0", CultureInfo.InvariantCulture);
+
+    /// <summary>The result belongs to a custom point (computed in the browser from the 240 m terrain).</summary>
+    private Site? CustomResult => MissionState.CustomSite is { } c && Analysis.MissionSiteId == c.Id ? c : null;
 
     private static string BasisText(string kind) => kind switch
     {

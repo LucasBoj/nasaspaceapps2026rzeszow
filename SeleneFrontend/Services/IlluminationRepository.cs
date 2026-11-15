@@ -46,6 +46,14 @@ public sealed class IlluminationRepository(HttpClient http)
         return (first, last);
     }
 
+    /// <summary>
+    /// Series for CUSTOM site ids (any point in 80–90°S), computed in the browser by CustomSiteService:
+    /// (siteId, first year, last year) → series in the same format as the precomputed files.
+    /// </summary>
+    public Func<string, int, int, Task<IlluminationSeries>>? CustomProvider { get; set; }
+
+    public static bool IsCustom(string siteId) => siteId.StartsWith("CUSTOM", StringComparison.Ordinal);
+
     /// <summary>One site's hourly series covering the current window (joined yearly files, cached).</summary>
     public async Task<IlluminationSeries> GetSeries(string siteId)
     {
@@ -57,10 +65,15 @@ public sealed class IlluminationRepository(HttpClient http)
             // Keep only the joined series of the current window (yearly files stay cached).
             foreach (var stale in _joined.Keys.Where(k => k.StartsWith(siteId + "|", StringComparison.Ordinal)).ToList())
                 _joined.Remove(stale);
-            task = JoinAsync(siteId, first, last);
+            task = IsCustom(siteId) && CustomProvider is { } custom ? custom(siteId, first, last) : JoinAsync(siteId, first, last);
             _joined[key] = task;
         }
-        return await task;
+        try { return await task; }
+        catch
+        {
+            _joined.Remove(key);   // a failed download or computation may be retried
+            throw;
+        }
     }
 
     private async Task<IlluminationSeries> JoinAsync(string siteId, int first, int last)

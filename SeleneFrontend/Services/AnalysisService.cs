@@ -56,11 +56,14 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
 
     public string? CannotRunReason =>
         state.SelectedLander is null ? "select a lander"
-        : !IsAnalyzableSite(state.SelectedSite) ? "select one of the 9 regions (custom points have no precomputed data)"
+        : state.SelectedSite is { IsCustom: true, CustomUnavailable: { } why } ? why.ToLowerInvariant()
+        : state.SelectedSite is { IsCustom: true, CustomChecked: false } ? "wait until the custom point's terrain is checked"
+        : !IsAnalyzableSite(state.SelectedSite) ? "select one of the 9 regions or a point in 80–90°S"
         : null;
 
     private bool IsAnalyzableSite(Site? site) =>
-        site is not null && state.AvailableSites.Any(s => s.Id == site.Id);
+        site is not null && (state.AvailableSites.Any(s => s.Id == site.Id)
+                             || site is { IsCustom: true, CustomChecked: true, CustomUnavailable: null });
 
     /// <summary>Effective lander inputs (what-if applied) and their weakest provenance.</summary>
     public LanderInputs? BuildLanderInputs()
@@ -113,7 +116,9 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         if (lander is null) { Error = "selected lander has incomplete power data"; Notify(); return; }
 
         var key = Signature();
-        var heatmapReusable = key == _heatmapKey && _heatmapTask is { IsFaulted: false, IsCanceled: false };
+        // A custom point adds its own heatmap row, so its heatmap is not shared with the regions-only one.
+        var heatmapKey = state.SelectedSite is { IsCustom: true } cs ? $"{key}|{cs.Id}" : key;
+        var heatmapReusable = heatmapKey == _heatmapKey && _heatmapTask is { IsFaulted: false, IsCanceled: false };
         IsRunning = true;
         HeatmapPending = !(heatmapReusable && _heatmapTask!.IsCompletedSuccessfully);
         Progress = 0;
@@ -154,7 +159,7 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             {
                 _heatmapCts?.Cancel();
                 _heatmapCts = new CancellationTokenSource();
-                _heatmapKey = key;
+                _heatmapKey = heatmapKey;
                 _heatmapTask = ComputeHeatmapAsync(selectedSite, lander, duration, _heatmapCts.Token);
             }
             // A newer run cancels only this wait; the computation goes on if that run has the same inputs.
@@ -194,6 +199,8 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             Progress = 0.15 + 0.15 * sites.Count / state.AvailableSites.Count;
             Notify();
         }
+        // A custom point gets its own row next to the 9 Artemis regions (for comparison).
+        if (!state.AvailableSites.Any(s => s.Id == selectedSite.Id)) sites.Add(selectedSite);
 
         // Re-render at most ~50 times per run: every notification re-renders the panels.
         var lastBucket = -1;

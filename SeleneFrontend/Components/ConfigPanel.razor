@@ -5,6 +5,7 @@
 @inject AnalysisService Analysis
 @inject UiService Ui
 @inject IlluminationRepository Repo
+@inject CustomSiteService CustomSvc
 @implements IDisposable
 
 <div class="config-panel-content">
@@ -47,14 +48,34 @@
                     </div>
                     @if (UiService.IsCustom(MissionState.SelectedSite) && MissionState.SelectedSite is { } custom)
                     {
-                        <div class="reason custom-reason" role="status">
-                            <p>Custom points can't be analysed yet — our sunlight data is precomputed for the 9 Artemis regions
-                                (you clicked <span class="num">@Coords(custom)</span>). Pick a region, or click ‘Nearest region’.</p>
+                        <section class="custom-card @(custom.CustomUnavailable is null ? "" : "unavailable")" aria-labelledby="custom-title">
+                            <h3 id="custom-title">Custom site</h3>
+                            <p class="num">@Coords(custom)</p>
+                            @if (!custom.CustomChecked)
+                            {
+                                <p class="reason" role="status">Checking the terrain at this point… @(CustomSvc.Status is not null ? "(first click loads the 240 m terrain, ~5 MB)" : "")</p>
+                            }
+                            else if (custom.CustomUnavailable is { } why)
+                            {
+                                <p class="reason custom-out" role="status">@why.</p>
+                            }
+                            else
+                            {
+                                <p class="custom-slope">Slope <span class="num">@(custom.SlopeDeg is { } sd ? $"{sd:0.0}°" : "—")</span> · LOLA 240 m terrain</p>
+                                @if (custom.SlopeDeg is > 10)
+                                {
+                                    <p class="custom-steep" role="status">⚠ Steep terrain — risky landing (over 10°).</p>
+                                }
+                                <button type="button" class="btn-secondary small analyse-point" disabled="@(!Ui.CanConfirmLanding)"
+                                        @onclick="() => Ui.ConfirmLandingAsync()">Analyse this point</button>
+                            }
                             @if (Ui.NearestRegion(custom) is { } near)
                             {
-                                <button type="button" class="btn-secondary small nearest-region" @onclick="Ui.SelectNearestRegionAsync">Nearest region: @near.Name</button>
+                                <p class="reason">Tip: the nearest Artemis region is
+                                    <button type="button" class="link-btn nearest-region" @onclick="Ui.SelectNearestRegionAsync">@near.Name</button>
+                                    (precomputed with 120 m terrain).</p>
                             }
-                        </div>
+                        </section>
                     }
                     @if (Ui.AnalystMode && MissionState.SelectedSite is { } sel)
                     {
@@ -321,6 +342,7 @@
 
     protected override void OnInitialized()
     {
+        CustomSvc.OnChanged += Refresh;
         MissionState.OnStateChanged += Refresh;
         Analysis.OnChanged += Refresh;
         Ui.OnChanged += Refresh;
@@ -330,6 +352,7 @@
 
     public void Dispose()
     {
+        CustomSvc.OnChanged -= Refresh;
         MissionState.OnStateChanged -= Refresh;
         Analysis.OnChanged -= Refresh;
         Ui.OnChanged -= Refresh;

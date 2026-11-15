@@ -1,0 +1,85 @@
+{
+  "start": "2026-11-01T00:00:00Z",
+  "end": "2035-12-31T23:00:00Z",
+  "stepHours": 1,
+  "fields": [
+    "sunLatDeg",
+    "sunLonDeg",
+    "sunDistKm",
+    "earthLatDeg",
+    "earthLonDeg",
+    "earthDistKm"
+  ],
+  "dtype": "float32-le",
+  "frame": "MOON_ME_DE421",
+  "kernels": [
+    "de421.bsp",
+    "moon_080317.tf",
+    "pck00008.tpc",
+    "moon_pa_de421_1900-2050.bpc"
+  ],
+  "moonRadiusM": 1737400.0,
+  "note": "apparent positions (light time + aberration) seen from the Moon's centre, as in ephemeris.MoonSky",
+  "years": [
+    {
+      "year": 2026,
+      "start": "2026-11-01T00:00:00Z",
+      "count": 1464,
+      "file": "2026.bin"
+    },
+    {
+      "year": 2027,
+      "start": "2027-01-01T00:00:00Z",
+      "count": 8760,
+      "file": "2027.bin"
+    },
+    {
+      "year": 2028,
+      "start": "2028-01-01T00:00:00Z",
+      "count": 8784,
+      "file": "2028.bin"
+    },
+    {
+      "year": 2029,
+      "start": "2029-01-01T00:00:00Z",
+      "count": 8760,
+      "file": "2029.bin"
+    },
+    {
+      "year": 2030,
+      "start": "2030-01-01T00:00:00Z",
+      "count": 8760,
+      "file": "2030.bin"
+    },
+    {
+      "year": 2031,
+      "start": "2031-01-01T00:00:00Z",
+      "count": 8760,
+      "file": "2031.bin"
+    },
+    {
+      "year": 2032,
+      "start": "2032-01-01T00:00:00Z",
+      "count": 8784,
+      "file": "2032.bin"
+    },
+    {
+      "year": 2033,
+      "start": "2033-01-01T00:00:00Z",
+      "count": 8760,
+      "file": "2033.bin"
+    },
+    {
+      "year": 2034,
+      "start": "2034-01-01T00:00:00Z",
+      "count": 8760,
+      "file": "2034.bin"
+    },
+    {
+      "year": 2035,
+      "start": "2035-01-01T00:00:00Z",
+      "count": 8760,
+      "file": "2035.bin"
+    }
+  ]
+}

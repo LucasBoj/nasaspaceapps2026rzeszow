@@ -10,6 +10,8 @@
 @inject UiService Ui
 @inject HttpClient Http
 @inject IlluminationRepository Repo
+@* CustomSiteService registers itself as the repository's custom-site provider when it is constructed. *@
+@inject CustomSiteService Custom
 
 <div class="moon-viewer-container">
     @* Cesium owns this element exclusively — Blazor must never render children into it. *@
@@ -118,6 +120,14 @@
                     }
                 </div>
             }
+            @if (Custom.Status is { } customStatus)
+            {
+                <div class="hud-progress custom-progress" role="progressbar" aria-label="Custom site computation"
+                     aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)(Custom.Progress * 100))">
+                    <div class="hud-progress-bar" style="width: @((int)(Custom.Progress * 100))%"></div>
+                    <span>@customStatus</span>
+                </div>
+            }
             @if (Analysis.IsRunning && (Ui.VerdictRequested || Ui.AnalystMode))
             {
                 <div class="hud-progress" role="progressbar" aria-label="Analysis progress"
@@ -196,6 +206,7 @@
         Ui.LandingRequested += HandleLandingRequested;
         Ui.NewLandingRequested += HandleNewLanding;
         Ui.ReplayRequested += HandleReplayRequested;
+        Custom.OnChanged += HandleCustomChanged;
         Ui.HoverTimeChanged += HandleHoverTime;
     }
 
@@ -289,6 +300,8 @@
     private void HandleUiChanged() => _ = InvokeAsync(async () => { await SyncCandidatesAsync(); await SyncViewerFlagsAsync(); StateHasChanged(); });
 
     private ElementReference replayHud;
+
+    private void HandleCustomChanged() => _ = InvokeAsync(StateHasChanged);
 
     /// <summary>Start (true) or stop and reset (false) the mission replay in the viewer.</summary>
     private void HandleReplayRequested(bool play) => _ = InvokeAsync(async () =>
@@ -528,7 +541,8 @@
     /// </summary>
     private async Task SyncSunLightAsync(Site site)
     {
-        if (moonModule is null || !MissionState.AvailableSites.Any(s => s.Id == site.Id)) return;
+        var analysedCustom = site.IsCustom && Analysis.MissionSiteId == site.Id;
+        if (moonModule is null || (!analysedCustom && !MissionState.AvailableSites.Any(s => s.Id == site.Id))) return;
         try
         {
             var series = await Repo.GetSeries(site.Id);
@@ -601,19 +615,30 @@
     }
 
     [JSInvokable]
-    public Task OnCustomSiteCreated(double lat, double lon)
+    public async Task OnCustomSiteCreated(double lat, double lon)
     {
         var customSite = new Site
         {
             Id = "CUSTOM_" + DateTime.UtcNow.Ticks,
-            Name = "CUSTOM SITE",
+            Name = CustomName(lat, lon),
             Lat = lat,
             Lon = lon,
             Approximate = true,
             Source = "USER_INPUT"
         };
-        return MissionState.SelectSite(customSite.Id, customSite);
+        await MissionState.SelectSite(customSite.Id, customSite);
+        Ui.SetOpenStep(1);
+        // Slope and coverage from the 240 m DEM (downloaded on the first click, then cached).
+        var point = await Custom.DescribeAsync(lat, lon);
+        customSite.CustomChecked = true;
+        customSite.SlopeDeg = double.IsFinite(point.SlopeDeg) ? Math.Round(point.SlopeDeg, 1) : null;
+        customSite.CustomUnavailable = point.Error
+            ?? (point.InCoverage ? null : "Custom analysis covers the south polar region (80–90°S)");
+        MissionState.NotifySiteChanged();
     }
+
+    private static string CustomName(double lat, double lon) => string.Create(System.Globalization.CultureInfo.InvariantCulture,
+        $"Custom {Math.Abs(lat):F2}°{(lat < 0 ? "S" : "N")} {Math.Abs(lon):F2}°{(lon < 0 ? "W" : "E")}");
 
     public async ValueTask DisposeAsync()
     {
@@ -625,6 +650,7 @@
         Ui.LandingRequested -= HandleLandingRequested;
         Ui.NewLandingRequested -= HandleNewLanding;
         Ui.ReplayRequested -= HandleReplayRequested;
+        Custom.OnChanged -= HandleCustomChanged;
         Ui.HoverTimeChanged -= HandleHoverTime;
 
         if (moonModule is not null)

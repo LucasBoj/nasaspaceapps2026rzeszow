@@ -43,6 +43,8 @@ Change it only deliberately: describe the change here, then update both the pipe
 }
 ```
 
+**Custom sites (any point in 80–90°S), contract 2026-11-15:** `data/ephem/index.json` + `data/ephem/{year}.bin` (2026-11-01 … 2035-12-31, hourly, Float32 LE × 6 per hour: `sunLatDeg, sunLonDeg, sunDistKm, earthLatDeg, earthLonDeg, earthDistKm`; apparent, from the Moon's centre, `MOON_ME_DE421`) and `data/dem/south80_240m.{json,bin}` (Int16 LE metres, −32768 = no data, **row-delta encoded**, 2536² px at 240 m, polar stereographic `+proj=stere +lat_0=-90 +lat_ts=-90 +R=1737400`, origin = top-left corner, row 0 north, `checkPoints` from pyproj). Written by `pipeline/export_browser_data.py`; read by `PolarDem` / `MoonEphemerisYear` / `CustomSiteService`, which build an `IlluminationSeries` with the pipeline's formulas (topocentric parallax included). `IlluminationRepository.CustomProvider` serves `CUSTOM_*` ids, so the simulator, optimizer, heatmap and replay are unchanged. deploy.sh pre-compresses `*.bin` (dotnet publish does not).
+
 `illumination/index.json` holds `{start, end, stepHours, years, observerHeightM, dem, method, generatedAt, sites: [{siteId, name, lat, lon, files: {"2027": "site/2027.json", …}, pctSunlit, pctComms, longestDarkHours, horizonCoveragePct, byYear: {"2027": {pctSunlit, pctComms, longestDarkHours}, …}}]}`. Range 2026-11-01 … 2035-12-31 (DE421 and `moon_pa_de421_1900-2050` cover it). The frontend (`IlluminationRepository`) loads only the years of the landing window (+62 days for the mission and the max-stay cap) and joins them (`IlluminationSeries.Concat`); the window is limited to 24 months and starts no earlier than today.
 
 Time for sample `i` is `start + i × stepHours`.
@@ -83,6 +85,7 @@ python download_kernels.py
 python build.py --dem /path/ldem_75s_120m_float.lbl [--site ID]
 python -m pytest -q
 python validate_horizons.py [--refresh]   # Sun/Earth az/el vs JPL Horizons (offline snapshots in data/horizons/)
+python export_browser_data.py --dem /path/ldem_75s_120m_float.lbl   # ephem + 240 m DEM for custom sites (80–90°S)
 python compare_nasa_illumination.py [--refresh]   # sunlit/Earth time vs NASA LOLA maps (Mazarico 2011) → README table, docs/nasa_vs_ours.png, frontend data/validation/
 ```
 

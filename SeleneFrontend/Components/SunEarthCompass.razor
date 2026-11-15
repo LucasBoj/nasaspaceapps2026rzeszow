@@ -163,7 +163,8 @@
     private async Task UpdateAsync()
     {
         var site = MissionState.SelectedSite;
-        if (site is null || !MissionState.AvailableSites.Any(s => s.Id == site.Id)) { series = null; return; }
+        var analysed = site is { IsCustom: true } && Analysis.MissionSiteId == site.Id;   // custom: series exists after its analysis
+        if (site is null || (!analysed && !MissionState.AvailableSites.Any(s => s.Id == site.Id))) { series = null; return; }
         if (loadedFor != site.Id)
         {
             try
