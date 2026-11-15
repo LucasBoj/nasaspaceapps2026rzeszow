@@ -231,6 +231,20 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
 
     public void SetTilesLoaded(bool ok) => _tiles.TrySetResult(ok);
 
+    /// <summary>
+    /// The 3D terrain has its first tiles (or the app runs in 2D mosaic mode). Until then landing is blocked with a
+    /// visible reason: a landing on a still-empty tileset ended under the terrain.
+    /// </summary>
+    public bool TerrainReady { get; private set; }
+    public bool TerrainLoading => ViewerReady && !TerrainReady;
+
+    public void SetTerrainReady()
+    {
+        if (TerrainReady) return;
+        TerrainReady = true;
+        Notify();
+    }
+
     private int AddLine(string text)
     {
         BootLines.Add(new BootLine(text, BootStatus.Pending));
@@ -481,7 +495,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
     // ------------------------------------------------------------------ landing
 
     public bool CanConfirmLanding =>
-        !LandingInProgress && state.SelectedLander is not null
+        !LandingInProgress && TerrainReady && state.SelectedLander is not null
         && analysis.CanRun;   // one of the 9 regions, or a checked custom point in 80–90°S
 
     /// <summary>
@@ -632,6 +646,7 @@ public sealed class UiService(IJSRuntime js, MissionConfigState state, Illuminat
         var list = new List<Blocker>();
         if (!state.IsLoaded) { list.Add(new(0, "Loading the site and lander data…")); return list; }
         if (LandingInProgress) { list.Add(new(0, "Landing in progress — wait for touchdown")); return list; }
+        if (!TerrainReady) list.Add(new(0, "3D terrain loading…"));
         var site = state.SelectedSite;
         if (site is null) list.Add(new(1, "Choose one of the 9 landing regions"));
         else if (site is { IsCustom: true, CustomUnavailable: { } why }) list.Add(new(1, why, NearestRegion: true));

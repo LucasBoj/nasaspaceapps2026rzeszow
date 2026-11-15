@@ -11,9 +11,9 @@
             <h1>SELENE OPS</h1>
             <p>Find when and where a lunar lander can survive at the Moon's south pole</p>
         </div>
-        <button type="button" class="btn-primary quick-demo top" disabled="@(!MissionState.IsLoaded)"
+        <button type="button" class="btn-primary quick-demo top" disabled="@(!MissionState.IsLoaded || !Ui.TerrainReady)"
                 title="Pick the recommended site and lander, land and show the verdict" @onclick="Ui.QuickDemoAsync">
-            @(MissionState.IsLoaded ? "▶ Quick demo" : "Loading data…")
+            @(!MissionState.IsLoaded ? "Loading data…" : !Ui.TerrainReady ? "3D terrain loading…" : "▶ Quick demo")
         </button>
     </div>
 

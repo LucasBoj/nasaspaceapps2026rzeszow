@@ -173,6 +173,10 @@
             }
         </div>
     }
+    @if (moonLoaded && Ui.TerrainLoading && terrain3D)
+    {
+        <div class="terrain-loading" role="status">Loading NASA LOLA 3D terrain (~15 s)…</div>
+    }
     @if (moonLoaded && !Ui.LandingInProgress && !Ui.SummaryOpen)
     {
         <div class="viewer-compass"><SunEarthCompass /></div>
@@ -624,10 +628,14 @@
                 await moonModule.InvokeVoidAsync("introFlight");
             }
             Ui.SetTilesLoaded(await moonModule.InvokeAsync<bool>("waitForTiles", 2400));
+            // First visit: the 2D mosaic shows at once; landing waits for the 3D terrain's first tiles (≤ 25 s).
+            try { await moonModule.InvokeAsync<bool>("waitForTerrain", 25000); } catch (JSException) { }
+            Ui.SetTerrainReady();
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"[MoonPanel] Viewer initialization failed: {ex}");
+            Ui.SetTerrainReady();   // never leave landing blocked when the 3D view failed
             initError = ex.Message;
         }
 

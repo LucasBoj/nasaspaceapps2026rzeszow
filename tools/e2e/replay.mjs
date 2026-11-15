@@ -13,7 +13,7 @@ async function open(analyst = false) {
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(e.message)); p.on("console", (m) => { if (m.type() === "error" && !/GL Driver|GPU stall/.test(m.text())) errors.push(m.text().slice(0, 160)); });
   await p.route("**/Cesium.js", async (r) => { const res = await r.fetch(); await r.fulfill({ response: res, body: (await res.text()) + INJ }); });
-  await p.goto(process.env.URL || "http://localhost:5298/"); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForTimeout(7000);
+  await p.goto(process.env.URL || "http://localhost:5298/"); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForFunction(() => !document.querySelector(".terrain-loading"), null, { timeout: 40000 }).catch(() => {}); await p.waitForTimeout(7000);
   return { b, p };
 }
 const lightDir = (p) => p.evaluate(() => { const d = window.__scene.light.direction; return [d.x, d.y, d.z]; });

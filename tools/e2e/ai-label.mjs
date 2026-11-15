@@ -13,7 +13,7 @@ const p = await ctx.newPage();
 p.on("pageerror", (e) => errors.push(e.message)); p.on("console", (m) => { if (m.type() === "error" && !/GL Driver|GPU stall|WebGL/.test(m.text())) errors.push(m.text().slice(0, 160)); });
 const html = await (await fetch(URL_)).text();
 expect("published index.html has <meta name=\"ai-assistance\">", /<meta name="ai-assistance" content="[^"]*AI-generated[^"]*"/.test(html));
-await p.goto(URL_); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForTimeout(5000);
+await p.goto(URL_); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForFunction(() => !document.querySelector(".terrain-loading"), null, { timeout: 40000 }).catch(() => {}); await p.waitForTimeout(5000);
 expect("no badge before a lander is in the scene", (await p.locator(".ai-model-badge").count()) === 0);
 const overlaps = () => p.evaluate(() => {
   const t = document.querySelector(".ai-model-badge"); if (!t) return ["(missing)"];

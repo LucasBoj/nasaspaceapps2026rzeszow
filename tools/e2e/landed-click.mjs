@@ -10,7 +10,7 @@ const ctx = await b.newContext({ viewport: { width: 1366, height: 768 } });
 await ctx.addInitScript(() => { localStorage.setItem("selene.bootSeen.v1", "1"); localStorage.setItem("selene.welcomeDismissed.v1", "1"); localStorage.setItem("selene.analystMode.v1", "0"); });
 const p = await ctx.newPage();
 p.on("pageerror", (e) => errors.push(e.message)); p.on("console", (m) => { if (m.type() === "error" && !/GL Driver|GPU stall|WebGL/.test(m.text())) errors.push(m.text().slice(0, 160)); });
-await p.goto(process.env.URL || "http://localhost:5298/"); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForTimeout(5000);
+await p.goto(process.env.URL || "http://localhost:5298/"); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForFunction(() => !document.querySelector(".terrain-loading"), null, { timeout: 40000 }).catch(() => {}); await p.waitForTimeout(5000);
 await p.locator(".run-main").click(); await p.waitForSelector(".verdict-card.overlay", { timeout: 60000 }); await p.waitForTimeout(3000);
 const site0 = (await p.locator(".step-head").first().innerText()).replace(/\s+/g, " ");
 await p.locator(".hud-btn[aria-label^='Back to the south pole']").click(); await p.waitForTimeout(3500);

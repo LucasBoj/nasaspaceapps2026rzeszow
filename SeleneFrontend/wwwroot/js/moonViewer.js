@@ -354,6 +354,22 @@ export function setViewerFlags(isLocked, isEnhanced) {
   if (enhanceChanged && lastSun) { sunLightKey = null; setSunLight(...lastSun); }
 }
 
+/**
+ * Resolve true when the 3D terrain tileset has its first tiles (so a landing sits on real terrain), false after
+ * timeoutMs; true at once in 2D mosaic mode (no tileset).
+ */
+export function waitForTerrain(timeoutMs) {
+  return new Promise((resolve) => {
+    if (!viewer || !terrainTileset) return resolve(true);
+    if (terrainTileset.tilesLoaded) return resolve(true);
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true; clearTimeout(timer); clearInterval(poll); resolve(ok); };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    const poll = setInterval(() => { if (terrainTileset?.tilesLoaded) finish(true); }, 250);
+    try { terrainTileset.initialTilesLoaded?.addEventListener(() => finish(true)); } catch { /* older Cesium */ }
+  });
+}
+
 /** Resolve true when the globe has finished loading its visible tiles, false after timeoutMs. */
 export function waitForTiles(timeoutMs) {
   return new Promise((resolve) => {

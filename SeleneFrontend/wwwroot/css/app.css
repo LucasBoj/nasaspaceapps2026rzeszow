@@ -2989,3 +2989,13 @@ html:has(.mode-analyst), body:has(.mode-analyst) { height: auto; overflow-y: aut
     .tour-card { bottom: var(--s2); }
 }
 @media (prefers-reduced-motion: reduce) { .tour-card { animation: none; } }
+/* First visit: the 3D terrain streams in behind the 2D mosaic; landing waits for it (visible reason). */
+.terrain-loading {
+    position: absolute; left: 50%; bottom: var(--s4); translate: -50% 0; z-index: 6;
+    font-size: var(--fs-s); color: var(--text-primary);
+    background: var(--bg-overlay); border: 1px solid var(--border-color); border-left: 2px solid var(--accent-cyan);
+    border-radius: 2px; padding: 6px var(--s3);
+}
+/* Descent phases in a 2×2 grid: at 12 px the four labels no longer fit one row of the 260 px panel. */
+.landing-phases { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; letter-spacing: 0.02em; }
+.landing-phases li { white-space: nowrap; padding: 3px 4px; }

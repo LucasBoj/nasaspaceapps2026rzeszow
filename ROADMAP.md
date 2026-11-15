@@ -204,6 +204,8 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
   - Wejścia: przycisk „Take the guided tour · 1 min” na karcie powitalnej (także z „?”) i w oknie pomocy. Stan w `UiService` (`TourStep`, `StartTour`, `SetTourStep`, `CloseTour`); QUICK DEMO zamyka przewodnik.
   - Sprawdzone w przeglądarce (dev, 2D): 9 kroków przed lądowaniem i po lądowaniu (ramka na karcie werdyktu), Esc, strzałki; `dotnet build` 0 ostrzeżeń, testy 161/161. Na produkcji (`4d45262`, live 12:20, 3D TERRAIN): przewodnik startuje z karty powitalnej, krok 3 podświetla listę miejsc, konsola bez błędów. Nie sprawdzone: widok mobilny; na produkcji tylko kroki 1–3 (pełne przejście z lądowaniem — na dev).
 
+- **Pierwsza wizyta: lądowanie czeka na teren 3D** (2026-11-15) — mozaika 2D od razu, a do pierwszych kafli terenu LOLA (≤ 25 s; `moonViewer.waitForTerrain`, `UiService.TerrainReady`): komunikat „Loading NASA LOLA 3D terrain (~15 s)…” w widoku, QUICK DEMO z napisem „3D terrain loading…” i „Land & analyze” zablokowany z powodem „3D terrain loading…” (zapobiega lądowaniu pod terenem); przy błędzie widoku blokada zwalniana. Na buildzie Release teren gotowy po ~8–11 s. Etapy opadania (DEORBIT / BRAKING / TERMINAL / TOUCHDOWN) w siatce 2×2 — po progu 12 px wychodziły poza panel. QUICK DEMO sprawdzone na produkcji: bateria w odtwarzaniu to ta sama seria co analiza (83 → 100 → 68 → 7 % w 4. dniu → 100 %), werdykt MARGINAL — nowy scenariusz (bateria 30–70 %) nie zdążył przed terminem, patrz Known issues. Testy: stage2 44/44, stage3 10/10, blokady 15/15 (testy E2E czekają teraz na teren) — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+
 ## 🔄 In progress
 
 _(nic przypisanego — wpisz się tutaj, gdy zaczynasz zadanie)_
@@ -361,9 +363,13 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-15 — Claude Code (Claude Opus 5.5) + Canva AI (generator układu) — prezentacja demo w Canvie: wgranie obrazów, wygenerowanie układu, usunięcie zmyślonych przez Canva treści, podmiana na nasze zrzuty i wykres, poprawki tekstu
 - 2026-11-15 — Claude Code (Claude Fable 5.2) — przewodnik po aplikacji (guided tour): projekt kroków i tekstów, komponent Blazor, ramka podświetlenia w JS, style, test w przeglądarce
 
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — blokada lądowania do wczytania terenu 3D, sprawdzenie baterii QUICK DEMO na produkcji, siatka etapów opadania
 ## ⚠️ Known issues / ryzyka
 
 - **Prezentacja Canva: udostępnienie „Anyone with the link can view” ustawia zespół ręcznie** (MCP Canvy nie ma tej opcji, przeglądarka w aplikacji nie była zalogowana) — sprawdzić link w oknie prywatnym przed 13:00. Slajd 7 ma ilustracje z biblioteki Canvy (bez ludzi i logo).
+- **QUICK DEMO po zmianach modelu (grzałki Diviner, panele Blue Ghost 1 m): MARGINAL, bateria spada do ~7 % w 4. dniu** — spadek widać w odtwarzaniu tylko ~2 s przy 1×; scenariusz z baterią 30–70 % trzeba wybrać ponownie symulacją z pełnym modelem (sonda jak w etapie 3, ale przez `PanelHeightAnalysis.SeriesAt` i grzałki).
+- **Etap 5 DSN gotowy na gałęzi `dsn2`, nie scalony** — przed terminem test etapu 2 na jego buildzie przekroczył czas (do sprawdzenia, prawdopodobnie ten sam wyścig z wczytywaniem terenu); dane, pipeline, walidacja vs Horizons i UI są w gałęzi.
+
 - **Testy E2E nie sprawdzają trybu 3D** — lokalnie nie ma `appsettings.Development.json` z tokenem, więc `tools/e2e` jedzie w trybie 2D (globus Cesium, wysokość 0 m), a błędy kafli 3D (wysokość gruntu, skoki terenu) widać tylko na produkcji. Po zmianach w `landingAnimation.js` / `missionReplay.js` sprawdzić ręcznie na https://selene.byst.re/ (świeże wejście + QUICK DEMO + Play mission).
 - **Pierwsze wejście: globus 3D dociąga się ~15–20 s** (pierwsze ~6 s czarne tło, potem częściowe kafle; przy kolejnych wejściach z cache ~8 s). Na prezentacji otworzyć stronę wcześniej.
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — etap 4 Ziemia na niebie: pobranie tekstury Blue Marble, moduł skyView, tryb Surface view, test zasłaniania na danych, naprawa zakopanego lądownika i pętli podpowiedzi HUD, równoległe drzewa robocze

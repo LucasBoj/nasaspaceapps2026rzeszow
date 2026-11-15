@@ -11,7 +11,7 @@ async function open(w, h, analyst) {
   await ctx.addInitScript((a) => { localStorage.setItem("selene.bootSeen.v1", "1"); localStorage.setItem("selene.welcomeDismissed.v1", "1"); localStorage.setItem("selene.analystMode.v1", a ? "1" : "0"); }, analyst);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(`${w}: ${e.message}`)); p.on("console", (m) => { if (m.type() === "error" && !/GL Driver|GPU stall|WebGL/.test(m.text())) errors.push(`${w}: ${m.text().slice(0, 160)}`); });
-  await p.goto(process.env.URL || "http://localhost:5298/"); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForTimeout(6000);
+  await p.goto(process.env.URL || "http://localhost:5298/"); await p.waitForSelector(".run-main", { timeout: 60000 }); await p.waitForFunction(() => !document.querySelector(".terrain-loading"), null, { timeout: 40000 }).catch(() => {}); await p.waitForTimeout(6000);
   return { b, p };
 }
 const box = (p, sel) => p.locator(sel).first().boundingBox().catch(() => null);
