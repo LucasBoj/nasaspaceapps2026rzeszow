@@ -63,6 +63,33 @@ public static class VerdictText
     }
 
     /// <summary>
+    /// Plain-language heater line (both modes): how cold the ground gets (LRO Diviner), what the heaters cost, and the same
+    /// mission without them, e.g. "Nights here are cold: the ground drops to 58 K (−215 °C, LRO Diviner). Heaters keep the
+    /// electronics above −20 °C and use 310 Wh over 6 h — without them the battery would stay above 28% instead of 6%."
+    /// Null when the heater model was off.
+    /// </summary>
+    public static string? HeaterSentence(SimulationResult m, SimulationResult? withoutHeaters)
+    {
+        if (!m.ThermalModel) return null;
+        var inv = CultureInfo.InvariantCulture;
+        var ground = m.GroundFromDiviner && !double.IsNaN(m.GroundMinK)
+            ? $"Nights here are cold: the ground drops to {m.GroundMinK.ToString("0", inv)} K ({(m.GroundMinK - ThermalModel.ZeroCelsiusK).ToString("0", inv)} °C, LRO Diviner). "
+            : "No Diviner temperatures for this point: the ground is treated as cold as the sky. ";
+        var setPoint = $"{m.HeaterSetPointC.ToString("0", inv)} °C";
+        if (m.HeaterEnergyWh <= 0.5)
+        {
+            return m.LongestDarkH <= 0
+                ? $"{ground}This mission stays in sunlight, so no heater power is needed."
+                : $"{ground}The lander's own electronics keep it above {setPoint} through this mission's darkness — no heater power needed.";
+        }
+        var cost = $"{ground}Heaters keep the electronics above {setPoint} and use {Math.Round(m.HeaterEnergyWh).ToString("0", inv)} Wh over {Math.Round(m.HeaterHours).ToString("0", inv)} h";
+        if (withoutHeaters is null) return cost + ".";
+        if (m.DepletedAtStep is not null && withoutHeaters.DepletedAtStep is null)
+            return $"{cost} — they empty the battery; without them it would stay above {P(withoutHeaters.MinSocPct)}%.";
+        return $"{cost} — without them the battery would stay above {P(withoutHeaters.MinSocPct)}% instead of {P(m.MinSocPct)}%.";
+    }
+
+    /// <summary>
     /// Plain-language landing-ellipse line, e.g. "If it lands up to 400 m off target, it still works at 72% of the spots."
     /// </summary>
     public static string EllipseSentence(EllipseResult e, Verdict nominal)

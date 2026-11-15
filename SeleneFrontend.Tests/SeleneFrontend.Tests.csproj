@@ -38,6 +38,8 @@
     <Compile Include="..\SeleneFrontend\Models\PolarDem.cs" Link="Linked\PolarDem.cs" />
     <Compile Include="..\SeleneFrontend\Models\MoonEphemeris.cs" Link="Linked\MoonEphemeris.cs" />
     <Compile Include="..\SeleneFrontend\Models\Site.cs" Link="Linked\Site.cs" />
+    <Compile Include="..\SeleneFrontend\Services\ThermalModel.cs" Link="Linked\ThermalModel.cs" />
+    <Compile Include="..\SeleneFrontend\Models\DivinerData.cs" Link="Linked\DivinerData.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -42,6 +42,7 @@ public class MissionConfigState
     public const string WhatIfHeadingDeg = "headingDeg";          // manual landing heading (absent = AUTO)
     public const string WhatIfIdealTracking = "idealTracking";    // present = ideal Sun tracking instead of fixed panels
     public const string WhatIfIdealBattery = "idealBattery";      // present = lossless battery (round-trip efficiency 1)
+    public const string WhatIfHeatersOff = "heatersOff";          // present = no heater model (survival load only)
 
     private readonly Dictionary<string, double> _whatIf = [];
 
@@ -56,6 +57,12 @@ public class MissionConfigState
 
     /// <summary>What-if: lossless battery instead of the lander's round-trip efficiency.</summary>
     public bool IdealBattery => _whatIf.ContainsKey(WhatIfIdealBattery);
+
+    /// <summary>What-if: battery only, no heaters at night (the pre-thermal model; an optimistic bound).</summary>
+    public bool HeatersOff => _whatIf.ContainsKey(WhatIfHeatersOff);
+
+    /// <summary>The selected lander has a heater (thermal) model in landers.json.</summary>
+    public bool HasThermalModel => SelectedLander?.Thermal?.ToInputs() is not null;
 
     /// <summary>Battery round-trip efficiency used by calculations (1 for the ideal-battery what-if or when the preset has none).</summary>
     public double BatteryRoundTripEff => IdealBattery ? 1.0 : SelectedLander?.BatteryRoundTripEff?.Value ?? 1.0;

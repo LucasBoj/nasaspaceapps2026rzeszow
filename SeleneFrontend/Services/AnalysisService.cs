@@ -74,10 +74,12 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         var survival = state.Effective(MissionConfigState.WhatIfSurvivalLoadW);
         if (l?.DayLoadW is null || solar is null || battery is null || survival is null) return null;
 
+        var thermal = state.HeatersOff ? null : l.Thermal?.ToInputs();
         var kind = state.HasWhatIf ? ParamKind.WhatIf
-            : ParamKind.Weakest(l.SolarArrayW, l.Panels, l.BatteryWh, l.BatteryRoundTripEff, l.DayLoadW, l.SurvivalLoadW);
+            : ParamKind.Weakest(new LanderParam?[] { l.SolarArrayW, l.Panels, l.BatteryWh, l.BatteryRoundTripEff, l.DayLoadW, l.SurvivalLoadW }
+                .Concat(thermal is null ? [] : l.Thermal!.Params).ToArray());
         return new LanderInputs(solar.Value, battery.Value, l.DayLoadW.Value, survival.Value, kind,
-            l.Panels, state.HeadingOverrideDeg, state.IdealTracking, state.BatteryRoundTripEff);
+            l.Panels, state.HeadingOverrideDeg, state.IdealTracking, state.BatteryRoundTripEff, thermal);
     }
 
     /// <summary>
@@ -108,7 +110,8 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
             l?.BatteryRoundTripEff.ToString(CultureInfo.InvariantCulture),
             state.MissionDurationDays.ToString(CultureInfo.InvariantCulture), state.MinBatteryPercent, state.MinCommsPercent,
             state.WindowStart.ToString("yyyy-MM-dd"), state.WindowEnd.ToString("yyyy-MM-dd"),
-            "panel" + state.PanelHeightM.ToString(CultureInfo.InvariantCulture));   // the series depend on the panel height
+            "panel" + state.PanelHeightM.ToString(CultureInfo.InvariantCulture),   // the series depend on the panel height
+            l?.Thermal is { } t ? FormattableString.Invariant($"heat{t.HeatLossW}/{t.HeatCapacityJPerK}/{t.OperatingTempC}/{t.MinTempC}/{t.GroundViewFactor}") : "noheat");
     }
 
     /// <param name="expand">Expand the results strip when the first result is ready.</param>
@@ -255,6 +258,9 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
     /// <summary>Longest stay the selected landing survives (each length with its own AUTO heading).</summary>
     public double? MaxSurvivableDays { get; private set; }
 
+    /// <summary>The shown mission with the heater model off (null when it ran without heaters).</summary>
+    public SimulationResult? WithoutHeaters { get; private set; }
+
     /// <summary>Verdict at loads ±20% and the break-even load for the shown mission (null before the first run).</summary>
     public LoadSensitivity? LoadSensitivity { get; private set; }
 
@@ -286,6 +292,10 @@ public sealed class AnalysisService(MissionConfigState state, IlluminationReposi
         MaxSurvivableDays = MissionSimulator.MaxSurvivableDays(site.Series, lander with { HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
             landingUtc, Thresholds, MaxSurvivableCapDays);
         LoadSensitivity = SensitivityAnalysis.ForLoad(site.Series, lander, Mission, Thresholds);
+        // The same landing (same heading) without heaters: what the cold costs ("battery alone" vs "battery and heaters").
+        WithoutHeaters = lander.Thermal is null ? null
+            : MissionSimulator.Run(site.Series, lander with { Thermal = null, HeadingDeg = Mission.HeadingDeg ?? lander.HeadingDeg },
+                                   landingUtc, state.MissionDurationDays, Thresholds, recordSeries: false);
         MissionSiteId = site.Id;
         MissionSiteName = site.Name;
         ThresholdBatteryPct = state.MinBatteryPercent;

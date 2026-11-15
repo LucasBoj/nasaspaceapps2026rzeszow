@@ -86,6 +86,43 @@
       "note": "Radius of the landing ellipse the verdict is re-checked over. IM-2 Athena (6 Mar 2025, Mons Mouton) landed more than 400 m from its target according to NASA (Intuitive Machines: 250 m); IM-1 (Feb 2024) came down ~1.5 km off after a laser rangefinder failure.",
       "sourceUrl": "https://spacepolicyonline.com/news/im-2-mission-ends-one-day-after-lunar-landing/"
     },
+    "thermal": {
+      "heatLossW": {
+        "value": 150,
+        "unit": "W",
+        "kind": "assumption",
+        "note": "Heat the warm box radiates at +20 °C to a cold sky. Assumed: the radiators are sized to reject the day load (150 W) and keep radiating at night (no louvers or heat switches; CLPS landers are designed for daylight). At the -20 °C set point that is 83 W, minus what the ground gives back (LRO Diviner).",
+        "sourceUrl": ""
+      },
+      "heatCapacityKJPerK": {
+        "value": 60.5,
+        "unit": "kJ/K",
+        "kind": "assumption",
+        "note": "Thermal mass of the warm box: 10% of the dry mass assumed coupled to it (batteries, avionics, nearby structure), at aluminium's 0.897 kJ/(kg·K) → 60.5 kJ/K. Dry mass: sourced dry mass 675 kg (Wikipedia, Structure: \"a dry mass of 675 kg\"). Sets how long the box coasts after sunset before the heaters switch on.",
+        "sourceUrl": "https://en.wikipedia.org/wiki/Intuitive_Machines_Nova-C"
+      },
+      "operatingTempC": {
+        "value": 20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Warm-box temperature while lit and when darkness begins: within the 10–25 °C range recommended for long Li-ion battery life (EnerSys ABSL space battery datasheet). Not published for this lander.",
+        "sourceUrl": "https://www.enersys.com/4987b8/globalassets/documents/product-documentation/absl/amer/amer-en-ds-absl_8s44p_0426_web.pdf"
+      },
+      "minTempC": {
+        "value": -20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Heater set point: the box (battery) is never let below it at night. Space Li-ion cells are characterised for discharge at -20 °C and below (EnerSys, Space Power Workshop 2022); charging needs 0 °C or more, which the Sun brings back. Not published for this lander.",
+        "sourceUrl": "https://spw.aerospace.org/files/2022/05/2022-11_3_ES2_J.-Troutman_EnerSys_Charts.pdf"
+      },
+      "groundViewFactor": {
+        "value": 0.5,
+        "unit": "",
+        "kind": "assumption",
+        "note": "Share of the warm box's radiating area that sees the ground (side walls half ground, half sky; top deck sky; bottom ground). The rest radiates to the ~3 K sky. Geometric estimate.",
+        "sourceUrl": ""
+      }
+    },
     "modelUri": "models/nova_c.glb",
     "modelHeightM": 3.94,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
@@ -171,6 +208,43 @@
       "kind": "sourced",
       "note": "Radius of the landing ellipse the verdict is re-checked over. Blue Ghost Mission 1 (2 Mar 2025) touched down within its 100 m landing target in Mare Crisium.",
       "sourceUrl": "https://fireflyspace.com/news/firefly-aerospace-becomes-first-commercial-company-to-successfully-land-on-the-moon/"
+    },
+    "thermal": {
+      "heatLossW": {
+        "value": 300,
+        "unit": "W",
+        "kind": "assumption",
+        "note": "Heat the warm box radiates at +20 °C to a cold sky. Assumed: the radiators are sized to reject the day load (300 W) and keep radiating at night (no louvers or heat switches; CLPS landers are designed for daylight). At the -20 °C set point that is 167 W, minus what the ground gives back (LRO Diviner).",
+        "sourceUrl": ""
+      },
+      "heatCapacityKJPerK": {
+        "value": 42.1,
+        "unit": "kJ/K",
+        "kind": "assumption",
+        "note": "Thermal mass of the warm box: 10% of the dry mass assumed coupled to it (batteries, avionics, nearby structure), at aluminium's 0.897 kJ/(kg·K) → 42.1 kJ/K. Dry mass: sourced dry mass 469 kg (Blue Ghost Mission 1 infobox); M1 ran about 5 h after sunset before its batteries ran down. Sets how long the box coasts after sunset before the heaters switch on.",
+        "sourceUrl": "https://en.wikipedia.org/wiki/Blue_Ghost_Mission_1"
+      },
+      "operatingTempC": {
+        "value": 20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Warm-box temperature while lit and when darkness begins: within the 10–25 °C range recommended for long Li-ion battery life (EnerSys ABSL space battery datasheet). Not published for this lander.",
+        "sourceUrl": "https://www.enersys.com/4987b8/globalassets/documents/product-documentation/absl/amer/amer-en-ds-absl_8s44p_0426_web.pdf"
+      },
+      "minTempC": {
+        "value": -20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Heater set point: the box (battery) is never let below it at night. Space Li-ion cells are characterised for discharge at -20 °C and below (EnerSys, Space Power Workshop 2022); charging needs 0 °C or more, which the Sun brings back. Not published for this lander.",
+        "sourceUrl": "https://spw.aerospace.org/files/2022/05/2022-11_3_ES2_J.-Troutman_EnerSys_Charts.pdf"
+      },
+      "groundViewFactor": {
+        "value": 0.5,
+        "unit": "",
+        "kind": "assumption",
+        "note": "Share of the warm box's radiating area that sees the ground (side walls half ground, half sky; top deck sky; bottom ground). The rest radiates to the ~3 K sky. Geometric estimate.",
+        "sourceUrl": ""
+      }
     },
     "modelUri": "models/blue_ghost.glb",
     "modelHeightM": 2,
@@ -263,6 +337,43 @@
       "note": "Radius of the landing ellipse the verdict is re-checked over. Griffin has not landed yet; assumed between the results CLPS landers have demonstrated (Blue Ghost 100 m, Nova-C IM-2 400 m).",
       "sourceUrl": ""
     },
+    "thermal": {
+      "heatLossW": {
+        "value": 700,
+        "unit": "W",
+        "kind": "assumption",
+        "note": "Heat the warm box radiates at +20 °C to a cold sky. Assumed: the radiators are sized to reject the day load (700 W) and keep radiating at night (no louvers or heat switches; CLPS landers are designed for daylight). At the -20 °C set point that is 389 W, minus what the ground gives back (LRO Diviner).",
+        "sourceUrl": ""
+      },
+      "heatCapacityKJPerK": {
+        "value": 179.4,
+        "unit": "kJ/K",
+        "kind": "assumption",
+        "note": "Thermal mass of the warm box: 10% of the dry mass assumed coupled to it (batteries, avionics, nearby structure), at aluminium's 0.897 kJ/(kg·K) → 179.4 kJ/K. Dry mass: dry mass not published; ~2,000 kg assumed (class estimate). Sets how long the box coasts after sunset before the heaters switch on.",
+        "sourceUrl": "https://en.wikipedia.org/wiki/Table_of_specific_heat_capacities"
+      },
+      "operatingTempC": {
+        "value": 20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Warm-box temperature while lit and when darkness begins: within the 10–25 °C range recommended for long Li-ion battery life (EnerSys ABSL space battery datasheet). Not published for this lander.",
+        "sourceUrl": "https://www.enersys.com/4987b8/globalassets/documents/product-documentation/absl/amer/amer-en-ds-absl_8s44p_0426_web.pdf"
+      },
+      "minTempC": {
+        "value": -20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Heater set point: the box (battery) is never let below it at night. Space Li-ion cells are characterised for discharge at -20 °C and below (EnerSys, Space Power Workshop 2022); charging needs 0 °C or more, which the Sun brings back. Not published for this lander.",
+        "sourceUrl": "https://spw.aerospace.org/files/2022/05/2022-11_3_ES2_J.-Troutman_EnerSys_Charts.pdf"
+      },
+      "groundViewFactor": {
+        "value": 0.5,
+        "unit": "",
+        "kind": "assumption",
+        "note": "Share of the warm box's radiating area that sees the ground (side walls half ground, half sky; top deck sky; bottom ground). The rest radiates to the ~3 K sky. Geometric estimate.",
+        "sourceUrl": ""
+      }
+    },
     "modelUri": "models/griffin.glb",
     "modelScaleBy": "width",
     "modelWidthM": 4.5,
@@ -353,6 +464,43 @@
       "note": "Radius of the landing ellipse the verdict is re-checked over. NASA Artemis III landing requirement: land within 100 m of a target (Artemis HLS Update 2024, slides 19 and 26). A requirement, not yet a demonstrated result.",
       "sourceUrl": "https://ntrs.nasa.gov/api/citations/20240009596/downloads/ArtemisHLSUpdate_2024.pdf"
     },
+    "thermal": {
+      "heatLossW": {
+        "value": 15000,
+        "unit": "W",
+        "kind": "assumption",
+        "note": "Heat the warm box radiates at +20 °C to a cold sky. Assumed: the radiators are sized to reject the day load (15000 W) and keep radiating at night (no louvers or heat switches; CLPS landers are designed for daylight). At the -20 °C set point that is 8341 W, minus what the ground gives back (LRO Diviner).",
+        "sourceUrl": ""
+      },
+      "heatCapacityKJPerK": {
+        "value": 8970.0,
+        "unit": "kJ/K",
+        "kind": "assumption",
+        "note": "Thermal mass of the warm box: 10% of the dry mass assumed coupled to it (batteries, avionics, nearby structure), at aluminium's 0.897 kJ/(kg·K) → 8970 kJ/K. Dry mass: dry mass not published; ~100 t assumed (class estimate). Sets how long the box coasts after sunset before the heaters switch on.",
+        "sourceUrl": "https://en.wikipedia.org/wiki/Table_of_specific_heat_capacities"
+      },
+      "operatingTempC": {
+        "value": 20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Warm-box temperature while lit and when darkness begins: within the 10–25 °C range recommended for long Li-ion battery life (EnerSys ABSL space battery datasheet). Not published for this lander.",
+        "sourceUrl": "https://www.enersys.com/4987b8/globalassets/documents/product-documentation/absl/amer/amer-en-ds-absl_8s44p_0426_web.pdf"
+      },
+      "minTempC": {
+        "value": -20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Heater set point: the box (battery) is never let below it at night. Space Li-ion cells are characterised for discharge at -20 °C and below (EnerSys, Space Power Workshop 2022); charging needs 0 °C or more, which the Sun brings back. Not published for this lander.",
+        "sourceUrl": "https://spw.aerospace.org/files/2022/05/2022-11_3_ES2_J.-Troutman_EnerSys_Charts.pdf"
+      },
+      "groundViewFactor": {
+        "value": 0.5,
+        "unit": "",
+        "kind": "assumption",
+        "note": "Share of the warm box's radiating area that sees the ground (side walls half ground, half sky; top deck sky; bottom ground). The rest radiates to the ~3 K sky. Geometric estimate.",
+        "sourceUrl": ""
+      }
+    },
     "modelUri": "models/starship_hls.glb",
     "modelHeightM": 50,
     "modelCredit": "Model: concept image Meshy AI · 3D Microsoft TRELLIS.2 (MIT) · stylized, not manufacturer CAD",
@@ -441,6 +589,43 @@
       "kind": "sourced",
       "note": "Radius of the landing ellipse the verdict is re-checked over. NASA Artemis III landing requirement: land within 100 m of a target (Artemis HLS Update 2024, slides 19 and 26). A requirement, not yet a demonstrated result.",
       "sourceUrl": "https://ntrs.nasa.gov/api/citations/20240009596/downloads/ArtemisHLSUpdate_2024.pdf"
+    },
+    "thermal": {
+      "heatLossW": {
+        "value": 12000,
+        "unit": "W",
+        "kind": "assumption",
+        "note": "Heat the warm box radiates at +20 °C to a cold sky. Assumed: the radiators are sized to reject the day load (12000 W) and keep radiating at night (no louvers or heat switches; CLPS landers are designed for daylight). At the -20 °C set point that is 6673 W, minus what the ground gives back (LRO Diviner).",
+        "sourceUrl": ""
+      },
+      "heatCapacityKJPerK": {
+        "value": 1435.2,
+        "unit": "kJ/K",
+        "kind": "assumption",
+        "note": "Thermal mass of the warm box: 10% of the dry mass assumed coupled to it (batteries, avionics, nearby structure), at aluminium's 0.897 kJ/(kg·K) → 1435.2 kJ/K. Dry mass: dry mass not published; ~16 t assumed (class estimate). Sets how long the box coasts after sunset before the heaters switch on.",
+        "sourceUrl": "https://en.wikipedia.org/wiki/Table_of_specific_heat_capacities"
+      },
+      "operatingTempC": {
+        "value": 20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Warm-box temperature while lit and when darkness begins: within the 10–25 °C range recommended for long Li-ion battery life (EnerSys ABSL space battery datasheet). Not published for this lander.",
+        "sourceUrl": "https://www.enersys.com/4987b8/globalassets/documents/product-documentation/absl/amer/amer-en-ds-absl_8s44p_0426_web.pdf"
+      },
+      "minTempC": {
+        "value": -20,
+        "unit": "°C",
+        "kind": "assumption",
+        "note": "Heater set point: the box (battery) is never let below it at night. Space Li-ion cells are characterised for discharge at -20 °C and below (EnerSys, Space Power Workshop 2022); charging needs 0 °C or more, which the Sun brings back. Not published for this lander.",
+        "sourceUrl": "https://spw.aerospace.org/files/2022/05/2022-11_3_ES2_J.-Troutman_EnerSys_Charts.pdf"
+      },
+      "groundViewFactor": {
+        "value": 0.5,
+        "unit": "",
+        "kind": "assumption",
+        "note": "Share of the warm box's radiating area that sees the ground (side walls half ground, half sky; top deck sky; bottom ground). The rest radiates to the ~3 K sky. Geometric estimate.",
+        "sourceUrl": ""
+      }
     },
     "modelUri": "models/blue_moon_mk2.glb",
     "modelHeightM": 16,

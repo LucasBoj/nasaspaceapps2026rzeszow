@@ -55,6 +55,13 @@
                     @VerdictText.EllipseSentence(ellipse, m.Verdict)
                 </p>
             }
+            @if (VerdictText.HeaterSentence(m, Analysis.WithoutHeaters) is { } heaters)
+            {
+                <p class="verdict-ellipse verdict-heaters">
+                    <Term Key="heaters" AriaLabel="How are the night heaters modelled?">ⓘ</Term>
+                    @heaters
+                </p>
+            }
         </div>
 
         @* Numbers that tell windows apart (sunlight / contact are in the sentence; they are often 100 %). *@

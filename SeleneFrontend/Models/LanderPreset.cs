@@ -83,6 +83,35 @@ public sealed class PanelLayout : LanderParam
     public bool IsFixed => Mode == FixedMode && Facets.Count > 0 && Facets.Sum(f => Math.Max(0, f.Share)) > 0;
 }
 
+/// <summary>
+/// Warm-box heater model of a lander (<c>landers.json → thermal</c>); every figure carries its provenance.
+/// See <see cref="Services.ThermalModel"/> for the equations.
+/// </summary>
+public sealed class ThermalSpec
+{
+    /// <summary>Heat the warm box radiates at the operating temperature to a 0 K sky (W).</summary>
+    public NumberParam? HeatLossW { get; set; }
+    /// <summary>Thermal mass of the warm box (kJ/K).</summary>
+    public NumberParam? HeatCapacityKJPerK { get; set; }
+    /// <summary>Box temperature while lit and at the start of every dark period (°C).</summary>
+    public NumberParam? OperatingTempC { get; set; }
+    /// <summary>Heater set point (°C).</summary>
+    public NumberParam? MinTempC { get; set; }
+    /// <summary>Share of the radiating area that sees the ground (0..1).</summary>
+    public NumberParam? GroundViewFactor { get; set; }
+
+    public IEnumerable<NumberParam> Params =>
+        new[] { HeatLossW, HeatCapacityKJPerK, OperatingTempC, MinTempC, GroundViewFactor }.OfType<NumberParam>();
+
+    /// <summary>Simulation inputs; null when a figure is missing (the lander then runs without heaters).</summary>
+    public Services.ThermalInputs? ToInputs() =>
+        HeatLossW is { Value: >= 0 } loss && HeatCapacityKJPerK is { Value: >= 0 } c && OperatingTempC is { } op
+        && MinTempC is { } min && min.Value < op.Value
+            ? new Services.ThermalInputs(loss.Value, c.Value * 1000, op.Value, min.Value,
+                                         Math.Clamp(GroundViewFactor?.Value ?? 0.5, 0, 1))
+            : null;
+}
+
 /// <summary>A read-only lander preset; every figure carries its provenance.</summary>
 public class LanderPreset
 {
@@ -108,6 +137,9 @@ public class LanderPreset
 
     /// <summary>Solar array mounting (fixed facets or ideal tracking); null = ideal tracking.</summary>
     public PanelLayout? Panels { get; set; }
+
+    /// <summary>Heater model for the night (warm box); null = survival load only.</summary>
+    public ThermalSpec? Thermal { get; set; }
 
     /// <summary>Optional glTF/GLB model for the 3D view (visualisation only; falls back to primitives).</summary>
     public string? ModelUri { get; set; }
@@ -141,6 +173,7 @@ public class LanderPreset
             : (ModelHeightM is > 0 ? new LanderModelSpec(ModelUri, ModelHeightM.Value, "height", ModelRotationDeg ?? 0, ModelCredit, ModelNozzleOffsetM) : null);
 
     /// <summary>All present parameters, in display order.</summary>
+    /// <summary>The lander's own figures (the heater model's figures are separate: <see cref="Thermal"/>).</summary>
     public IEnumerable<LanderParam> AllParams =>
         new LanderParam?[] { SolarArrayW, Panels, BatteryWh, BatteryRoundTripEff, DayLoadW, SurvivalLoadW, MissionDurationDays, DesignedForNight, Crew, PayloadKg, LandingAccuracyM, PanelHeightM }
             .OfType<LanderParam>();

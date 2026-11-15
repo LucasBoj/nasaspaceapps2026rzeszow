@@ -11,9 +11,10 @@ namespace SeleneFrontend.Services;
 /// Energy out / energy in of the battery, (0, 1]; 1 = ideal battery. Split evenly: charge and discharge each lose √η.
 /// Loads are served from the array first (direct energy transfer), so only the energy that passes through the battery is lost.
 /// </param>
+/// <param name="Thermal">Warm-box heater model (<see cref="ThermalModel"/>); null = survival load only, no heaters.</param>
 public sealed record LanderInputs(double SolarArrayW, double BatteryWh, double DayLoadW, double SurvivalLoadW, string WeakestKind,
                                   PanelLayout? Panels = null, double? HeadingDeg = null, bool IdealTracking = false,
-                                  double BatteryRoundTripEff = 1.0);
+                                  double BatteryRoundTripEff = 1.0, ThermalInputs? Thermal = null);
 
 /// <summary>Constraints from section 04.</summary>
 public sealed record MissionThresholds(double MinBatteryPct, double MinCommsPct);
@@ -51,6 +52,28 @@ public sealed record SimulationResult
     public double BatteryRoundTripEff { get; init; } = 1.0;
     /// <summary>Energy lost in the battery (charge + discharge), Wh.</summary>
     public double BatteryLossWh { get; init; }
+
+    // ---- Heaters (thermal model; zeros / NaN when it was off) ----
+    /// <summary>The heater model ran (lander has thermal data and the heaters what-if is not off).</summary>
+    public bool ThermalModel { get; init; }
+    /// <summary>Ground temperatures came from LRO Diviner (false: no Diviner data, ground treated as 0 K).</summary>
+    public bool GroundFromDiviner { get; init; }
+    /// <summary>Heater set point used (°C; NaN without the thermal model).</summary>
+    public double HeaterSetPointC { get; init; } = double.NaN;
+    public double HeaterEnergyWh { get; init; }
+    public double HeaterPeakW { get; init; }
+    public double HeaterHours { get; init; }
+    /// <summary>Coldest warm-box temperature during the mission (°C; NaN without the thermal model).</summary>
+    public double BoxMinTempC { get; init; } = double.NaN;
+    /// <summary>Coldest / warmest Diviner ground temperature during the mission (K; NaN without Diviner data).</summary>
+    public double GroundMinK { get; init; } = double.NaN;
+    public double GroundMaxK { get; init; } = double.NaN;
+    /// <summary>Mean Diviner ground temperature in the mission's dark hours (K; NaN without dark hours or data).</summary>
+    public double GroundDarkMeanK { get; init; } = double.NaN;
+    /// <summary>Per step (recordSeries and thermal model only): heater power (W), box temperature (°C), ground (K).</summary>
+    public double[] HeaterW { get; init; } = [];
+    public double[] BoxTempC { get; init; } = [];
+    public double[] GroundK { get; init; } = [];
 
     // ---- Sky geometry (NaN when the data file lacks the series) ----
     public double SunElevMinDeg { get; init; } = double.NaN;
@@ -93,7 +116,8 @@ public static class MissionSimulator
     /// Simulate from <paramref name="landingUtc"/> for <paramref name="durationDays"/>.
     /// Each step: production = solarArrayW × sunFraction/100 × incidence factor (1 for ideal tracking,
     /// Lambert cosine on fixed panels — see <see cref="SolarGeometry"/>); load = dayLoadW when lit,
-    /// otherwise survivalLoadW; the load is served from the array first, a surplus charges the battery at √η,
+    /// otherwise survivalLoadW plus the heaters (<see cref="ThermalModel"/>, when <see cref="LanderInputs.Thermal"/> is set,
+    /// with the site's Diviner ground temperature); the load is served from the array first, a surplus charges the battery at √η,
     /// a deficit is drawn from it at 1/√η (η = round-trip efficiency); the battery starts full and is clamped to [0, batteryWh].
     /// Fixed panels fall back to ideal tracking when the data file has no Sun elevation/azimuth series.
     /// </summary>
@@ -148,6 +172,19 @@ public static class MissionSimulator
         double batteryLoss = 0;
         double factorAtDepletion = 1;
 
+        // ---- Heaters: one-node warm box, ground temperature from Diviner (0 K without data) ----
+        var thermal = lander.Thermal;
+        var box = thermal is null ? default : new ThermalModel.WarmBox(thermal);
+        var ground = thermal is null ? [] : series.GroundTempK();
+        var hasGround = ground.Length >= series.Count && series.Count > 0;
+        var heaterW = recordSeries && thermal is not null ? new double[steps] : [];
+        var boxC = recordSeries && thermal is not null ? new double[steps] : [];
+        var groundRec = recordSeries && thermal is not null && hasGround ? new double[steps] : [];
+        double heaterEnergy = 0, heaterPeak = 0, heaterHours = 0, boxMinK = double.PositiveInfinity;
+        double heaterRunH = 0, heaterRunAtDepletion = 0;
+        double groundMin = double.PositiveInfinity, groundMax = double.NegativeInfinity, groundDarkSum = 0;
+        int groundDarkN = 0;
+
         for (var i = 0; i < steps; i++)
         {
             var t = start + i;
@@ -157,7 +194,32 @@ public static class MissionSimulator
             var production = model is null || sf <= 0
                 ? ideal
                 : ideal * model.Raw(cosEl[t], sinEl[t], cosAz[t], sinAz[t], cosPhi, sinPhi) * invK;
-            var load = lit ? lander.DayLoadW : lander.SurvivalLoadW;
+            double heater = 0;
+            if (thermal is not null)
+            {
+                var tg = hasGround ? ground[t] : 0.0;
+                if (hasGround)
+                {
+                    groundMin = Math.Min(groundMin, tg); groundMax = Math.Max(groundMax, tg);
+                    if (!lit) { groundDarkSum += tg; groundDarkN++; }
+                }
+                if (lit) { box.Lit(); heaterRunH = 0; }
+                else
+                {
+                    heater = box.Dark(lander.SurvivalLoadW, tg, dt) / dt;
+                    if (heater > 0) { heaterHours += dt; heaterRunH += dt; }
+                }
+                heaterEnergy += heater * dt;
+                heaterPeak = Math.Max(heaterPeak, heater);
+                boxMinK = Math.Min(boxMinK, box.TempK);
+                if (recordSeries)
+                {
+                    heaterW[i] = heater;
+                    boxC[i] = box.TempK - ThermalModel.ZeroCelsiusK;
+                    if (groundRec.Length > 0) groundRec[i] = tg;
+                }
+            }
+            var load = lit ? lander.DayLoadW : lander.SurvivalLoadW + heater;
             energyProduced += production * dt;
             energyIdeal += ideal * dt;
             energyLoad += load * dt;
@@ -191,6 +253,7 @@ public static class MissionSimulator
                     depletedInDarkness = !lit;
                     factorAtDepletion = ideal > 0 ? production / ideal : 1;
                     darkRunAtDepletion = lit ? 0 : darkRunH + dt;
+                    heaterRunAtDepletion = lit ? 0 : heaterRunH;
                 }
             }
             soc = Math.Min(soc, lander.BatteryWh);
@@ -252,6 +315,19 @@ public static class MissionSimulator
             PanelEfficiency = energyIdeal > 0 ? energyProduced / energyIdeal : double.NaN,
             BatteryRoundTripEff = eta,
             BatteryLossWh = batteryLoss,
+            ThermalModel = thermal is not null,
+            GroundFromDiviner = thermal is not null && hasGround,
+            HeaterSetPointC = thermal?.MinTempC ?? double.NaN,
+            HeaterEnergyWh = heaterEnergy,
+            HeaterPeakW = heaterPeak,
+            HeaterHours = heaterHours,
+            BoxMinTempC = thermal is null ? double.NaN : boxMinK - ThermalModel.ZeroCelsiusK,
+            GroundMinK = groundMin <= groundMax ? groundMin : double.NaN,
+            GroundMaxK = groundMin <= groundMax ? groundMax : double.NaN,
+            GroundDarkMeanK = groundDarkN > 0 ? groundDarkSum / groundDarkN : double.NaN,
+            HeaterW = heaterW,
+            BoxTempC = boxC,
+            GroundK = groundRec,
             SunElevMinDeg = hasElev ? elMin : double.NaN,
             SunElevMaxDeg = hasElev ? elMax : double.NaN,
             SunElevMeanDeg = hasElev ? elSum / steps : double.NaN,
@@ -273,6 +349,8 @@ public static class MissionSimulator
         };
 
         var (verdict, reason) = Judge(result, thresholds, depletedInDarkness, darkRunAtDepletion, factorAtDepletion);
+        if (depletedInDarkness && heaterRunAtDepletion > 0 && thermal is not null)
+            reason += $" — heaters ran the last {heaterRunAtDepletion:0} h to keep the electronics above {thermal.MinTempC:0} °C";
         return result with { Verdict = verdict, Reason = reason };
     }
 

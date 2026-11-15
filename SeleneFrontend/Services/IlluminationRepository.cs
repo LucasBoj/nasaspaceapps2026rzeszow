@@ -81,13 +81,23 @@ public sealed class IlluminationRepository(HttpClient http)
                 : AtHeightAsync(siteId, first, last, height);
             _joined[key] = task;
         }
-        try { return await task; }
+        IlluminationSeries series;
+        try { series = await task; }
         catch
         {
             _joined.Remove(key);   // a failed download or computation may be retried
             throw;
         }
+        // The heater model reads the site's Diviner ground temperatures from the series (custom points: none).
+        if (series.Ground is null && !IsCustom(siteId) && await GetDiviner() is { } diviner) series.Ground = diviner.For(siteId);
+        return series;
     }
+
+    private Task<DivinerData?>? _diviner;
+
+    /// <summary>LRO Diviner surface temperatures at the sites (<c>data/thermal/diviner.json</c>), cached; null when missing.</summary>
+    public Task<DivinerData?> GetDiviner() =>
+        _diviner ??= LoadOptionalAsync<DivinerData>("data/thermal/diviner.json");
 
     private async Task<IlluminationSeries> AtHeightAsync(string siteId, int first, int last, double heightM)
     {

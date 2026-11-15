@@ -61,8 +61,12 @@
         <div class="lander-detail-title">SPECS · @sel.Name.ToUpperInvariant()</div>
         <table class="specs-table">
             <tbody>
-                @foreach (var row in SpecRows(sel))
+                @foreach (var row in SpecRows(sel).Concat(HeaterRows(sel)))
                 {
+                    @if (row.Key == "heat-min")
+                    {
+                        <tr class="specs-subhead"><th scope="rowgroup" colspan="4"><Term Key="heaters">Night heaters</Term> · model, not lander data</th></tr>
+                    }
                     var infoId = $"spec-info-{row.Key}";
                     var open = openInfo == row.Key;
                     <tr>
@@ -97,7 +101,12 @@
                 }
             </tbody>
         </table>
-        <p class="specs-footnote">Values marked ASSUMPTION are class estimates where manufacturers publish no figures.</p>
+        <p class="specs-footnote">Values marked ASSUMPTION are class estimates where manufacturers publish no figures.
+            @if (sel.Thermal is not null)
+            {
+                <text>Night-heater figures belong to our thermal model and are not counted in the data-quality score.</text>
+            }
+        </p>
 
         <div class="lander-impact" aria-live="polite">
             <div class="lander-detail-title">LANDER IMPACT</div>
@@ -155,6 +164,24 @@
                                     @onclick="() => MissionState.ClearWhatIf(MissionConfigState.WhatIfIdealBattery)">REAL (data)</button>
                             <button type="button" class="segmented-option @(idealBattery ? "active" : "")" aria-pressed="@(idealBattery ? "true" : "false")"
                                     @onclick="() => MissionState.SetWhatIf(MissionConfigState.WhatIfIdealBattery, 1)">IDEAL (no losses)</button>
+                        </div>
+                    </div>
+                }
+                @if (MissionState.HasThermalModel)
+                {
+                    var off = MissionState.HeatersOff;
+                    <div class="whatif-row">
+                        <span class="whatif-label" id="whatif-heaters-label"><Term Key="heaters">Night heaters</Term></span>
+                        <span class="whatif-value">@(off ? "OFF (battery only)" : "ON (thermal model)")</span>
+                        @if (off)
+                        {
+                            <span class="kind-badge whatif">WHAT-IF</span>
+                        }
+                        <div class="segmented whatif-segmented" role="group" aria-labelledby="whatif-heaters-label">
+                            <button type="button" class="segmented-option @(!off ? "active" : "")" aria-pressed="@(!off ? "true" : "false")"
+                                    @onclick="() => MissionState.ClearWhatIf(MissionConfigState.WhatIfHeatersOff)">ON (model)</button>
+                            <button type="button" class="segmented-option @(off ? "active" : "")" aria-pressed="@(off ? "true" : "false")"
+                                    @onclick="() => MissionState.SetWhatIf(MissionConfigState.WhatIfHeatersOff, 1)">OFF (optimistic)</button>
                         </div>
                     </div>
                 }
@@ -231,8 +258,26 @@
     }
 
     /// <summary>Hours the battery carries the survival load in darkness, down to the battery threshold (derived from landers.json).</summary>
-    private double? DarkHours(LanderPreset l) =>
+    private double? PlainDarkHours(LanderPreset l) =>
         l.BatteryWh is { } b && l.SurvivalLoadW is { Value: > 0 } s ? b.Value * (1 - MissionState.MinBatteryPercent / 100) / s.Value : null;
+
+    /// <summary>
+    /// The same with the night heaters (thermal model, cold ground ≈ sky): the realistic reserve. Equals
+    /// <see cref="PlainDarkHours"/> without a thermal model or with the heaters what-if off.
+    /// </summary>
+    private double? DarkHours(LanderPreset l) =>
+        PlainDarkHours(l) is not { } plain ? null
+        : MissionState.HeatersOff || l.Thermal?.ToInputs() is not { } t ? plain
+        : ThermalModel.DarkEnduranceHours(l.BatteryWh!.Value * (1 - MissionState.MinBatteryPercent / 100), l.SurvivalLoadW!.Value, t, 0);
+
+    /// <summary>"~3 h in darkness with heaters (~4 h on battery alone)", or "~12 h on battery in darkness" when heaters add nothing.</summary>
+    private string Reserve(LanderPreset l, double hours)
+    {
+        var h = hours.ToString("0", CultureInfo.InvariantCulture);
+        return PlainDarkHours(l) is { } plain && plain - hours >= 0.5
+            ? $"~{h} h in darkness with heaters (~{plain.ToString("0", CultureInfo.InvariantCulture)} h on battery alone)"
+            : $"~{h} h on battery in darkness";
+    }
 
     private string? CardNumbers(LanderPreset l)
     {
@@ -247,13 +292,13 @@
     {
         if (DarkHours(l) is not { } h) return null;
         var hs = all.Select(DarkHours).OfType<double>().ToList();
-        var hours = h.ToString("0", CultureInfo.InvariantCulture);
-        if (hs.Count < 3) return $"Battery carries it ~{hours} h through darkness.";
-        if (h >= hs.Max()) return $"Longest reserve: ~{hours} h on battery in darkness.";
-        if (h <= hs.Min()) return $"Smallest reserve: ~{hours} h on battery — needs steady sunlight.";
+        var reserve = Reserve(l, h);
+        if (hs.Count < 3) return $"Lasts {reserve}.";
+        if (h >= hs.Max()) return $"Longest reserve: {reserve}.";
+        if (h <= hs.Min()) return $"Smallest reserve: {reserve} — needs steady sunlight.";
         if (l.SolarArrayW is { } a && all.All(x => x.SolarArrayW is null || x.SolarArrayW.Value <= a.Value))
             return l.DayLoadW is { } d ? $"Most solar power, but also the largest day load ({Fmt(d.Value)} W)." : "Most solar power.";
-        return $"~{hours} h on battery in darkness.";
+        return reserve + ".";
     }
 
     private ElementReference gridRef;
@@ -288,6 +333,22 @@
         if (l.PanelHeightM is { } ph) yield return new("panelheight", "Panel height", ph, $"{Fmt(ph.Value)} m above ground");
     }
 
+    /// <summary>The heater model's figures (landers.json → thermal), shown under SPECS, not counted in the data-quality score.</summary>
+    private static IEnumerable<SpecRow> HeaterRows(LanderPreset l)
+    {
+        if (l.Thermal is not { } t) yield break;
+        if (t.MinTempC is { } min) yield return new("heat-min", "Heater set point", min, $"{Fmt(min.Value)} °C");
+        if (t.HeatLossW is { } loss)
+        {
+            var atMin = t.ToInputs() is { } ti ? ThermalModel.LossW(ti, ThermalModel.ToKelvin(ti.MinTempC), 0) : double.NaN;
+            yield return new("heat-loss", "Night heat loss", loss,
+                double.IsNaN(atMin) ? $"{Fmt(loss.Value)} W" : $"{Fmt(Math.Round(atMin))} W at the set point");
+        }
+        if (t.HeatCapacityKJPerK is { } c) yield return new("heat-mass", "Warm-box thermal mass", c, $"{Fmt(c.Value)} kJ/K");
+        if (t.OperatingTempC is { } op) yield return new("heat-op", "Daytime box temperature", op, $"{Fmt(op.Value)} °C");
+        if (t.GroundViewFactor is { } f) yield return new("heat-view", "Sees the ground", f, $"{Fmt(Math.Round(f.Value * 100))}% of its area");
+    }
+
     private static string PanelsText(PanelLayout p)
     {
         if (!p.IsFixed) return "IDEAL TRACKING";
@@ -319,6 +380,14 @@
             var usable = battery.Value * Math.Sqrt(MissionState.BatteryRoundTripEff);
             yield return new("Survives darkness", $"≈ {Fmt(Math.Round(usable / survival.Value, 1))} h",
                 Weakest(l.BatteryWh, l.BatteryRoundTripEff, l.SurvivalLoadW), whatIf || MissionState.IdealBattery);
+            // The same night with the heaters holding the warm box at its set point (cold ground ≈ sky).
+            if (l.Thermal?.ToInputs() is { } t && !MissionState.HeatersOff)
+            {
+                var heated = ThermalModel.DarkEnduranceHours(battery.Value, survival.Value, t, 0, MissionState.BatteryRoundTripEff);
+                var hold = ThermalModel.HoldPowerW(t, survival.Value, 0);
+                yield return new("…with heaters on", hold > 0 ? $"≈ {Fmt(Math.Round(heated, 1))} h" : "no heaters needed",
+                    ParamKind.Assumption, whatIf || MissionState.IdealBattery, hold > 0 && heated < usable / survival.Value - 0.5 ? "warn" : "");
+            }
         }
 
         if (solar is not null && l.DayLoadW is { } day)

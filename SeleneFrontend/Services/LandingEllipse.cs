@@ -71,6 +71,7 @@ public static class LandingEllipse
             ObserverHeightM = site.ObserverHeightM, Start = site.TimeAt(start), StepHours = site.StepHours, Count = count,
             SunFraction = sun, SunElevCentiDeg = sunEl, SunAzCentiDeg = sunAz,
             EarthVisible = earth, EarthElevCentiDeg = earthEl, EarthAzCentiDeg = earthAz,
+            Ground = site.Ground,   // the site's Diviner bin (240 m); the ellipse spans a few of them
         };
     }
 

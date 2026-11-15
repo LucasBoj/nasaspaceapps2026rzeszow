@@ -16,7 +16,7 @@ public class DemoScenarioTests
         return Path.Combine(d.FullName, "SeleneFrontend", "wwwroot", "data");
     }
 
-    private static SimulationResult Run(DateTime landingUtc)
+    private static SimulationResult Run(DateTime landingUtc, bool heaters = true)
     {
         var lander = JsonSerializer.Deserialize<List<LanderPreset>>(File.ReadAllText(Path.Combine(Data(), "landers.json")), Web)!
             .Single(l => l.Id == DemoScenario.LanderId);
@@ -29,8 +29,12 @@ public class DemoScenarioTests
                 File.ReadAllText(Path.Combine(Data(), "illumination", DemoScenario.SiteId, "heights.json")), Web)!;
             series = PanelHeightAnalysis.SeriesAt(series, heights.At(ph.Value)!);
         }
+        // As in the app: heaters at night (landers.json → thermal) against the site's Diviner ground temperatures.
+        series.Ground = JsonSerializer.Deserialize<DivinerData>(File.ReadAllText(Path.Combine(Data(), "thermal", "diviner.json")), Web)!
+            .For(DemoScenario.SiteId);
         var inputs = new LanderInputs(lander.SolarArrayW!.Value, lander.BatteryWh!.Value, lander.DayLoadW!.Value, lander.SurvivalLoadW!.Value,
-            ParamKind.Assumption, lander.Panels, null, false, lander.BatteryRoundTripEff?.Value ?? 1.0);
+            ParamKind.Assumption, lander.Panels, null, false, lander.BatteryRoundTripEff?.Value ?? 1.0,
+            heaters ? lander.Thermal?.ToInputs() : null);
         // App defaults: minimum battery 20 %, minimum Earth contact 50 %.
         return MissionSimulator.Run(series, inputs, landingUtc, DemoScenario.MissionDays, new MissionThresholds(20, 50));
     }
@@ -53,11 +57,25 @@ public class DemoScenarioTests
     {
         var m = Run(DemoScenario.LandingUtc);
         Assert.NotEqual(Verdict.NotFeasible, m.Verdict);
-        Assert.InRange(m.MinSocPct, 25, 70);   // visible dip, still above the 20 % limit (≈ 28 % with Blue Ghost's panels at 1 m)
         Assert.True(m.CommsPct >= 80, $"Earth contact {m.CommsPct:0.0} %");
         var dark = Assert.Single(DarkRuns(m));
         Assert.InRange(dark.Length * m.StepHours, 5, 12);
         Assert.InRange(dark.Start * m.StepHours / 24, 1, 6);   // in the middle of the mission, not at its ends
+    }
+
+    [Fact]
+    public void Quick_demo_heaters_turn_a_comfortable_dip_into_a_marginal_one()
+    {
+        // The cold is the story: battery alone keeps ≈ 28 %; heaters holding the electronics at −20 °C take it to ≈ 6 %.
+        var batteryOnly = Run(DemoScenario.LandingUtc, heaters: false);
+        var heated = Run(DemoScenario.LandingUtc);
+        Assert.Equal(Verdict.Feasible, batteryOnly.Verdict);
+        Assert.InRange(batteryOnly.MinSocPct, 25, 70);
+        Assert.Equal(Verdict.Marginal, heated.Verdict);
+        Assert.InRange(heated.MinSocPct, 2, 19);              // survives, below the 20 % limit
+        Assert.True(heated.HeaterEnergyWh > 50, $"heaters {heated.HeaterEnergyWh:0} Wh");
+        Assert.True(heated.GroundFromDiviner);
+        Assert.Equal(-20, heated.BoxMinTempC, 6);
     }
 
     [Fact]

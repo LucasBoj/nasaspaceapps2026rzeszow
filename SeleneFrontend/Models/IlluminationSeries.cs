@@ -66,6 +66,32 @@ public sealed class IlluminationSeries
         return result;
     }
 
+    /// <summary>
+    /// LRO Diviner surface temperatures of the site's 240 m bin (set by the repository; not part of the yearly files).
+    /// Null for custom points and when <c>data/thermal/diviner.json</c> is missing.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DivinerPoint? Ground { get; set; }
+
+    private double[]? _groundK;
+
+    /// <summary>
+    /// Ground temperature (K) per sample: the Diviner curve at the subsolar point seen from the site (from the stored Sun
+    /// elevation and azimuth). Empty without Diviner data or Sun geometry. Computed once per series.
+    /// </summary>
+    public double[] GroundTempK()
+    {
+        if (_groundK is not null && _groundK.Length == Count) return _groundK;
+        if (Ground is not { IsValid: true } g || !HasSunGeometry) return [];
+        var t = new double[Count];
+        for (var i = 0; i < Count; i++)
+        {
+            var (lat, lon) = DivinerPoint.SubsolarPoint(Lat, Lon, SunElevCentiDeg[i] / 100.0, SunAzCentiDeg[i] / 100.0);
+            t[i] = g.TempK(lat, lon);
+        }
+        return _groundK = t;
+    }
+
     // Lazily computed trigonometry of the Sun direction (private fields: never serialised).
     private double[]? _cosEl, _sinEl, _cosAz, _sinAz;
 
@@ -112,6 +138,7 @@ public sealed class IlluminationSeries
             EarthElevCentiDeg = Join(parts.Select(p => p.EarthElevCentiDeg)),
             EarthAzCentiDeg = parts.All(p => p.EarthAzCentiDeg.Length == p.Count) ? Join(parts.Select(p => p.EarthAzCentiDeg)) : [],
             HorizonDeg = first.HorizonDeg,
+            Ground = first.Ground,
         };
     }
 
