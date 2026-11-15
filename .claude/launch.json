@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "selene-frontend",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["watch", "--project", "SeleneFrontend", "--non-interactive"],
+      "port": 5281
+    }
+  ]
+}
