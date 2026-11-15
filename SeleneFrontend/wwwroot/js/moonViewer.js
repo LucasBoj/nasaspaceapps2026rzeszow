@@ -414,6 +414,50 @@ function isPin(entity) {
   return kind === "site" || kind === "custom" || kind === "candidate";
 }
 
+/**
+ * LANDED: the site cannot change until New landing — instead of ignoring the click, offer a new landing at the
+ * clicked pin or terrain point (80–90°S). LEFT_CLICK only fires without a drag, so moving the camera never asks.
+ */
+function offerNewLanding(click) {
+  if (surface) return;   // looking around from the surface: clicks belong to the camera
+  const picked = viewer.scene.pick(click.position);
+  const entity = Cesium.defined(picked) ? picked.id : undefined;
+  const { x, y } = click.position;
+  if (entity instanceof Cesium.Entity && entityKind(entity) === "site") {
+    dotNetRef?.invokeMethodAsync("OnLandedClick", entity.id, 0, 0, x, y, viewer.canvas.clientWidth, viewer.canvas.clientHeight).catch(() => {});
+    return;
+  }
+  let position = viewer.scene.pickPositionSupported ? viewer.scene.pickPosition(click.position) : undefined;
+  if (!Cesium.defined(position)) position = viewer.camera.pickEllipsoid(click.position, Cesium.Ellipsoid.MOON);
+  if (!Cesium.defined(position)) return;
+  const carto = Cesium.Cartographic.fromCartesian(position, Cesium.Ellipsoid.MOON);
+  if (!carto) return;
+  const lat = Cesium.Math.toDegrees(carto.latitude), lon = Cesium.Math.toDegrees(carto.longitude);
+  if (lat > -80) return;   // custom analysis covers 80–90°S only
+  dotNetRef?.invokeMethodAsync("OnLandedClick", "", lat, lon, x, y, viewer.canvas.clientWidth, viewer.canvas.clientHeight).catch(() => {});
+}
+
+/** "Land here" on a terrain point: the custom pin, as a normal click would place it. */
+export function markCustomSite(lat, lon) {
+  if (!viewer || viewer.isDestroyed()) return;
+  placeCustomPin(lat, lon);
+  selectSite(null);
+  decorate(CUSTOM_SITE_ID);
+}
+
+/** Test hook (E2E): the screen position of a site pin, so a test can click it. */
+window.__seleneSitePx = (id) => {
+  const e = viewer?.entities.getById(id);
+  if (!e) return null;
+  // Pins are clamped to the 3D terrain (kilometres above the ellipsoid): project the rendered ground point.
+  const c = Cesium.Cartographic.fromCartesian(e.position.getValue(Cesium.JulianDate.now()), Cesium.Ellipsoid.MOON);
+  let h = null;
+  try { h = viewer.scene.sampleHeightSupported ? viewer.scene.sampleHeight(c) : null; } catch { h = null; }
+  c.height = Number.isFinite(h) ? h : (viewer.scene.globe.getHeight(c) ?? 0);
+  const w = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, Cesium.Cartographic.toCartesian(c, Cesium.Ellipsoid.MOON));
+  return w ? { x: w.x, y: w.y } : null;
+};
+
 // Hover: pick at most once per animation frame.
 function onMouseMove(movement) {
   pendingHoverPos = movement.endPosition;
@@ -458,7 +502,8 @@ function entityKind(entity) {
 }
 
 function onLeftClick(click) {
-  if (!viewer || viewer.isDestroyed() || locked) return;   // landed: the site cannot change until NEW LANDING
+  if (!viewer || viewer.isDestroyed()) return;
+  if (locked) { offerNewLanding(click); return; }   // landed: a click asks "start a new landing here?"
   const picked = viewer.scene.pick(click.position);
   const entity = Cesium.defined(picked) ? picked.id : undefined;
 

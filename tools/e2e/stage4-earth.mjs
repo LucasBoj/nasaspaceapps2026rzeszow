@@ -46,7 +46,8 @@ if (pick) {
   };
   // 2) direction ±0.5°
   await show(pick.vis[0]);
-  const sky = await p.evaluate(([lat, lon]) => window.__seleneSky(lat, lon), [lat, lon]);
+  // Set the hour and read back in one step: the app may re-sync the sky to its own site at any moment.
+  const sky = await p.evaluate(([lat, lon, r]) => { window.__seleneSetSky(lat, lon, r.sunAz, r.sunEl, r.sunPct, r.az, r.el); return window.__seleneSky(lat, lon); }, [lat, lon, pick.vis[0]]);
   const dAz = Math.abs(((sky.earth.az - pick.vis[0].az + 540) % 360) - 180), dEl = Math.abs(sky.earth.el - pick.vis[0].el);
   const sAz = Math.abs(((sky.sun.az - pick.vis[0].sunAz + 540) % 360) - 180), sEl = Math.abs(sky.sun.el - pick.vis[0].sunEl);
   expect("Earth drawn at the data's azimuth / elevation (±0.5°)", dAz <= 0.5 && dEl <= 0.5, `Δaz ${dAz.toFixed(3)}°, Δel ${dEl.toFixed(3)}°`);

@@ -50,7 +50,7 @@
                 }
                 @if (Ui.Landed && !Ui.LandingInProgress)
                 {
-                    <button type="button" class="hud-btn new-landing" @onclick="Ui.NewLanding">New landing</button>
+                    <button type="button" class="hud-btn new-landing @(newLandingPulse ? "pulse" : "")" @onclick="Ui.NewLanding">New landing</button>
                 }
                 @if (Ui.AnalystMode)
                 {
@@ -186,6 +186,19 @@
          && MissionState.SelectedLander is { Model: { } aiModel } && modelStatus.GetValueOrDefault(aiModel.Uri) != "failed")
     {
         <div class="ai-model-badge" role="note" aria-label="AI-generated 3D model (Meshy AI + Microsoft TRELLIS.2, see Credits)">AI-generated 3D model</div>
+    }
+    @if (landedOffer is { } offer)
+    {
+        @* LANDED: a click on a pin or the terrain offers a new landing there (instead of doing nothing). *@
+        <div class="landed-offer" role="dialog" aria-modal="false" aria-labelledby="landed-offer-title"
+             style="left: @(offer.X.ToString("0", System.Globalization.CultureInfo.InvariantCulture))px; top: @(offer.Y.ToString("0", System.Globalization.CultureInfo.InvariantCulture))px"
+             @onkeydown="OnOfferKey">
+            <p id="landed-offer-title">Start a new landing at <strong>@offer.Name</strong>?</p>
+            <div class="landed-offer-actions">
+                <button type="button" class="btn-primary small land-here" @ref="landHereBtn" @onclick="LandHereAsync">Land here</button>
+                <button type="button" class="btn-secondary small" @onclick="CloseOffer">Cancel</button>
+            </div>
+        </div>
     }
     <ReplaySummary />
     <WelcomeCard />
@@ -408,7 +421,67 @@
     });
 
     /// <summary>The user dragged / scrolled the camera or pressed Esc: the mission summary folds away.</summary>
-    [JSInvokable] public void OnViewerInteraction() => Ui.CollapseSummary();
+    [JSInvokable] public void OnViewerInteraction() { Ui.CollapseSummary(); CloseOffer(); }
+
+    private sealed record LandedOffer(string? SiteId, double Lat, double Lon, string Name, double X, double Y);
+    private LandedOffer? landedOffer;
+    private bool landedHintShown, newLandingPulse;
+    private ElementReference landHereBtn;
+
+    /// <summary>LANDED: the user clicked a pin (siteId) or a terrain point (lat/lon) — offer a new landing there.</summary>
+    [JSInvokable]
+    public async Task OnLandedClick(string siteId, double lat, double lon, double x, double y, double width, double height)
+    {
+        if (!Ui.Landed || Ui.LandingInProgress) return;
+        var site = string.IsNullOrEmpty(siteId) ? null : MissionState.AvailableSites.FirstOrDefault(s => s.Id == siteId);
+        if (!string.IsNullOrEmpty(siteId) && site is null) return;
+        var name = site?.Name ?? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{lat:F2}°, {lon:F2}°");
+        // Next to the cursor, kept inside the 3D view (card ≈ 320 × 110 px).
+        landedOffer = new LandedOffer(site?.Id, lat, lon, name, Math.Clamp(x + 12, 8, Math.Max(8, width - 332)), Math.Clamp(y + 12, 8, Math.Max(8, height - 118)));
+        if (!landedHintShown)
+        {
+            // First time in the session: show where this comes from — the New landing button pulses once.
+            landedHintShown = newLandingPulse = true;
+            _ = Task.Delay(1200).ContinueWith(_ => InvokeAsync(() => { newLandingPulse = false; StateHasChanged(); }));
+        }
+        StateHasChanged();
+        await Task.Yield();
+        try { await landHereBtn.FocusAsync(); } catch (Exception) { /* rendered away */ }
+    }
+
+    private void CloseOffer()
+    {
+        if (landedOffer is null) return;
+        landedOffer = null;
+        StateHasChanged();
+    }
+
+    private void OnOfferKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") CloseOffer();
+    }
+
+    /// <summary>"Land here": New landing, select the clicked site (or place the custom point), then Land & analyze.</summary>
+    private async Task LandHereAsync()
+    {
+        if (landedOffer is not { } offer) return;
+        landedOffer = null;
+        Ui.NewLanding();
+        if (offer.SiteId is { } id)
+        {
+            Ui.ConfirmSite();
+            await MissionState.SelectSite(id);
+        }
+        else
+        {
+            if (moonModule is not null)
+            {
+                try { await moonModule.InvokeVoidAsync("markCustomSite", offer.Lat, offer.Lon); } catch (JSDisconnectedException) { }
+            }
+            await OnCustomSiteCreated(offer.Lat, offer.Lon);   // waits for the terrain check (slope, coverage)
+        }
+        if (Ui.CanConfirmLanding) await Ui.ConfirmLandingAsync();
+    }
 
     private bool terrain3D;
     private bool surfaceView;

@@ -192,6 +192,12 @@ Każdy etap osobno do `main` po zielonych testach i ręcznym sprawdzeniu.
   - Naprawiony błąd: podpowiedź HUD w przepływie wiersza powodowała pętlę przeskoków pod myszą przy szerszym wierszu (nowy przycisk) — teraz pozycjonowana absolutnie; plakietka SI krótsza („AI-generated 3D model”, narzędzia w Credits) i rząd niżej. Czytelność wciśniętego przycisku HUD pod myszą.
   - Testy: `tools/e2e/stage4-earth.mjs` 16/16 (kierunki ±0,5°, zasłanianie 5 godzin, oko 1–6 m nad terenem, limity pochylenia, ⌂ View wychodzi, Play mission z powierzchni, lądownik na gruncie w kadrze); regresja w Chromium, WebKit i Firefox: stage4 16/16, stage2 44/44 (WebKit raz 43/44 — „heatmap in view” przy 1920×1080, powtórka 44/44), stage3 10/10, replay 17/17, stage-b 11/11, stage-c 16/16, ai-label 8/8, blokady 15/15, custom 12/12; UX: jedyny stały błąd „no jargon in SIMPLE” pochodzi z nowych funkcji zespołu na main (patrz Known issues), plus znany czas karty powitalnej w Firefoxie — 2026-11-15 — commit z tym wpisem — AI: Claude Code
 
+- **Stan LANDED: klik w Księżyc proponuje nowe lądowanie** (2026-11-15)
+  - Klik w jedną z 9 pinezek albo w teren 80–90°S po wylądowaniu otwiera przy kursorze kartę „Start a new landing at <miejsce / lat, lon>?” z „Land here” (New landing + wybór miejsca, dla terenu punkt custom z kontrolą DEM, potem od razu Land & analyze z obecnym lądownikiem i oknem dat) i „Cancel”; Esc, klik obok albo ruch kamery zamyka. Karta mieści się w widoku 3D, fokus na „Land here”.
+  - Pierwszy taki klik w sesji pulsuje przycisk „New landing” w HUD (~1 s; przy ograniczonym ruchu stała obwódka).
+  - Bez zmian: przeciąganie kamery nie otwiera karty (Cesium LEFT_CLICK tylko bez ruchu), podwójne kliknięcie przybliża, w Surface view klik nie pyta.
+  - Testy: `tools/e2e/landed-click.mjs` 8/8 (przeciąganie bez karty, karta przy pinezce, pulsowanie, Cancel bez zmian, Esc, Land here → lądowanie i werdykt dla klikniętego miejsca); hak testowy `window.__seleneSitePx` (pozycja pinezki na renderowanym terenie) — 2026-11-15 — commit z tym wpisem — AI: Claude Code
+
 ## 🔄 In progress
 
 _(nic przypisanego — wpisz się tutaj, gdy zaczynasz zadanie)_
@@ -352,6 +358,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - **Testy E2E nie sprawdzają trybu 3D** — lokalnie nie ma `appsettings.Development.json` z tokenem, więc `tools/e2e` jedzie w trybie 2D (globus Cesium, wysokość 0 m), a błędy kafli 3D (wysokość gruntu, skoki terenu) widać tylko na produkcji. Po zmianach w `landingAnimation.js` / `missionReplay.js` sprawdzić ręcznie na https://selene.byst.re/ (świeże wejście + QUICK DEMO + Play mission).
 - **Pierwsze wejście: globus 3D dociąga się ~15–20 s** (pierwsze ~6 s czarne tło, potem częściowe kafle; przy kolejnych wejściach z cache ~8 s). Na prezentacji otworzyć stronę wcześniej.
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — etap 4 Ziemia na niebie: pobranie tekstury Blue Marble, moduł skyView, tryb Surface view, test zasłaniania na danych, naprawa zakopanego lądownika i pętli podpowiedzi HUD, równoległe drzewa robocze
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — stan LANDED: karta „Start a new landing here?” przy kliku w pinezkę lub teren, pulsowanie New landing, test E2E
 ## ⚠️ Known issues / ryzyka
 
 - **Żargon w trybie SIMPLE z nowych funkcji (dla zespołu)** — przełącznik „Ice (PSR)” i zdanie P(FEASIBLE) „…turned up to 15° off its planned heading” widać w SIMPLE; zasada CLAUDE.md: bez PSR / heading w SIMPLE (test UX „no jargon” to łapie). Proponowane: „Ice in shadowed craters”, „…turned up to 15° from its planned direction”.
