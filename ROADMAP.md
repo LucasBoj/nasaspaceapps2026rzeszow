@@ -197,6 +197,14 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
   - **C. Czytelność ANALYST (~3 h):** minimum 12 px dla każdego tekstu, etykiety Sans zamiast mono caps; usunąć powtórzenie werdyktu (linia pod kartą) i podwójne COMPARE (zakładka + przycisk); panel odporności w 2 grupach („Założenia mocy”: LOAD; „Celność lądowania”: ELLIPSE + NASA ±120 m) z mapą elipsy przy swoim tekście; oś czasu z osią baterii 0/50/100 % i dniami „Day 1…7”; heatmapa z rzadszymi etykietami miesięcy i legendą pod spodem.
   - Weryfikacja po każdym pakiecie: zrzuty w 1366×768 i 1920×1080 (oba tryby), axe bez błędów critical/serious, `prefers-reduced-motion`, testy xUnit; pluginy do pomocy: frontend-design, Design (design-critique, accessibility-review, ux-copy), UI Design Review.
 
+- [ ] **Warstwa naukowa: lód wodny i trwale zacienione kratery (PSR) — kompromis „słońce kontra lód”** (analiza 2026-11-15, kandydat do „Best Use of Science”) — A/C
+  - Dane: NASA LOLA `LPSR_75S_120M_201608` (Mazarico et al. 2011, PDS, ta sama siatka co nasz DEM, 116 MB; 27 700 km² PSR w 75–90°S, 2310 obszarów ≥ 1 km²); opcjonalnie Diviner `DLRE_PRP_SOUTH` (Paige et al. 2010, PDS, 605 MB: temperatura maksymalna, głębokość stabilności lodu) i wymaganie NASA Artemis III „EVA slope < 20° within 2 km” (NTRS 20240009596, s. 19).
+  - Prototyp (9 miejsc): do PSR ≥ 1 km² 5,0–12,0 km (Malapert 10,5, Nobile Rim 1 11,8, Mons Mouton 12,0). Front kompromisu wśród kandydatów Wuellera, np. Nobile Rim 2: NR205 słońce 52 % / PSR 7,4 km vs NR201 45 % / 0,3 km (19,5 km² PSR w 5 km); Haworth: 65 % / 8,3 km vs HW01 56 % / 2,2 km; Mons Mouton: 75 % / 12,0 km vs MMO07 28 % / 1,0 km.
+  - Etap 1 (pipeline, ~1 h): `build_psr.py` → `data/science/psr.json` (dla 9 miejsc i 78 kandydatów: odległość do PSR dowolnego / ≥ 1 / ≥ 10 km², powierzchnia PSR w 2/5/10 km, najbliższy PSR) + obrysy PSR do 15 km od miejsc (`psr_{site}.geojson`); testy: dna Shackletona i Faustiniego są PSR, suma powierzchni vs Mazarico 2011.
+  - Etap 2 (frontend, ~2 h): SIMPLE — jedno zdanie „najbliższy krater trwale zacieniony (możliwy lód): X km”; lista miejsc z ikoną odległości; ANALYST — panel „SCIENCE · SUN vs ICE” (wykres kandydatów: słońce vs odległość do PSR, front Pareto, obecne miejsce); 3D — obrysy PSR przy wybranym miejscu (przełącznik warstwy).
+  - Etap 3 (~1,5 h): dla każdego regionu kandydat „ice-first” z frontu jako alternatywa z pełnymi seriami (build.py, elipsa, wysokości) → werdykt dla „słońce” vs „lód” tym samym lądownikiem i datą; łączy się z P2 „Alternatywy miejsca”.
+  - Etap 4 (opcjonalnie): dojście pieszo (Dijkstra po DEM, nachylenie < 20°, 2 km) i zimne pułapki Diviner (T_max < 110 K, głębokość lodu).
+
 ### P2
 
 - [ ] **Warstwa Moon Trek w odwzorowaniu polarnym** (tylko tryb 2D) (South Polar Stereographic) zamiast mozaiki walcowej, która przy biegunie jest rozmazana — C
@@ -272,6 +280,7 @@ P0 = bez tego nie ma zgłoszenia · P1 = mocno podnosi ocenę · P2 = efekt wow,
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — sekcja 10 UX: jeden główny przycisk, widoczne powody blokady, „Nearest region”, „Update results”; testy w 3 silnikach
 - 2026-11-14 — Claude Code (Claude Opus 5.5) — kurs lądowania w animacji: analiza geometrii i tekstury `nova_c.glb` (brak paneli bocznych), płyty paneli z danych, manewr yaw, obrót markera, scalenie z przebudową UX i nowymi modelami, testy w przeglądarce
 
+- 2026-11-15 — Claude Code (Claude Opus 5.5) — analiza warstwy naukowej PSR: wyszukanie danych (LOLA LPSR, Diviner PRP), prototyp odległości 9 miejsc i 78 kandydatów do PSR, front kompromisu słońce/lód, plan
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — wysokość paneli per lądownik: `panelHeightM`, przebudowa serii w przeglądarce, elipsa i wiersz odporności dla wysokości lądownika, ponowne sprawdzenie QUICK DEMO i testów
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — walidacja modelu: pobranie DEM LOLA 60 m, pomiary czułości (azymut, zasięg, tarcza, DEM, wysokość), porównanie z mapami NASA w środkach pikseli, plik wysokości horyzontu i wiersz PANELS 1–3 m, poprawa dokumentacji (błędna teza o optymizmie DEM)
 - 2026-11-15 — Claude Code (Claude Opus 5.5) — przegląd UI: wyszukanie pluginów do UI, zrzuty ekranów (Chrome bez okna przez DevTools), plan poprawek czytelności
